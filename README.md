@@ -262,4 +262,4 @@ For questions or issues, please refer to the codebase or create an issue in the 
 
 ---
 
-**Built with ❤️ for professional event management** 
+**Built with ❤️ for professional event management** # Updated for PostgreSQL deployment
