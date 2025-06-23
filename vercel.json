@@ -1,20 +1,35 @@
 {
   "version": 2,
   "name": "youshallpass",
-  "builds": [
-    {
-      "src": "index.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
+  "functions": {
+    "index.js": {
+      "runtime": "nodejs18.x"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/index.js"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/public/assets/$1"
+    },
+    {
+      "src": "/css/(.*)",
+      "dest": "/public/css/$1"
+    },
+    {
+      "src": "/js/(.*)",
+      "dest": "/public/js/$1"
+    },
+    {
+      "src": "/badges/(.*)",
+      "dest": "/public/badges/$1"
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "/public/uploads/$1"
     },
     {
       "src": "/(.*)",

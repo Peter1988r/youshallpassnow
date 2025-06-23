@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+</head>
+<body>
+    <h1>Static File Test</h1>
+    <p>If you can see this, static files are working!</p>
+    
+    <h2>Image Test:</h2>
+    <img src="/assets/images/logo.jpg" alt="Logo" style="width: 100px; height: 100px;">
+    
+    <h2>CSS Test:</h2>
+    <link rel="stylesheet" href="/css/styles.css">
+    <div style="color: red;">This should be red if CSS loads</div>
+    
+    <h2>JavaScript Test:</h2>
+    <script src="/js/main.js"></script>
+    <script>
+        console.log('JavaScript is working!');
+        document.write('<p>JavaScript loaded successfully!</p>');
+    </script>
+    
+    <h2>Direct File Test:</h2>
+    <p>Try accessing these directly:</p>
+    <ul>
+        <li><a href="/assets/images/logo.jpg">Logo Image</a></li>
+        <li><a href="/css/styles.css">CSS File</a></li>
+        <li><a href="/js/main.js">JS File</a></li>
+    </ul>
+</body>
+</html> 
