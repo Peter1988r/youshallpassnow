@@ -54,6 +54,21 @@ app.get('/test-static', (req, res) => {
     });
 });
 
+// Test endpoint to check demo users
+app.get('/test-users', async (req, res) => {
+    try {
+        const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
+        res.json({
+            message: 'Demo users check',
+            totalUsers: users.length,
+            users: users
+        });
+    } catch (error) {
+        console.error('Error checking users:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -87,15 +102,24 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
+        console.log('Login attempt for email:', email);
+        
         const users = await query('SELECT * FROM users WHERE email = $1', [email]);
+        console.log('Users found:', users.length);
+        
         if (users.length === 0) {
+            console.log('No user found with email:', email);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const user = users[0];
+        console.log('User found:', { id: user.id, email: user.email, role: user.role, is_super_admin: user.is_super_admin });
+        
         const validPassword = await bcrypt.compare(password, user.password_hash);
+        console.log('Password valid:', validPassword);
         
         if (!validPassword) {
+            console.log('Invalid password for user:', email);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -104,6 +128,8 @@ app.post('/api/auth/login', async (req, res) => {
             JWT_SECRET,
             { expiresIn: '24h' }
         );
+
+        console.log('Login successful for user:', email);
 
         res.json({
             token,
