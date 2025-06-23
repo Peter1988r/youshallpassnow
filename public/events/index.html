@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events | YouShallPass</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/events.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="/assets/images/logo.jpg" alt="YouShallPass Logo" class="nav-logo-img">
+                <span>YouShallPass</span>
+            </a>
+            <div class="nav-links">
+                <a href="/events" class="active">Events</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/settings">Settings</a>
+                <button class="btn-primary">Sign In</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Events Header -->
+        <section class="events-header">
+            <h1>Upcoming Events</h1>
+            <div class="events-filters">
+                <input type="text" placeholder="Search events..." class="search-input">
+                <select class="filter-select">
+                    <option value="all">All Categories</option>
+                    <option value="racing">Racing</option>
+                    <option value="championship">Championship</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Events Grid -->
+        <section class="events-grid">
+            <!-- Formula E Event -->
+            <div class="event-card">
+                <div class="event-image">
+                    <img src="/assets/images/formula-e.jpg" alt="Formula E">
+                    <span class="event-date">MAR 15-16, 2024</span>
+                </div>
+                <div class="event-content">
+                    <h3>Formula E World Championship</h3>
+                    <p class="event-location">São Paulo, Brazil</p>
+                    <p class="event-description">Experience the future of racing at the São Paulo E-Prix. Witness electric racing at its finest in the heart of Brazil.</p>
+                    <div class="event-footer">
+                        <span class="event-status">Registration Open</span>
+                        <button class="btn-primary">Apply Now</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extreme E Event -->
+            <div class="event-card">
+                <div class="event-image">
+                    <img src="/assets/images/extreme-e.jpg" alt="Extreme E">
+                    <span class="event-date">APR 3-4, 2024</span>
+                </div>
+                <div class="event-content">
+                    <h3>Extreme E Desert X Prix</h3>
+                    <p class="event-location">Saudi Arabia</p>
+                    <p class="event-description">Watch electric SUVs battle it out in the desert. Sustainable racing meets extreme conditions.</p>
+                    <div class="event-footer">
+                        <span class="event-status">Coming Soon</span>
+                        <button class="btn-secondary">Notify Me</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- E1 Series Event -->
+            <div class="event-card">
+                <div class="event-image">
+                    <img src="/assets/images/e1-series.jpg" alt="E1 Series">
+                    <span class="event-date">MAY 20-21, 2024</span>
+                </div>
+                <div class="event-content">
+                    <h3>E1 Series Championship</h3>
+                    <p class="event-location">Venice, Italy</p>
+                    <p class="event-description">The world's first electric powerboat racing series comes to Venice. Revolutionary marine racing technology in action.</p>
+                    <div class="event-footer">
+                        <span class="event-status">Early Access</span>
+                        <button class="btn-primary">Register Interest</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>YouShallPass</h4>
+                    <p>Making event access control seamless and secure.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <a href="/about">About</a>
+                    <a href="/contact">Contact</a>
+                    <a href="/privacy">Privacy Policy</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Connect</h4>
+                    <div class="social-links">
+                        <a href="#" aria-label="Twitter">Twitter</a>
+                        <a href="#" aria-label="LinkedIn">LinkedIn</a>
+                        <a href="#" aria-label="Instagram">Instagram</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 YouShallPass. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Main JavaScript -->
+    <script src="/js/main.js"></script>
+</body>
+</html> 

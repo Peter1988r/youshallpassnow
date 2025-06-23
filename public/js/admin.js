@@ -1,0 +1,762 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // Check super admin authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/signin';
+        return;
+    }
+
+    // Verify super admin status
+    verifySuperAdmin();
+
+    // Initialize dashboard
+    loadDashboardData();
+    setupEventListeners();
+});
+
+// Verify user is super admin
+async function verifySuperAdmin() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Authentication failed');
+        }
+        
+        const user = await response.json();
+        if (!user.is_super_admin) {
+            alert('Access denied. Super admin privileges required.');
+            window.location.href = '/dashboard';
+        }
+    } catch (error) {
+        console.error('Auth verification failed:', error);
+        window.location.href = '/signin';
+    }
+}
+
+// Load dashboard data
+async function loadDashboardData() {
+    try {
+        await Promise.all([
+            loadStats(),
+            loadRecentActivity(),
+            loadPendingApprovals()
+        ]);
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        showMessage('Failed to load dashboard data', 'error');
+    }
+}
+
+// Load statistics
+async function loadStats() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/stats', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load stats');
+        
+        const stats = await response.json();
+        
+        document.getElementById('totalCompanies').textContent = stats.totalCompanies;
+        document.getElementById('totalEvents').textContent = stats.totalEvents;
+        document.getElementById('totalUsers').textContent = stats.totalUsers;
+        document.getElementById('pendingApprovals').textContent = stats.pendingApprovals;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Load recent activity
+async function loadRecentActivity() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/activity', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load activity');
+        
+        const activities = await response.json();
+        const activityList = document.getElementById('activityList');
+        
+        if (activities.length === 0) {
+            activityList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <h3>No Recent Activity</h3>
+                    <p>Activity will appear here as companies and users interact with the system.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        activityList.innerHTML = activities.map(activity => `
+            <div class="activity-item">
+                <div class="activity-icon ${activity.type}">${getActivityIcon(activity.type)}</div>
+                <div class="activity-content">
+                    <h4>${activity.title}</h4>
+                    <p>${activity.description}</p>
+                </div>
+                <div class="activity-time">${formatTime(activity.created_at)}</div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading activity:', error);
+    }
+}
+
+// Load pending approvals
+async function loadPendingApprovals() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/approvals', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load approvals');
+        
+        const approvals = await response.json();
+        const approvalsTableBody = document.getElementById('approvalsTableBody');
+        
+        if (approvals.length === 0) {
+            approvalsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">✅</div>
+                            <h3>No Pending Approvals</h3>
+                            <p>All accreditations are up to date!</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        approvalsTableBody.innerHTML = approvals.map(approval => `
+            <tr data-approval-id="${approval.id}">
+                <td>
+                    <input type="checkbox" class="approval-checkbox" value="${approval.id}">
+                </td>
+                <td>
+                    <div class="applicant-info">
+                        <span class="applicant-name">${approval.company_name}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="applicant-info">
+                        <span class="applicant-name">${approval.event_name}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="applicant-info">
+                        <span class="applicant-name">${approval.first_name} ${approval.last_name}</span>
+                        <span class="applicant-email">${approval.email || 'No email provided'}</span>
+                    </div>
+                </td>
+                <td>
+                    <span class="status-badge pending">${approval.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                </td>
+                <td>${approval.email || 'N/A'}</td>
+                <td>${formatTime(approval.created_at)}</td>
+                <td>
+                    <div class="approval-actions">
+                        <button class="approve-btn" onclick="approveAccreditation(${approval.id})" title="Approve">
+                            ✓ Approve
+                        </button>
+                        <button class="reject-btn" onclick="rejectAccreditation(${approval.id})" title="Reject">
+                            ✗ Reject
+                        </button>
+                        <button class="view-btn" onclick="viewApplicantDetails(${approval.id})" title="View Details">
+                            👁 View
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Setup checkbox functionality
+        setupApprovalCheckboxes();
+        
+    } catch (error) {
+        console.error('Error loading approvals:', error);
+        showMessage('Failed to load pending approvals', 'error');
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Modal elements
+    const addCompanyModal = document.getElementById('addCompanyModal');
+    const addEventModal = document.getElementById('addEventModal');
+    const addUserModal = document.getElementById('addUserModal');
+    
+    // Buttons
+    const addCompanyBtn = document.getElementById('addCompanyBtn');
+    const addEventBtn = document.getElementById('addEventBtn');
+    const addUserBtn = document.getElementById('addUserBtn');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const signOutBtn = document.getElementById('signOutBtn');
+    
+    // Close buttons
+    const closeModals = document.querySelectorAll('.close-modal');
+    const cancelButtons = document.querySelectorAll('[id^="cancelAdd"]');
+    
+    // Show modals
+    addCompanyBtn.addEventListener('click', () => {
+        addCompanyModal.style.display = 'block';
+    });
+    
+    addEventBtn.addEventListener('click', () => {
+        addEventModal.style.display = 'block';
+        loadCompaniesForSelect('eventCompany');
+    });
+    
+    addUserBtn.addEventListener('click', () => {
+        addUserModal.style.display = 'block';
+        loadCompaniesForSelect('userCompany');
+    });
+    
+    generateReportBtn.addEventListener('click', generateReport);
+    signOutBtn.addEventListener('click', signOut);
+    
+    // Hide modals
+    const hideModal = (modal) => {
+        modal.style.display = 'none';
+    };
+    
+    closeModals.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal');
+            hideModal(modal);
+        });
+    });
+    
+    cancelButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal');
+            hideModal(modal);
+        });
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            hideModal(e.target);
+        }
+    });
+    
+    // Form submissions
+    document.getElementById('addCompanyForm').addEventListener('submit', handleAddCompany);
+    document.getElementById('addEventForm').addEventListener('submit', handleAddEvent);
+    document.getElementById('addUserForm').addEventListener('submit', handleAddUser);
+    
+    // Approval actions
+    document.getElementById('bulkApproveBtn').addEventListener('click', bulkApproveApprovals);
+    document.getElementById('refreshApprovalsBtn').addEventListener('click', loadPendingApprovals);
+}
+
+// Load companies for select dropdowns
+async function loadCompaniesForSelect(selectId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/companies', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load companies');
+        
+        const companies = await response.json();
+        const select = document.getElementById(selectId);
+        
+        select.innerHTML = '<option value="">Select a company</option>';
+        companies.forEach(company => {
+            const option = document.createElement('option');
+            option.value = company.id;
+            option.textContent = company.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading companies:', error);
+    }
+}
+
+// Handle add company
+async function handleAddCompany(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/companies', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add company');
+        }
+        
+        const result = await response.json();
+        showMessage('Company added successfully!', 'success');
+        
+        // Hide modal and reset form
+        document.getElementById('addCompanyModal').style.display = 'none';
+        e.target.reset();
+        
+        // Reload dashboard data
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error adding company:', error);
+        showMessage('Failed to add company: ' + error.message, 'error');
+    }
+}
+
+// Handle add event
+async function handleAddEvent(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/events', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create event');
+        }
+        
+        const result = await response.json();
+        showMessage('Event created successfully!', 'success');
+        
+        // Hide modal and reset form
+        document.getElementById('addEventModal').style.display = 'none';
+        e.target.reset();
+        
+        // Reload dashboard data
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error creating event:', error);
+        showMessage('Failed to create event: ' + error.message, 'error');
+    }
+}
+
+// Handle add user
+async function handleAddUser(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add user');
+        }
+        
+        const result = await response.json();
+        showMessage('User added successfully!', 'success');
+        
+        // Hide modal and reset form
+        document.getElementById('addUserModal').style.display = 'none';
+        e.target.reset();
+        
+        // Reload dashboard data
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error adding user:', error);
+        showMessage('Failed to add user: ' + error.message, 'error');
+    }
+}
+
+// Global functions for approval actions
+window.approveAccreditation = async (crewId) => {
+    if (!confirm('Are you sure you want to approve this accreditation?')) {
+        return;
+    }
+    
+    // Find the button and show loading state
+    const approveBtn = document.querySelector(`button[onclick="approveAccreditation(${crewId})"]`);
+    if (approveBtn) {
+        approveBtn.classList.add('loading');
+        approveBtn.disabled = true;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/approvals/${crewId}/approve`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to approve accreditation');
+        
+        const result = await response.json();
+        showMessage('Accreditation approved successfully!', 'success');
+        
+        // Reload data
+        loadPendingApprovals();
+        loadStats();
+        loadRecentActivity();
+        
+    } catch (error) {
+        console.error('Error approving accreditation:', error);
+        showMessage('Failed to approve accreditation: ' + error.message, 'error');
+    } finally {
+        // Remove loading state
+        if (approveBtn) {
+            approveBtn.classList.remove('loading');
+            approveBtn.disabled = false;
+        }
+    }
+};
+
+window.rejectAccreditation = async (crewId) => {
+    if (!confirm('Are you sure you want to reject this accreditation?')) {
+        return;
+    }
+    
+    // Find the button and show loading state
+    const rejectBtn = document.querySelector(`button[onclick="rejectAccreditation(${crewId})"]`);
+    if (rejectBtn) {
+        rejectBtn.classList.add('loading');
+        rejectBtn.disabled = true;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/approvals/${crewId}/reject`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to reject accreditation');
+        
+        const result = await response.json();
+        showMessage('Accreditation rejected successfully!', 'success');
+        
+        // Reload data
+        loadPendingApprovals();
+        loadStats();
+        loadRecentActivity();
+        
+    } catch (error) {
+        console.error('Error rejecting accreditation:', error);
+        showMessage('Failed to reject accreditation: ' + error.message, 'error');
+    } finally {
+        // Remove loading state
+        if (rejectBtn) {
+            rejectBtn.classList.remove('loading');
+            rejectBtn.disabled = false;
+        }
+    }
+};
+
+// Generate report
+async function generateReport() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/reports/generate', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to generate report');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `youshallpass-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showMessage('Report generated and downloaded successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showMessage('Failed to generate report', 'error');
+    }
+}
+
+// Sign out
+function signOut() {
+    localStorage.removeItem('token');
+    window.location.href = '/signin';
+}
+
+// Helper functions
+function getActivityIcon(type) {
+    const icons = {
+        'company': '🏢',
+        'event': '📅',
+        'user': '👤',
+        'approval': '✅'
+    };
+    return icons[type] || '📊';
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+}
+
+function showMessage(message, type = 'info') {
+    // Remove existing messages
+    const existingMessage = document.querySelector('.admin-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+
+    // Create message element
+    const messageEl = document.createElement('div');
+    messageEl.className = `admin-message admin-message-${type}`;
+    messageEl.textContent = message;
+    
+    // Style the message
+    messageEl.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+        z-index: 1000;
+        max-width: 300px;
+    `;
+
+    if (type === 'success') {
+        messageEl.style.backgroundColor = '#d1fae5';
+        messageEl.style.color = '#065f46';
+        messageEl.style.border = '1px solid #a7f3d0';
+    } else if (type === 'error') {
+        messageEl.style.backgroundColor = '#fee2e2';
+        messageEl.style.color = '#991b1b';
+        messageEl.style.border = '1px solid #fecaca';
+    } else {
+        messageEl.style.backgroundColor = '#dbeafe';
+        messageEl.style.color = '#1e40af';
+        messageEl.style.border = '1px solid #bfdbfe';
+    }
+
+    // Insert message
+    document.body.appendChild(messageEl);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (messageEl.parentNode) {
+            messageEl.remove();
+        }
+    }, 5000);
+}
+
+// Setup approval checkboxes functionality
+function setupApprovalCheckboxes() {
+    const selectAllCheckbox = document.getElementById('selectAllApprovals');
+    const approvalCheckboxes = document.querySelectorAll('.approval-checkbox');
+    const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', (e) => {
+        approvalCheckboxes.forEach(checkbox => {
+            checkbox.checked = e.target.checked;
+        });
+        updateBulkApproveButton();
+    });
+    
+    // Individual checkbox functionality
+    approvalCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkApproveButton);
+    });
+    
+    function updateBulkApproveButton() {
+        const checkedCount = document.querySelectorAll('.approval-checkbox:checked').length;
+        bulkApproveBtn.disabled = checkedCount === 0;
+        bulkApproveBtn.textContent = checkedCount > 0 ? `Bulk Approve (${checkedCount})` : 'Bulk Approve Selected';
+    }
+}
+
+// Bulk approve selected approvals
+async function bulkApproveApprovals() {
+    const selectedCheckboxes = document.querySelectorAll('.approval-checkbox:checked');
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+        showMessage('No approvals selected', 'error');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to approve ${selectedIds.length} accreditation(s)?`)) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const promises = selectedIds.map(id => 
+            fetch(`/api/admin/approvals/${id}/approve`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+        );
+        
+        const results = await Promise.all(promises);
+        const failedCount = results.filter(r => !r.ok).length;
+        const successCount = results.length - failedCount;
+        
+        if (successCount > 0) {
+            showMessage(`Successfully approved ${successCount} accreditation(s)!`, 'success');
+        }
+        
+        if (failedCount > 0) {
+            showMessage(`Failed to approve ${failedCount} accreditation(s)`, 'error');
+        }
+        
+        // Reload data
+        loadPendingApprovals();
+        loadStats();
+        
+    } catch (error) {
+        console.error('Error bulk approving:', error);
+        showMessage('Failed to bulk approve accreditations', 'error');
+    }
+}
+
+// View applicant details
+window.viewApplicantDetails = async (crewId) => {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/approvals/${crewId}/details`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load applicant details');
+        
+        const details = await response.json();
+        
+        // Create and show modal with details
+        showApplicantDetailsModal(details);
+        
+    } catch (error) {
+        console.error('Error loading applicant details:', error);
+        showMessage('Failed to load applicant details', 'error');
+    }
+};
+
+// Show applicant details modal
+function showApplicantDetailsModal(details) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Applicant Details</h3>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="applicant-details">
+                <div class="detail-row">
+                    <strong>Name:</strong> ${details.first_name} ${details.last_name}
+                </div>
+                <div class="detail-row">
+                    <strong>Email:</strong> ${details.email}
+                </div>
+                <div class="detail-row">
+                    <strong>Role:</strong> ${details.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </div>
+                <div class="detail-row">
+                    <strong>Company:</strong> ${details.company_name}
+                </div>
+                <div class="detail-row">
+                    <strong>Event:</strong> ${details.event_name}
+                </div>
+                <div class="detail-row">
+                    <strong>Requested:</strong> ${formatTime(details.created_at)}
+                </div>
+                <div class="detail-row">
+                    <strong>Badge Number:</strong> ${details.badge_number}
+                </div>
+                <div class="detail-row">
+                    <strong>Access Level:</strong> ${details.access_level}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                <button class="approve-btn" onclick="approveAccreditation(${details.id}); this.closest('.modal').remove()">Approve</button>
+                <button class="reject-btn" onclick="rejectAccreditation(${details.id}); this.closest('.modal').remove()">Reject</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+} 

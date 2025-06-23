@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | YouShallPass</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="/assets/images/logo.jpg" alt="YouShallPass Logo" class="nav-logo-img">
+                <span>YouShallPass</span>
+            </a>
+            <div class="nav-links">
+                <a href="/events">Events</a>
+                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="/settings">Settings</a>
+                <button class="btn-primary">Sign Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="dashboard-container">
+        <!-- Active Events Banner -->
+        <section class="active-events">
+            <h2>Your Active Events</h2>
+            <div class="event-cards">
+                <div class="event-card" data-event-id="1">
+                    <img src="/assets/images/formula-e.jpg" alt="Formula E">
+                    <div class="event-info">
+                        <h3>Formula E World Championship</h3>
+                        <p>São Paulo, Brazil</p>
+                        <span class="event-date">MAR 15-16, 2024</span>
+                    </div>
+                </div>
+                <div class="event-card" data-event-id="2">
+                    <img src="/assets/images/extreme-e.jpg" alt="Extreme E">
+                    <div class="event-info">
+                        <h3>Extreme E Desert X Prix</h3>
+                        <p>Saudi Arabia</p>
+                        <span class="event-date">APR 3-4, 2024</span>
+                    </div>
+                </div>
+                <div class="event-card" data-event-id="3">
+                    <img src="/assets/images/e1-series.jpg" alt="E1 Series">
+                    <div class="event-info">
+                        <h3>E1 Series Championship</h3>
+                        <p>Venice, Italy</p>
+                        <span class="event-date">MAY 20-21, 2024</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Event Details Section -->
+        <section class="event-details" id="eventDetails">
+            <div class="event-header">
+                <h2>Event Details</h2>
+                <div class="event-actions">
+                    <button class="btn-primary" id="addCrewBtn">Add Crew Member</button>
+                    <button class="btn-secondary" id="generateCrewListBtn">Generate Crew List</button>
+                </div>
+            </div>
+
+            <!-- Event Information -->
+            <div class="event-info-grid">
+                <div class="info-card">
+                    <h4>Event Status</h4>
+                    <p class="status-active">Active</p>
+                </div>
+                <div class="info-card">
+                    <h4>Crew Members</h4>
+                    <p>24 Active / 30 Total</p>
+                </div>
+                <div class="info-card">
+                    <h4>Onboarding Progress</h4>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: 80%"></div>
+                    </div>
+                    <p>80% Complete</p>
+                </div>
+            </div>
+
+            <!-- Crew Members Table -->
+            <div class="crew-section">
+                <h3>Crew Members</h3>
+                <div class="table-container">
+                    <table class="crew-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Sample crew member rows -->
+                            <tr>
+                                <td>John Doe</td>
+                                <td>Technical Director</td>
+                                <td>john.doe@example.com</td>
+                                <td><span class="status-badge complete">Complete</span></td>
+                                <td>
+                                    <button class="btn-icon" title="Edit"><i class="icon-edit"></i></button>
+                                    <button class="btn-icon" title="Delete"><i class="icon-delete"></i></button>
+                                </td>
+                            </tr>
+                            <!-- More rows... -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Crew Member Modal -->
+        <div class="modal" id="addCrewModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Crew Member</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <form id="addCrewForm">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" name="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" name="lastName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Role</label>
+                        <select id="role" name="role" required>
+                            <option value="">Select a role</option>
+                            <option value="technical_director">Technical Director</option>
+                            <option value="engineer">Engineer</option>
+                            <option value="mechanic">Mechanic</option>
+                            <option value="media">Media Personnel</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="photo">Photo (Optional)</label>
+                        <input type="file" id="photo" name="photo" accept="image/*">
+                        <small>Upload a photo for the badge (JPG, PNG)</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="cancelAddCrew">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Crew Member</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Main JavaScript -->
+    <script src="/js/main.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html> 
