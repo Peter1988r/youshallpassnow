@@ -173,8 +173,8 @@
         
         /* Social auth */
         .auth-divider {
-            text-align: center;
             margin: 2rem 0;
+            text-align: center;
             position: relative;
         }
         
@@ -263,6 +263,40 @@
             display: block;
             margin-bottom: 0.5rem;
         }
+        
+        .demo-credentials {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .demo-credentials h4 {
+            margin: 0 0 1rem 0;
+            color: #495057;
+            font-size: 1rem;
+        }
+        
+        .credential-group {
+            margin-bottom: 1rem;
+        }
+        
+        .credential-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .credential-group strong {
+            color: #212529;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .credential-group p {
+            margin: 0.25rem 0;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
@@ -328,7 +362,24 @@
                     <a href="/forgot-password" class="forgot-password">Forgot password?</a>
                 </div>
 
-                <button type="submit" class="btn-primary btn-block">Sign In</button>
+                <div class="form-group">
+                    <button type="submit" class="btn-primary">Sign In</button>
+                </div>
+                
+                <!-- Demo Credentials -->
+                <div class="demo-credentials">
+                    <h4>Demo Credentials</h4>
+                    <div class="credential-group">
+                        <strong>Super Admin:</strong>
+                        <p>Email: admin@youshallpass.com</p>
+                        <p>Password: admin123</p>
+                    </div>
+                    <div class="credential-group">
+                        <strong>Company Admin:</strong>
+                        <p>Email: company@demo.youshallpass.com</p>
+                        <p>Password: company123</p>
+                    </div>
+                </div>
 
                 <div class="auth-divider">
                     <span>Or continue with</span>

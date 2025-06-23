@@ -68,7 +68,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        const users = await query('SELECT * FROM users WHERE email = ?', [email]);
+        const users = await query('SELECT * FROM users WHERE email = $1', [email]);
         if (users.length === 0) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -121,7 +121,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const crew = await query(`
             SELECT id, first_name, last_name, role, access_level, badge_number, status, created_at
             FROM crew_members 
-            WHERE event_id = ? 
+            WHERE event_id = $1 
             ORDER BY first_name, last_name
         `, [eventId]);
         
@@ -139,7 +139,7 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const { firstName, lastName, email, role, photoPath } = req.body;
 
         // Validate event exists first
-        const events = await query('SELECT * FROM events WHERE id = ?', [eventId]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
         if (events.length === 0) {
             return res.status(404).json({ error: 'Event not found' });
         }
@@ -153,11 +153,11 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
 
         const result = await run(`
             INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [eventId, firstName, lastName, email, role, accessLevel, badgeNumber, photoPath || null]);
 
         // Get the created crew member
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = ?', [result.id]);
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [result.id]);
         const crewMember = crewMembers[0];
 
         // Generate PDF badge
@@ -180,7 +180,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         const { eventId } = req.params;
 
         // Validate event exists first
-        const events = await query('SELECT * FROM events WHERE id = ?', [eventId]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
         if (events.length === 0) {
             return res.status(404).json({ error: 'Event not found' });
         }
@@ -190,7 +190,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         const crewMembers = await query(`
             SELECT id, first_name, last_name, role, access_level, badge_number, status
             FROM crew_members 
-            WHERE event_id = ? 
+            WHERE event_id = $1 
             ORDER BY first_name, last_name
         `, [eventId]);
 
@@ -213,9 +213,9 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
         const { crewId } = req.params;
         const { status } = req.body;
 
-        await run('UPDATE crew_members SET status = ? WHERE id = ?', [status, crewId]);
+        await run('UPDATE crew_members SET status = $1 WHERE id = $2', [status, crewId]);
         
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = ?', [crewId]);
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         res.json(crewMembers[0]);
     } catch (error) {
         console.error('Update crew error:', error);
@@ -227,7 +227,7 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
 app.delete('/api/crew/:crewId', authenticateToken, async (req, res) => {
     try {
         const { crewId } = req.params;
-        await run('DELETE FROM crew_members WHERE id = ?', [crewId]);
+        await run('DELETE FROM crew_members WHERE id = $1', [crewId]);
         res.json({ message: 'Crew member deleted successfully' });
     } catch (error) {
         console.error('Delete crew error:', error);
@@ -244,15 +244,15 @@ app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
         await run(`
             UPDATE crew_members 
             SET status = 'approved', approved_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            WHERE id = $1
         `, [crewId]);
         
         // Get the updated crew member
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = ?', [crewId]);
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const crewMember = crewMembers[0];
         
         // Get event details for notification
-        const events = await query('SELECT * FROM events WHERE id = ?', [crewMember.event_id]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [crewMember.event_id]);
         const event = events[0];
         
         // TODO: Send email notification to crew member
@@ -286,7 +286,7 @@ const requireSuperAdmin = (req, res, next) => {
 // Get current user info
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
-        const users = await query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        const users = await query('SELECT * FROM users WHERE id = $1', [req.user.id]);
         if (users.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -396,7 +396,7 @@ app.get('/api/admin/approvals/:crewId/details', authenticateToken, requireSuperA
             FROM crew_members cm
             JOIN events e ON cm.event_id = e.id
             JOIN companies c ON e.company_id = c.id
-            WHERE cm.id = ?
+            WHERE cm.id = $1
         `, [crewId]);
         
         if (details.length === 0) {
@@ -418,13 +418,13 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
         await run(`
             UPDATE crew_members 
             SET status = 'approved', approved_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            WHERE id = $1
         `, [crewId]);
         
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = ?', [crewId]);
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const crewMember = crewMembers[0];
         
-        const events = await query('SELECT * FROM events WHERE id = ?', [crewMember.event_id]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [crewMember.event_id]);
         const event = events[0];
         
         console.log(`📧 Super Admin approved: Notification sent to ${crewMember.email}: Your accreditation for ${event.name} has been approved!`);
@@ -447,13 +447,13 @@ app.put('/api/admin/approvals/:crewId/reject', authenticateToken, requireSuperAd
         await run(`
             UPDATE crew_members 
             SET status = 'rejected', approved_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
+            WHERE id = $1
         `, [crewId]);
         
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = ?', [crewId]);
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const crewMember = crewMembers[0];
         
-        const events = await query('SELECT * FROM events WHERE id = ?', [crewMember.event_id]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [crewMember.event_id]);
         const event = events[0];
         
         console.log(`📧 Super Admin rejected: Notification sent to ${crewMember.email}: Your accreditation for ${event.name} has been rejected.`);
@@ -497,10 +497,10 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         
         const result = await run(`
             INSERT INTO companies (name, domain, contact_email, contact_phone, address, subscription_plan)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6)
         `, [companyName, companyDomain, contactEmail, contactPhone, companyAddress, subscriptionPlan]);
         
-        const companies = await query('SELECT * FROM companies WHERE id = ?', [result.id]);
+        const companies = await query('SELECT * FROM companies WHERE id = $1', [result.id]);
         
         res.json({
             message: 'Company added successfully',
@@ -519,10 +519,10 @@ app.post('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, 
         
         const result = await run(`
             INSERT INTO events (company_id, name, location, start_date, end_date, description)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6)
         `, [eventCompany, eventName, eventLocation, startDate, endDate, eventDescription]);
         
-        const events = await query('SELECT * FROM events WHERE id = ?', [result.id]);
+        const events = await query('SELECT * FROM events WHERE id = $1', [result.id]);
         
         res.json({
             message: 'Event created successfully',
@@ -544,10 +544,10 @@ app.post('/api/admin/users', authenticateToken, requireSuperAdmin, async (req, r
         
         const result = await run(`
             INSERT INTO users (company_id, first_name, last_name, email, password_hash, role)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6)
         `, [userCompany, userFirstName, userLastName, userEmail, passwordHash, userRole]);
         
-        const users = await query('SELECT id, first_name, last_name, email, role, company_id FROM users WHERE id = ?', [result.id]);
+        const users = await query('SELECT id, first_name, last_name, email, role, company_id FROM users WHERE id = $1', [result.id]);
         
         res.json({
             message: 'User added successfully',
