@@ -35,6 +35,16 @@ app.use(limiter);
 app.use(express.static('public'));
 app.use('/badges', express.static(path.join(__dirname, 'public/badges')));
 
+// Debug route to test static file serving
+app.get('/test-assets', (req, res) => {
+    res.json({
+        message: 'Static file serving test',
+        publicPath: path.join(__dirname, 'public'),
+        assetsPath: path.join(__dirname, 'public/assets'),
+        files: require('fs').readdirSync(path.join(__dirname, 'public/assets/images'))
+    });
+});
+
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 

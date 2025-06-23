@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Test | YouShallPass</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .image-test {
+            display: flex;
+            gap: 20px;
+            margin: 10px 0;
+        }
+        .image-test img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Image Loading Test</h1>
+    
+    <div class="test-section">
+        <h2>Logo Test</h2>
+        <div class="image-test">
+            <div>
+                <img src="/assets/images/logo.jpg" alt="Logo" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+            <div>
+                <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=" alt="Fallback Logo">
+                <div class="status success">Base64 Fallback</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Event Images Test</h2>
+        <div class="image-test">
+            <div>
+                <img src="/assets/images/formula-e.jpg" alt="Formula E" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+            <div>
+                <img src="/assets/images/extreme-e.jpg" alt="Extreme E" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+            <div>
+                <img src="/assets/images/e1-series.jpg" alt="E1 Series" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Debug Information</h2>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+    </div>
+
+    <script>
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+    </script>
+</body>
+</html> 
