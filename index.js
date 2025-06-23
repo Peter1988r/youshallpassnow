@@ -632,16 +632,29 @@ app.use((req, res) => {
 const startServer = async () => {
     try {
         await initDatabase();
+        console.log('✅ Database initialized successfully');
         
-        app.listen(port, () => {
-            console.log(`🚀 YouShallPass MVP Server running at http://localhost:${port}`);
+        // For Vercel serverless, don't call app.listen
+        if (process.env.NODE_ENV !== 'production') {
+            app.listen(port, () => {
+                console.log(`🚀 YouShallPass MVP Server running at http://localhost:${port}`);
+                console.log(`📊 Admin login: admin@youshallpass.com / admin123`);
+                console.log(`📁 PDF badges will be saved to: public/badges/`);
+            });
+        } else {
+            console.log('🚀 YouShallPass MVP Server ready for Vercel deployment');
             console.log(`📊 Admin login: admin@youshallpass.com / admin123`);
-            console.log(`📁 PDF badges will be saved to: public/badges/`);
-        });
+        }
     } catch (error) {
         console.error('Failed to start server:', error);
-        process.exit(1);
+        if (process.env.NODE_ENV !== 'production') {
+            process.exit(1);
+        }
     }
 };
 
+// Initialize database on startup
 startServer();
+
+// Export for Vercel
+module.exports = app;
