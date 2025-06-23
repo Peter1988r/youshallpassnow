@@ -9,24 +9,16 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/index.js"
+      "src": "/css/(.*)",
+      "dest": "/public/css/$1"
     },
     {
-      "src": "/admin",
-      "dest": "/public/admin/index.html"
+      "src": "/js/(.*)",
+      "dest": "/public/js/$1"
     },
     {
-      "src": "/dashboard",
-      "dest": "/public/dashboard/index.html"
-    },
-    {
-      "src": "/events",
-      "dest": "/public/events/index.html"
-    },
-    {
-      "src": "/signin",
-      "dest": "/public/signin/index.html"
+      "src": "/assets/(.*)",
+      "dest": "/public/assets/$1"
     },
     {
       "src": "/badges/(.*)",
@@ -34,7 +26,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/public/$1"
+      "dest": "/index.js"
     }
   ],
   "env": {
