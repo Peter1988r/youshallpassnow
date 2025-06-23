@@ -57,6 +57,10 @@ app.get('/test-static', (req, res) => {
 // Test endpoint to check demo users
 app.get('/test-users', async (req, res) => {
     try {
+        console.log('Testing database connection...');
+        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        
         const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
         res.json({
             message: 'Demo users check',
@@ -65,7 +69,46 @@ app.get('/test-users', async (req, res) => {
         });
     } catch (error) {
         console.error('Error checking users:', error);
-        res.status(500).json({ error: 'Database error' });
+        res.status(500).json({ 
+            error: 'Database error', 
+            details: error.message,
+            code: error.code,
+            hint: error.hint
+        });
+    }
+});
+
+// Simple database connection test
+app.get('/test-db', async (req, res) => {
+    try {
+        console.log('Testing basic database connection...');
+        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        
+        // Test basic connection
+        const result = await query('SELECT NOW() as current_time, version() as db_version');
+        
+        res.json({
+            message: 'Database connection successful',
+            currentTime: result[0].current_time,
+            dbVersion: result[0].db_version,
+            env: {
+                nodeEnv: process.env.NODE_ENV,
+                hasDatabaseUrl: !!process.env.DATABASE_URL
+            }
+        });
+    } catch (error) {
+        console.error('Database connection test failed:', error);
+        res.status(500).json({ 
+            error: 'Database connection failed', 
+            details: error.message,
+            code: error.code,
+            hint: error.hint,
+            env: {
+                nodeEnv: process.env.NODE_ENV,
+                hasDatabaseUrl: !!process.env.DATABASE_URL
+            }
+        });
     }
 });
 
@@ -73,6 +116,9 @@ app.get('/test-users', async (req, res) => {
 app.post('/init-db', async (req, res) => {
     try {
         console.log('Manual database initialization requested');
+        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        
         await initDatabase();
         console.log('Database initialization completed');
         
@@ -86,7 +132,12 @@ app.post('/init-db', async (req, res) => {
         });
     } catch (error) {
         console.error('Database initialization error:', error);
-        res.status(500).json({ error: 'Database initialization failed: ' + error.message });
+        res.status(500).json({ 
+            error: 'Database initialization failed', 
+            details: error.message,
+            code: error.code,
+            hint: error.hint
+        });
     }
 });
 
