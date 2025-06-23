@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "name": "youshallpass",
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/index.js"
+    },
+    {
+      "src": "/admin",
+      "dest": "/public/admin/index.html"
+    },
+    {
+      "src": "/dashboard",
+      "dest": "/public/dashboard/index.html"
+    },
+    {
+      "src": "/events",
+      "dest": "/public/events/index.html"
+    },
+    {
+      "src": "/signin",
+      "dest": "/public/signin/index.html"
+    },
+    {
+      "src": "/badges/(.*)",
+      "dest": "/public/badges/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "index.js": {
+      "maxDuration": 30
+    }
+  }
+} 
