@@ -744,6 +744,21 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
+// Debug route to show environment variables
+app.get('/debug-env', (req, res) => {
+    res.json({
+        message: 'Environment variables debug',
+        env: {
+            NODE_ENV: process.env.NODE_ENV,
+            DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+            DATABASE_URL_LENGTH: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0,
+            SUPABASE_KEY: process.env.SUPABASE_KEY ? 'SET' : 'NOT SET',
+            SUPABASE_KEY_LENGTH: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
+            ALL_ENV_KEYS: Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('SUPABASE'))
+        }
+    });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

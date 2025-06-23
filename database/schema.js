@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 
 // Database connection configuration
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres.lqcsuivqcdamkaskbwhz:zT6lyvDJHioVhuYa@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 20,
     idleTimeoutMillis: 30000,
@@ -12,10 +12,6 @@ const pool = new Pool({
 // Initialize database tables
 const initDatabase = async () => {
     try {
-        if (!process.env.DATABASE_URL) {
-            throw new Error('DATABASE_URL environment variable is required');
-        }
-
         const client = await pool.connect();
         
         // Companies table
