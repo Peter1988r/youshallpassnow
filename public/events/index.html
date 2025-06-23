@@ -14,6 +14,285 @@
     <!-- Main CSS -->
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/events.css">
+    
+    <!-- Inline styles for fallback -->
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Navigation */
+        .navbar {
+            background-color: #FFFFFF;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-logo img {
+            height: 32px;
+            width: auto;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: #1F2937;
+            font-weight: 500;
+        }
+        
+        .nav-links a.active {
+            color: #4F46E5;
+        }
+        
+        /* Button styles */
+        .btn-primary, .btn-secondary {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #4F46E5;
+            color: #FFFFFF;
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background-color: #4338CA;
+        }
+        
+        .btn-secondary {
+            background-color: #FFFFFF;
+            color: #1F2937;
+            border: 2px solid #1F2937;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #F3F4F6;
+        }
+        
+        /* Main content */
+        main {
+            margin-top: 80px;
+            padding: 2rem;
+        }
+        
+        /* Events header */
+        .events-header {
+            max-width: 1200px;
+            margin: 0 auto 3rem;
+            text-align: center;
+        }
+        
+        .events-header h1 {
+            font-size: 3rem;
+            color: #1F2937;
+            margin-bottom: 2rem;
+        }
+        
+        .events-filters {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-input, .filter-select {
+            padding: 12px 16px;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 1rem;
+            min-width: 200px;
+        }
+        
+        .search-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #4F46E5;
+        }
+        
+        /* Events grid */
+        .events-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .event-card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .event-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .event-image {
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+        }
+        
+        .event-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .event-date {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: #FFFFFF;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .event-content {
+            padding: 1.5rem;
+        }
+        
+        .event-content h3 {
+            font-size: 1.5rem;
+            color: #1F2937;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-location {
+            color: #6B7280;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        
+        .event-description {
+            color: #374151;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .event-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .event-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .event-status:contains("Open") {
+            background-color: #D1FAE5;
+            color: #065F46;
+        }
+        
+        .event-status:contains("Soon") {
+            background-color: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .event-status:contains("Access") {
+            background-color: #DBEAFE;
+            color: #1E40AF;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: #1F2937;
+            color: #FFFFFF;
+            padding: 4rem 2rem 2rem;
+            margin-top: 4rem;
+        }
+        
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-section h4 {
+            margin-bottom: 1rem;
+        }
+        
+        .footer-section a {
+            color: #F3F4F6;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .events-header h1 {
+                font-size: 2rem;
+            }
+            
+            .events-filters {
+                flex-direction: column;
+            }
+            
+            .search-input, .filter-select {
+                min-width: 100%;
+            }
+            
+            .events-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -26,8 +305,7 @@
             <div class="nav-links">
                 <a href="/events" class="active">Events</a>
                 <a href="/dashboard">Dashboard</a>
-                <a href="/settings">Settings</a>
-                <button class="btn-primary">Sign In</button>
+                <a href="/signin" class="btn-primary">Sign In</a>
             </div>
         </div>
     </nav>
