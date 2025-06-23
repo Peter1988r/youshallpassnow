@@ -38,6 +38,7 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "DATABASE_URL": "postgresql://postgres:[YOUR-PASSWORD]@db.lqcsuivqcdamkaskbwhz.supabase.co:5432/postgres"
   }
 } 
