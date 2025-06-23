@@ -69,6 +69,27 @@ app.get('/test-users', async (req, res) => {
     }
 });
 
+// Initialize database endpoint (for testing)
+app.post('/init-db', async (req, res) => {
+    try {
+        console.log('Manual database initialization requested');
+        await initDatabase();
+        console.log('Database initialization completed');
+        
+        // Check if users were created
+        const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
+        
+        res.json({
+            message: 'Database initialized successfully',
+            totalUsers: users.length,
+            users: users
+        });
+    } catch (error) {
+        console.error('Database initialization error:', error);
+        res.status(500).json({ error: 'Database initialization failed: ' + error.message });
+    }
+});
+
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -103,6 +124,15 @@ app.post('/api/auth/login', async (req, res) => {
         const { email, password } = req.body;
         
         console.log('Login attempt for email:', email);
+        
+        // Test database connection first
+        try {
+            await query('SELECT 1 as test');
+            console.log('Database connection successful');
+        } catch (dbError) {
+            console.error('Database connection failed:', dbError);
+            return res.status(500).json({ error: 'Database connection failed' });
+        }
         
         const users = await query('SELECT * FROM users WHERE email = $1', [email]);
         console.log('Users found:', users.length);
@@ -143,8 +173,9 @@ app.post('/api/auth/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Login error details:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
 });
 
