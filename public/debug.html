@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug | YouShallPass</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .image-test {
+            display: flex;
+            gap: 20px;
+            margin: 10px 0;
+        }
+        .image-test img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        
+        .auth-test {
+            margin: 20px 0;
+        }
+        
+        .auth-test input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .auth-test button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Debug Page</h1>
+    
+    <div class="test-section">
+        <h2>Image Loading Test</h2>
+        <div class="image-test">
+            <div>
+                <img src="/assets/images/logo.jpg" alt="Logo" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+            <div>
+                <img src="/assets/images/formula-e.jpg" alt="Formula E" onload="this.nextElementSibling.textContent='✅ Loaded'" onerror="this.nextElementSibling.textContent='❌ Failed'">
+                <div class="status">Testing...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Authentication Test</h2>
+        <div class="auth-test">
+            <input type="email" id="email" placeholder="Email" value="admin@youshallpass.com">
+            <input type="password" id="password" placeholder="Password" value="admin123">
+            <button onclick="testAuth()">Test Login</button>
+            <div id="authResult" class="result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Test</h2>
+        <button onclick="testAPI()">Test API Endpoints</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Environment Info</h2>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+    </div>
+
+    <script>
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+
+        async function testAuth() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('authResult');
+            
+            resultDiv.textContent = 'Testing authentication...';
+            resultDiv.className = 'result info';
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = '✅ Login successful!\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = '❌ Login failed:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ Network error:\n' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.textContent = 'Testing API endpoints...';
+            resultDiv.className = 'result info';
+            
+            try {
+                const response = await fetch('/api/events');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = '✅ API working!\nEvents found: ' + data.length + '\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = '❌ API failed:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ API error:\n' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html> 
