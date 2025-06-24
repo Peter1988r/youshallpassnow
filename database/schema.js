@@ -122,16 +122,21 @@ const initDatabase = async () => {
         // Insert sample events
         await client.query(`
             INSERT INTO events (company_id, name, location, start_date, end_date, description)
-            VALUES 
-            ($1, $2, $3, $4, $5, $6),
-            ($1, $7, $8, $9, $10, $11),
-            ($1, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT DO NOTHING
-        `, [
-            1, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix',
-            1, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert',
-            1, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series'
-        ]);
+        `, [1, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix']);
+
+        await client.query(`
+            INSERT INTO events (company_id, name, location, start_date, end_date, description)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT DO NOTHING
+        `, [1, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert']);
+
+        await client.query(`
+            INSERT INTO events (company_id, name, location, start_date, end_date, description)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT DO NOTHING
+        `, [1, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series']);
 
         client.release();
         console.log('✅ Database initialized successfully');
