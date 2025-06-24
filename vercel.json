@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "youshallpass",
   "builds": [
     {
       "src": "index.js",
@@ -21,6 +20,5 @@
     "NODE_ENV": "production",
     "DATABASE_URL": "postgresql://postgres.lqcsuivqcdamkaskbwhz:zT6lyvDJHioVhuYa@aws-0-us-west-1.pooler.supabase.com:6543/postgres",
     "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxY3N1aXZxY2RhbWthc2tid2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MDg2ODQsImV4cCI6MjA2NjI4NDY4NH0.BznWVLmyvgnfsIqaOAMzvlKzjck-5iJEV0OgwQT_Ttw"
-  },
-  "comment": "Force redeploy - Database connection fix"
+  }
 } 
