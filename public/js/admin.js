@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Verify super admin status
     verifySuperAdmin();
 
+    // Setup tabs
+    setupAdminTabs();
+
     // Initialize dashboard
     loadDashboardData();
     setupEventListeners();
@@ -39,18 +42,92 @@ async function verifySuperAdmin() {
     }
 }
 
-// Load dashboard data
+// Tab switching logic
+function setupAdminTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabPanels.forEach(panel => panel.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+    });
+}
+
+// Refactor dashboard data loading to load into tab panels
 async function loadDashboardData() {
+    await Promise.all([
+        loadCompaniesTab(),
+        loadEventsTab(),
+        loadUsersTab(),
+        // Roles tab will be loaded separately
+    ]);
+    loadPendingApprovals();
+}
+
+// Companies Tab
+async function loadCompaniesTab() {
+    const token = localStorage.getItem('token');
+    const container = document.getElementById('companiesTableContainer');
+    container.innerHTML = '<div>Loading companies...</div>';
     try {
-        await Promise.all([
-            loadStats(),
-            loadRecentActivity(),
-            loadPendingApprovals()
-        ]);
-    } catch (error) {
-        console.error('Failed to load dashboard data:', error);
-        showMessage('Failed to load dashboard data', 'error');
+        const res = await fetch('/api/admin/companies', { headers: { 'Authorization': `Bearer ${token}` } });
+        const companies = await res.json();
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Contact</th><th>Events</th><th>Users</th></tr></thead><tbody>`;
+        companies.forEach(c => {
+            html += `<tr><td>${c.name}</td><td>${c.domain}</td><td>${c.contact_email || ''}</td><td>${c.event_count}</td><td>${c.user_count}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="error">Failed to load companies</div>';
     }
+}
+
+// Events Tab
+async function loadEventsTab() {
+    const token = localStorage.getItem('token');
+    const container = document.getElementById('eventsTableContainer');
+    container.innerHTML = '<div>Loading events...</div>';
+    try {
+        const res = await fetch('/api/admin/events', { headers: { 'Authorization': `Bearer ${token}` } });
+        const events = await res.json();
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Company</th><th>Location</th><th>Dates</th></tr></thead><tbody>`;
+        events.forEach(e => {
+            html += `<tr><td>${e.name}</td><td>${e.company_name || ''}</td><td>${e.location}</td><td>${e.start_date} - ${e.end_date}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="error">Failed to load events</div>';
+    }
+}
+
+// Users Tab
+async function loadUsersTab() {
+    const token = localStorage.getItem('token');
+    const container = document.getElementById('usersTableContainer');
+    container.innerHTML = '<div>Loading users...</div>';
+    try {
+        const res = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
+        const users = await res.json();
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Company</th></tr></thead><tbody>`;
+        users.forEach(u => {
+            html += `<tr><td>${u.first_name} ${u.last_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.company_id || ''}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="error">Failed to load users</div>';
+    }
+}
+
+// Roles Tab (placeholder)
+async function loadRolesTab() {
+    const container = document.getElementById('rolesManagementContainer');
+    container.innerHTML = '<div>Roles management coming soon...</div>';
 }
 
 // Load statistics
@@ -117,85 +194,75 @@ async function loadRecentActivity() {
     }
 }
 
-// Load pending approvals
+// Pending Approvals: Add access level assignment and fix approve/reject/view
 async function loadPendingApprovals() {
+    const token = localStorage.getItem('token');
+    const tbody = document.getElementById('approvalsTableBody');
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/approvals', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        const res = await fetch('/api/admin/approvals', { headers: { 'Authorization': `Bearer ${token}` } });
+        const approvals = await res.json();
+        let html = '';
+        approvals.forEach(a => {
+            html += `<tr>
+                <td><input type="checkbox" class="approval-checkbox" data-id="${a.id}"></td>
+                <td>${a.company_name}</td>
+                <td>${a.event_name}</td>
+                <td>${a.first_name} ${a.last_name}</td>
+                <td>${a.role}</td>
+                <td>${a.email || ''}</td>
+                <td>${a.created_at}</td>
+                <td>
+                    <select class="access-level-select" data-id="${a.id}">
+                        <option value="RESTRICTED">Restricted</option>
+                        <option value="STANDARD">Standard</option>
+                        <option value="EXTENDED">Extended</option>
+                        <option value="FULL">Full</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                    <button class="btn-approve" data-id="${a.id}">Approve</button>
+                    <button class="btn-reject" data-id="${a.id}">Reject</button>
+                    <button class="btn-view" data-id="${a.id}">View</button>
+                </td>
+            </tr>`;
         });
-        
-        if (!response.ok) throw new Error('Failed to load approvals');
-        
-        const approvals = await response.json();
-        const approvalsTableBody = document.getElementById('approvalsTableBody');
-        
-        if (approvals.length === 0) {
-            approvalsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="8" style="text-align: center; padding: 2rem;">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">✅</div>
-                            <h3>No Pending Approvals</h3>
-                            <p>All accreditations are up to date!</p>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        approvalsTableBody.innerHTML = approvals.map(approval => `
-            <tr data-approval-id="${approval.id}">
-                <td>
-                    <input type="checkbox" class="approval-checkbox" value="${approval.id}">
-                </td>
-                <td>
-                    <div class="applicant-info">
-                        <span class="applicant-name">${approval.company_name}</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="applicant-info">
-                        <span class="applicant-name">${approval.event_name}</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="applicant-info">
-                        <span class="applicant-name">${approval.first_name} ${approval.last_name}</span>
-                        <span class="applicant-email">${approval.email || 'No email provided'}</span>
-                    </div>
-                </td>
-                <td>
-                    <span class="status-badge pending">${approval.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                </td>
-                <td>${approval.email || 'N/A'}</td>
-                <td>${formatTime(approval.created_at)}</td>
-                <td>
-                    <div class="approval-actions">
-                        <button class="approve-btn" onclick="approveAccreditation(${approval.id})" title="Approve">
-                            ✓ Approve
-                        </button>
-                        <button class="reject-btn" onclick="rejectAccreditation(${approval.id})" title="Reject">
-                            ✗ Reject
-                        </button>
-                        <button class="view-btn" onclick="viewApplicantDetails(${approval.id})" title="View Details">
-                            👁 View
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-        
-        // Setup checkbox functionality
-        setupApprovalCheckboxes();
-        
-    } catch (error) {
-        console.error('Error loading approvals:', error);
-        showMessage('Failed to load pending approvals', 'error');
+        tbody.innerHTML = html;
+        setupApprovalButtons();
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8">Failed to load approvals</td></tr>';
     }
+}
+
+function setupApprovalButtons() {
+    document.querySelectorAll('.btn-approve').forEach(btn => {
+        btn.onclick = async () => {
+            const id = btn.dataset.id;
+            const accessLevel = document.querySelector(`.access-level-select[data-id='${id}']`).value;
+            const token = localStorage.getItem('token');
+            await fetch(`/api/admin/approvals/${id}/approve`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accessLevel })
+            });
+            loadPendingApprovals();
+        };
+    });
+    document.querySelectorAll('.btn-reject').forEach(btn => {
+        btn.onclick = async () => {
+            const id = btn.dataset.id;
+            const token = localStorage.getItem('token');
+            await fetch(`/api/admin/approvals/${id}/reject`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            loadPendingApprovals();
+        };
+    });
+    document.querySelectorAll('.btn-view').forEach(btn => {
+        btn.onclick = () => {
+            alert('View details coming soon!');
+        };
+    });
 }
 
 // Setup event listeners

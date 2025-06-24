@@ -94,6 +94,26 @@ const initDatabase = async () => {
             )
         `);
 
+        // Add roles table for company-specific roles
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS roles (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER REFERENCES companies(id),
+                name TEXT NOT NULL,
+                access_level TEXT NOT NULL,
+                UNIQUE(company_id, name)
+            )
+        `);
+
+        // Add access_level column to crew_members if not exists (for per-event assignment)
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='access_level') THEN
+                    ALTER TABLE crew_members ADD COLUMN access_level TEXT DEFAULT 'RESTRICTED';
+                END IF;
+            END $$;
+        `);
+
         // Insert default super admin user
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10);

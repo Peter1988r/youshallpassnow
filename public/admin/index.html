@@ -39,61 +39,95 @@
         <!-- Header -->
         <header class="admin-header">
             <h1>Super Admin Dashboard</h1>
-            <p>Manage companies, events, and system-wide operations</p>
+            <p>Manage companies, events, users, roles, and system-wide operations</p>
         </header>
 
-        <!-- Quick Stats -->
-        <section class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">🏢</div>
-                <div class="stat-content">
-                    <h3 id="totalCompanies">0</h3>
-                    <p>Active Companies</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-content">
-                    <h3 id="totalEvents">0</h3>
-                    <p>Active Events</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-content">
-                    <h3 id="totalUsers">0</h3>
-                    <p>Total Users</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">⏳</div>
-                <div class="stat-content">
-                    <h3 id="pendingApprovals">0</h3>
-                    <p>Pending Approvals</p>
-                </div>
-            </div>
-        </section>
+        <!-- Tabs -->
+        <div class="admin-tabs">
+            <button class="tab-btn active" data-tab="companies-tab">Companies</button>
+            <button class="tab-btn" data-tab="events-tab">Events</button>
+            <button class="tab-btn" data-tab="users-tab">Users</button>
+            <button class="tab-btn" data-tab="roles-tab">Roles</button>
+        </div>
 
-        <!-- Quick Actions -->
-        <section class="quick-actions">
-            <h2>Quick Actions</h2>
-            <div class="action-buttons">
-                <button class="btn-primary" id="addCompanyBtn">Add New Company</button>
-                <button class="btn-secondary" id="addEventBtn">Create Event</button>
-                <button class="btn-secondary" id="addUserBtn">Add User</button>
-                <button class="btn-secondary" id="generateReportBtn">Generate Report</button>
-            </div>
-        </section>
+        <!-- Tab Panels -->
+        <div class="tab-panel active" id="companies-tab">
+            <!-- Quick Stats (Companies) -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🏢</div>
+                    <div class="stat-content">
+                        <h3 id="totalCompanies">0</h3>
+                        <p>Active Companies</p>
+                    </div>
+                </div>
+            </section>
+            <!-- Quick Actions (Companies) -->
+            <section class="quick-actions">
+                <h2>Company Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn-primary" id="addCompanyBtn">Add New Company</button>
+                </div>
+            </section>
+            <!-- Companies Table Placeholder -->
+            <div id="companiesTableContainer"></div>
+        </div>
 
-        <!-- Recent Activity -->
-        <section class="recent-activity">
-            <h2>Recent Activity</h2>
-            <div class="activity-list" id="activityList">
-                <!-- Activity items will be loaded here -->
-            </div>
-        </section>
+        <div class="tab-panel" id="events-tab">
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3 id="totalEvents">0</h3>
+                        <p>Active Events</p>
+                    </div>
+                </div>
+            </section>
+            <section class="quick-actions">
+                <h2>Event Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn-secondary" id="addEventBtn">Create Event</button>
+                </div>
+            </section>
+            <div id="eventsTableContainer"></div>
+        </div>
 
-        <!-- Pending Approvals -->
+        <div class="tab-panel" id="users-tab">
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3 id="totalUsers">0</h3>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+            </section>
+            <section class="quick-actions">
+                <h2>User Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn-secondary" id="addUserBtn">Add User</button>
+                </div>
+            </section>
+            <div id="usersTableContainer"></div>
+        </div>
+
+        <div class="tab-panel" id="roles-tab">
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🔑</div>
+                    <div class="stat-content">
+                        <h3>Roles Management</h3>
+                        <p>Define roles per company</p>
+                    </div>
+                </div>
+            </section>
+            <div id="rolesManagementContainer">
+                <!-- Roles management UI will go here -->
+                <p>Manage company-specific roles here.</p>
+            </div>
+        </div>
+
+        <!-- Pending Approvals (always visible for super admin) -->
         <section class="pending-approvals">
             <div class="approvals-header">
                 <h2>Pending Approvals</h2>
@@ -106,9 +140,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>
-                                <input type="checkbox" id="selectAllApprovals">
-                            </th>
+                            <th><input type="checkbox" id="selectAllApprovals"></th>
                             <th>Company</th>
                             <th>Event</th>
                             <th>Applicant</th>
