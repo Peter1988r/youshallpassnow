@@ -246,7 +246,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
         const crew = await query(`
-            SELECT id, first_name, last_name, role, access_level, badge_number, status, created_at
+            SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
             FROM crew_members 
             WHERE event_id = $1 
             ORDER BY first_name, last_name
