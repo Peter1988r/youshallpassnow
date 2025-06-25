@@ -6,22 +6,216 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // DOM Elements
+    const eventsSection = document.getElementById('eventsSection');
+    const eventCards = document.getElementById('eventCards');
+    const eventDetails = document.getElementById('eventDetails');
+    const eventTitle = document.getElementById('eventTitle');
+    const eventStatus = document.getElementById('eventStatus');
+    const crewCount = document.getElementById('crewCount');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const crewTableBody = document.getElementById('crewTableBody');
+    const backToEventsBtn = document.getElementById('backToEventsBtn');
+    
     // Modal Elements
     const addCrewModal = document.getElementById('addCrewModal');
     const addCrewBtn = document.getElementById('addCrewBtn');
     const cancelAddCrew = document.getElementById('cancelAddCrew');
     const closeModal = document.querySelector('.close-modal');
     
-    // Event Cards
-    const eventCards = document.querySelectorAll('.event-card');
-    
-    // Show modal
+    let currentEventId = null;
+    let events = [];
+
+    // Initialize dashboard
+    loadCompanyEvents();
+
+    // Load company events
+    async function loadCompanyEvents() {
+        try {
+            eventCards.innerHTML = '<div class="loading-events"><p>Loading your events...</p></div>';
+            
+            const response = await fetch('/api/company/events', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load events');
+            }
+            
+            events = await response.json();
+            
+            if (events.length === 0) {
+                eventCards.innerHTML = '<div class="no-events"><p>No events assigned to your company yet.</p></div>';
+                return;
+            }
+            
+            displayEvents(events);
+        } catch (error) {
+            console.error('Error loading events:', error);
+            eventCards.innerHTML = '<div class="no-events"><p>Error loading events. Please try again.</p></div>';
+        }
+    }
+
+    // Display events as cards
+    function displayEvents(events) {
+        eventCards.innerHTML = '';
+        
+        events.forEach(event => {
+            const eventCard = document.createElement('div');
+            eventCard.className = 'event-card';
+            eventCard.dataset.eventId = event.id;
+            
+            // Format dates
+            const startDate = new Date(event.start_date);
+            const endDate = new Date(event.end_date);
+            const dateRange = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            
+            // Get event image based on name
+            const eventImage = getEventImage(event.name);
+            
+            eventCard.innerHTML = `
+                <img src="${eventImage}" alt="${event.name}">
+                <div class="event-info">
+                    <h3>${event.name}</h3>
+                    <p>${event.location}</p>
+                    <span class="event-date">${dateRange}</span>
+                </div>
+            `;
+            
+            eventCard.addEventListener('click', () => selectEvent(event.id));
+            eventCards.appendChild(eventCard);
+        });
+    }
+
+    // Get event image based on event name
+    function getEventImage(eventName) {
+        const name = eventName.toLowerCase();
+        if (name.includes('formula e') || name.includes('formula-e')) {
+            return '/assets/images/formula-e.jpg';
+        } else if (name.includes('extreme e') || name.includes('extreme-e')) {
+            return '/assets/images/extreme-e.jpg';
+        } else if (name.includes('e1') || name.includes('e1-series')) {
+            return '/assets/images/e1-series.jpg';
+        } else {
+            // Default image
+            return '/assets/images/formula-e.jpg';
+        }
+    }
+
+    // Select an event and show details
+    async function selectEvent(eventId) {
+        currentEventId = eventId;
+        
+        // Update active card
+        document.querySelectorAll('.event-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.querySelector(`[data-event-id="${eventId}"]`).classList.add('active');
+        
+        // Show event details
+        eventsSection.style.display = 'none';
+        eventDetails.style.display = 'block';
+        
+        // Load event details and crew
+        await loadEventDetails(eventId);
+        await loadCrewMembers(eventId);
+    }
+
+    // Load event details
+    async function loadEventDetails(eventId) {
+        const event = events.find(e => e.id == eventId);
+        if (event) {
+            eventTitle.textContent = event.name;
+            eventStatus.textContent = event.status || 'Active';
+        }
+    }
+
+    // Load crew members for selected event
+    async function loadCrewMembers(eventId) {
+        try {
+            const response = await fetch(`/api/events/${eventId}/crew`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) throw new Error('Failed to load crew members');
+            
+            const crewMembers = await response.json();
+            updateCrewTable(crewMembers);
+            updateProgressBar(crewMembers);
+        } catch (error) {
+            console.error('Error loading crew members:', error);
+            showMessage('Failed to load crew members', 'error');
+        }
+    }
+
+    // Update crew table
+    function updateCrewTable(crewMembers) {
+        crewTableBody.innerHTML = '';
+
+        if (crewMembers.length === 0) {
+            crewTableBody.innerHTML = '<tr><td colspan="6" class="no-crew">No crew members for this event</td></tr>';
+            return;
+        }
+
+        crewMembers.forEach(member => {
+            const row = document.createElement('tr');
+            const statusClass = member.status === 'approved' ? 'complete' : 'pending';
+            const statusText = member.status === 'approved' ? 'Approved' : 'Pending Approval';
+            
+            row.innerHTML = `
+                <td>${member.first_name} ${member.last_name}</td>
+                <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                <td>${member.access_level || 'RESTRICTED'}</td>
+                <td>${member.email || ''}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    ${member.status === 'pending_approval' ? 
+                        `<button class="btn-icon" title="Approve" onclick="approveCrewMember(${member.id})">✓</button>` : 
+                        `<button class="btn-icon" title="Download Badge" onclick="downloadBadge('${member.badge_number}')">📄</button>`
+                    }
+                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
+                </td>
+            `;
+            crewTableBody.appendChild(row);
+        });
+    }
+
+    // Update progress bar
+    function updateProgressBar(crewMembers) {
+        const total = crewMembers.length;
+        const completed = crewMembers.filter(m => m.status === 'approved').length;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        progressBar.style.width = `${percentage}%`;
+        progressText.textContent = `${percentage}% Complete`;
+        crewCount.textContent = `${completed} Approved / ${total} Total`;
+    }
+
+    // Back to events button
+    backToEventsBtn.addEventListener('click', () => {
+        eventsSection.style.display = 'block';
+        eventDetails.style.display = 'none';
+        document.querySelectorAll('.event-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        currentEventId = null;
+    });
+
+    // Modal functionality
     addCrewBtn.addEventListener('click', () => {
+        if (!currentEventId) {
+            showMessage('Please select an event first', 'error');
+            return;
+        }
         addCrewModal.style.display = 'block';
         loadRoles();
     });
     
-    // Hide modal
     const hideModal = () => {
         addCrewModal.style.display = 'none';
     };
@@ -29,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelAddCrew.addEventListener('click', hideModal);
     closeModal.addEventListener('click', hideModal);
     
-    // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === addCrewModal) {
             hideModal();
@@ -60,77 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Load crew members for selected event
-    async function loadCrewMembers(eventId) {
-        try {
-            const response = await fetch(`/api/events/${eventId}/crew`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) throw new Error('Failed to load crew members');
-            
-            const crewMembers = await response.json();
-            updateCrewTable(crewMembers);
-            updateProgressBar(crewMembers);
-        } catch (error) {
-            console.error('Error loading crew members:', error);
-            showMessage('Failed to load crew members', 'error');
-        }
-    }
-
-    // Update crew table
-    function updateCrewTable(crewMembers) {
-        const tbody = document.querySelector('.crew-table tbody');
-        tbody.innerHTML = '';
-
-        crewMembers.forEach(member => {
-            const row = document.createElement('tr');
-            const statusClass = member.status === 'approved' ? 'complete' : 'pending';
-            const statusText = member.status === 'approved' ? 'Approved' : 'Pending Approval';
-            
-            row.innerHTML = `
-                <td>${member.first_name} ${member.last_name}</td>
-                <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                <td>${member.access_level || 'RESTRICTED'}</td>
-                <td>${member.email || ''}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    ${member.status === 'pending_approval' ? 
-                        `<button class="btn-icon" title="Approve" onclick="approveCrewMember(${member.id})">
-                            <i class="icon-approve"></i>
-                        </button>` : 
-                        `<button class="btn-icon" title="Download Badge" onclick="downloadBadge('${member.badge_number}')">
-                            <i class="icon-download"></i>
-                        </button>`
-                    }
-                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">
-                        <i class="icon-delete"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Update progress bar
-    function updateProgressBar(crewMembers) {
-        const total = crewMembers.length;
-        const completed = crewMembers.filter(m => m.status === 'approved').length;
-        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-        
-        const progressBar = document.querySelector('.progress');
-        const progressText = document.querySelector('.progress-bar + p');
-        
-        progressBar.style.width = `${percentage}%`;
-        progressText.textContent = `${percentage}% Complete`;
-        
-        // Update crew count
-        const crewCount = document.querySelector('.info-card:nth-child(2) p');
-        crewCount.textContent = `${completed} Approved / ${total} Total`;
-    }
-
     // Handle form submission
     const addCrewForm = document.getElementById('addCrewForm');
     addCrewForm.addEventListener('submit', async (e) => {
@@ -139,27 +261,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(addCrewForm);
         const data = Object.fromEntries(formData);
         
-        // Get selected event
-        const activeEventCard = document.querySelector('.event-card.active');
-        if (!activeEventCard) {
+        if (!currentEventId) {
             showMessage('Please select an event first', 'error');
             return;
         }
-        
-        const eventId = activeEventCard.dataset.eventId;
         
         // Handle photo upload
         const photoFile = formData.get('photo');
         let photoPath = null;
         
         if (photoFile && photoFile.size > 0) {
-            // For MVP, we'll store the file name as a placeholder
-            // In production, you'd upload to cloud storage
             photoPath = `/uploads/photos/${Date.now()}_${photoFile.name}`;
         }
         
         try {
-            const response = await fetch(`/api/events/${eventId}/crew`, {
+            const response = await fetch(`/api/events/${currentEventId}/crew`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -186,42 +302,25 @@ document.addEventListener('DOMContentLoaded', () => {
             addCrewForm.reset();
             
             // Reload crew members
-            loadCrewMembers(eventId);
+            loadCrewMembers(currentEventId);
             
         } catch (error) {
             console.error('Error adding crew member:', error);
             showMessage('Failed to add crew member: ' + error.message, 'error');
         }
     });
-    
-    // Handle event card selection
-    eventCards.forEach(card => {
-        card.addEventListener('click', () => {
-            // Remove active class from all cards
-            eventCards.forEach(c => c.classList.remove('active'));
-            // Add active class to clicked card
-            card.classList.add('active');
-            
-            // Load crew members for selected event
-            const eventId = card.dataset.eventId;
-            loadCrewMembers(eventId);
-        });
-    });
 
     // Generate crew list PDF
     const generateCrewListBtn = document.getElementById('generateCrewListBtn');
     if (generateCrewListBtn) {
         generateCrewListBtn.addEventListener('click', async () => {
-            const activeEventCard = document.querySelector('.event-card.active');
-            if (!activeEventCard) {
+            if (!currentEventId) {
                 showMessage('Please select an event first', 'error');
                 return;
             }
             
-            const eventId = activeEventCard.dataset.eventId;
-            
             try {
-                const response = await fetch(`/api/events/${eventId}/crew/pdf`, {
+                const response = await fetch(`/api/events/${currentEventId}/crew/pdf`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -231,14 +330,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const result = await response.json();
                 
-                // Create a temporary download link to avoid popup blockers
                 const downloadLink = document.createElement('a');
                 downloadLink.href = result.url;
                 downloadLink.download = result.filename || 'crew-list.pdf';
                 downloadLink.target = '_blank';
                 downloadLink.style.display = 'none';
                 
-                // Add to DOM, click, and remove
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
@@ -271,10 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             showMessage('Accreditation approved! Notification sent to crew member.', 'success');
             
-            // Reload crew members
-            const activeEventCard = document.querySelector('.event-card.active');
-            if (activeEventCard) {
-                loadCrewMembers(activeEventCard.dataset.eventId);
+            if (currentEventId) {
+                loadCrewMembers(currentEventId);
             }
             
         } catch (error) {
@@ -284,8 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.downloadBadge = async (badgeNumber) => {
-        // This would typically download the individual badge PDF
-        // For now, we'll show a message
         showMessage(`Badge ${badgeNumber} download feature coming soon!`, 'info');
     };
 
@@ -306,10 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             showMessage('Crew member deleted successfully!', 'success');
             
-            // Reload crew members
-            const activeEventCard = document.querySelector('.event-card.active');
-            if (activeEventCard) {
-                loadCrewMembers(activeEventCard.dataset.eventId);
+            if (currentEventId) {
+                loadCrewMembers(currentEventId);
             }
             
         } catch (error) {
@@ -320,18 +411,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper function to show messages
     function showMessage(message, type = 'info') {
-        // Remove existing messages
         const existingMessage = document.querySelector('.dashboard-message');
         if (existingMessage) {
             existingMessage.remove();
         }
 
-        // Create message element
         const messageEl = document.createElement('div');
         messageEl.className = `dashboard-message dashboard-message-${type}`;
         messageEl.textContent = message;
         
-        // Style the message
         messageEl.style.cssText = `
             position: fixed;
             top: 80px;
@@ -357,10 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
             messageEl.style.border = '1px solid #bfdbfe';
         }
 
-        // Insert message
         document.body.appendChild(messageEl);
 
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             if (messageEl.parentNode) {
                 messageEl.remove();
@@ -377,47 +463,4 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '/signin';
         });
     }
-
-    // Load initial data
-    if (eventCards.length > 0) {
-        // Select first event by default
-        eventCards[0].click();
-    }
-});
-
-// Function to update event details
-function updateEventDetails(eventId) {
-    // This would typically fetch data from an API
-    const eventDetails = {
-        'formula-e': {
-            title: 'Formula E World Championship',
-            location: 'São Paulo, Brazil',
-            date: 'MAR 15-16, 2024',
-            crewCount: '24/30',
-            progress: '80'
-        },
-        'extreme-e': {
-            title: 'Extreme E Desert X Prix',
-            location: 'Saudi Arabia',
-            date: 'APR 3-4, 2024',
-            crewCount: '18/25',
-            progress: '60'
-        },
-        'e1-series': {
-            title: 'E1 Series Championship',
-            location: 'Venice, Italy',
-            date: 'MAY 20-21, 2024',
-            crewCount: '15/20',
-            progress: '40'
-        }
-    };
-    
-    const details = eventDetails[eventId];
-    if (details) {
-        // Update UI with event details
-        document.querySelector('.event-details h2').textContent = details.title;
-        document.querySelector('.info-card:nth-child(2) p').textContent = details.crewCount;
-        document.querySelector('.progress').style.width = `${details.progress}%`;
-        document.querySelector('.progress-bar + p').textContent = `${details.progress}% Complete`;
-    }
-} 
+}); 

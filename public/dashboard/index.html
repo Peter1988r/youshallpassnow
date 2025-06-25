@@ -133,6 +133,20 @@
             gap: 1.5rem;
         }
         
+        .loading-events {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: #6B7280;
+        }
+        
+        .no-events {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: #6B7280;
+        }
+        
         .event-card {
             background: #FFFFFF;
             border-radius: 12px;
@@ -140,11 +154,17 @@
             overflow: hidden;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
+            border: 2px solid transparent;
         }
         
         .event-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .event-card.active {
+            border-color: #4F46E5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
         
         .event-card img {
@@ -288,6 +308,17 @@
             color: #065F46;
         }
         
+        .status-badge.pending {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .no-crew {
+            text-align: center;
+            color: #6B7280;
+            font-style: italic;
+        }
+        
         .btn-icon {
             background: none;
             border: none;
@@ -419,43 +450,24 @@
     <!-- Main Content -->
     <main class="dashboard-container">
         <!-- Active Events Banner -->
-        <section class="active-events">
+        <section class="active-events" id="eventsSection">
             <h2>Your Active Events</h2>
-            <div class="event-cards">
-                <div class="event-card" data-event-id="1">
-                    <img src="/assets/images/formula-e.jpg" alt="Formula E">
-                    <div class="event-info">
-                        <h3>Formula E World Championship</h3>
-                        <p>São Paulo, Brazil</p>
-                        <span class="event-date">MAR 15-16, 2024</span>
-                    </div>
-                </div>
-                <div class="event-card" data-event-id="2">
-                    <img src="/assets/images/extreme-e.jpg" alt="Extreme E">
-                    <div class="event-info">
-                        <h3>Extreme E Desert X Prix</h3>
-                        <p>Saudi Arabia</p>
-                        <span class="event-date">APR 3-4, 2024</span>
-                    </div>
-                </div>
-                <div class="event-card" data-event-id="3">
-                    <img src="/assets/images/e1-series.jpg" alt="E1 Series">
-                    <div class="event-info">
-                        <h3>E1 Series Championship</h3>
-                        <p>Venice, Italy</p>
-                        <span class="event-date">MAY 20-21, 2024</span>
-                    </div>
+            <div class="event-cards" id="eventCards">
+                <!-- Events will be loaded dynamically -->
+                <div class="loading-events">
+                    <p>Loading your events...</p>
                 </div>
             </div>
         </section>
 
         <!-- Event Details Section -->
-        <section class="event-details" id="eventDetails">
+        <section class="event-details" id="eventDetails" style="display: none;">
             <div class="event-header">
-                <h2>Event Details</h2>
+                <h2 id="eventTitle">Event Details</h2>
                 <div class="event-actions">
                     <button class="btn-primary" id="addCrewBtn">Add Crew Member</button>
                     <button class="btn-secondary" id="generateCrewListBtn">Generate Crew List</button>
+                    <button class="btn-secondary" id="backToEventsBtn">← Back to Events</button>
                 </div>
             </div>
 
@@ -463,18 +475,18 @@
             <div class="event-info-grid">
                 <div class="info-card">
                     <h4>Event Status</h4>
-                    <p class="status-active">Active</p>
+                    <p class="status-active" id="eventStatus">Active</p>
                 </div>
                 <div class="info-card">
                     <h4>Crew Members</h4>
-                    <p>24 Active / 30 Total</p>
+                    <p id="crewCount">0 Approved / 0 Total</p>
                 </div>
                 <div class="info-card">
                     <h4>Onboarding Progress</h4>
                     <div class="progress-bar">
-                        <div class="progress" style="width: 80%"></div>
+                        <div class="progress" id="progressBar" style="width: 0%"></div>
                     </div>
-                    <p>80% Complete</p>
+                    <p id="progressText">0% Complete</p>
                 </div>
             </div>
 
@@ -493,19 +505,8 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- Sample crew member rows -->
-                            <tr>
-                                <td>John Doe</td>
-                                <td>Technical Director</td>
-                                <td>john.doe@example.com</td>
-                                <td><span class="status-badge complete">Complete</span></td>
-                                <td>
-                                    <button class="btn-icon" title="Edit">✏️</button>
-                                    <button class="btn-icon" title="Delete">🗑️</button>
-                                </td>
-                            </tr>
-                            <!-- More rows... -->
+                        <tbody id="crewTableBody">
+                            <!-- Crew members will be loaded dynamically -->
                         </tbody>
                     </table>
                 </div>

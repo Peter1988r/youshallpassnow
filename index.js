@@ -579,6 +579,40 @@ app.get('/api/company/roles', authenticateToken, async (req, res) => {
     }
 });
 
+// Get events assigned to a company
+app.get('/api/company/events', authenticateToken, async (req, res) => {
+    try {
+        const companyId = req.user.company_id;
+        
+        if (!companyId) {
+            return res.status(400).json({ error: 'Company ID not found' });
+        }
+        
+        // Get events assigned to this company through the event_companies junction table
+        const events = await query(`
+            SELECT 
+                e.id,
+                e.name,
+                e.location,
+                e.start_date,
+                e.end_date,
+                e.description,
+                e.status,
+                e.created_at
+            FROM events e
+            INNER JOIN event_companies ec ON e.id = ec.event_id
+            WHERE ec.company_id = $1
+            ORDER BY e.start_date ASC
+        `, [companyId]);
+        
+        console.log(`Found ${events.length} events for company ${companyId}`);
+        res.json(events);
+    } catch (error) {
+        console.error('Get company events error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Super Admin Middleware
 const requireSuperAdmin = (req, res, next) => {
     if (!req.user.is_super_admin) {
