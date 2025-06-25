@@ -1120,6 +1120,86 @@ app.delete('/api/admin/events/:eventId/companies/:companyId', authenticateToken,
     }
 });
 
+// Get crew approvals for a specific event
+app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const approvals = await query(`
+            SELECT 
+                cm.id,
+                cm.first_name,
+                cm.last_name,
+                cm.email,
+                cm.role,
+                cm.access_level,
+                cm.status,
+                cm.created_at,
+                cm.approved_at
+            FROM crew_members cm
+            WHERE cm.event_id = $1 AND cm.status = 'pending_approval'
+            ORDER BY cm.created_at DESC
+        `, [eventId]);
+        
+        res.json(approvals);
+    } catch (error) {
+        console.error('Get event crew approvals error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update crew member access level
+app.put('/api/admin/crew/:crewId/access-level', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { crewId } = req.params;
+        const { access_level } = req.body;
+        
+        await run(`
+            UPDATE crew_members 
+            SET access_level = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [access_level, crewId]);
+        
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        
+        res.json({
+            message: 'Access level updated successfully',
+            crewMember: crewMembers[0]
+        });
+    } catch (error) {
+        console.error('Update access level error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get crew member details
+app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { crewId } = req.params;
+        
+        const details = await query(`
+            SELECT 
+                cm.*,
+                e.name as event_name,
+                e.location as event_location,
+                c.name as company_name
+            FROM crew_members cm
+            JOIN events e ON cm.event_id = e.id
+            LEFT JOIN companies c ON e.company_id = c.id
+            WHERE cm.id = $1
+        `, [crewId]);
+        
+        if (details.length === 0) {
+            return res.status(404).json({ error: 'Crew member not found' });
+        }
+        
+        res.json(details[0]);
+    } catch (error) {
+        console.error('Get crew details error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

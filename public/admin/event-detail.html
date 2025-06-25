@@ -110,6 +110,33 @@
                     </div>
                 </div>
 
+                <div class="form-section">
+                    <h3>Crew Approvals</h3>
+                    <div class="crew-approvals">
+                        <div class="approvals-header">
+                            <p>Manage crew member approvals and access levels for this event:</p>
+                            <button type="button" class="btn-secondary" id="refreshApprovalsBtn">Refresh</button>
+                        </div>
+                        <div class="approvals-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Requested</th>
+                                        <th>Access Level</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="crewApprovalsTableBody">
+                                    <!-- Crew approval rows will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">Save Changes</button>
                     <button type="button" class="btn-secondary" id="cancelEventBtn">Cancel Event</button>

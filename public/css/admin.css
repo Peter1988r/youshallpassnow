@@ -916,4 +916,112 @@
         margin-left: 0;
         align-self: flex-start;
     }
+}
+
+/* Crew Approvals Section */
+.crew-approvals {
+    margin-top: 16px;
+}
+
+.crew-approvals .approvals-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.crew-approvals .approvals-header p {
+    margin: 0;
+    color: #6b7280;
+}
+
+.crew-approvals .approvals-table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+.crew-approvals table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.crew-approvals th,
+.crew-approvals td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.crew-approvals th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.crew-approvals td {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.crew-approvals tr:hover {
+    background: #f9fafb;
+}
+
+.crew-approvals .approval-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.crew-approvals .approval-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.crew-approvals .btn-approve {
+    background: #10b981;
+    color: white;
+}
+
+.crew-approvals .btn-approve:hover {
+    background: #059669;
+}
+
+.crew-approvals .btn-reject {
+    background: #ef4444;
+    color: white;
+}
+
+.crew-approvals .btn-reject:hover {
+    background: #dc2626;
+}
+
+.crew-approvals .btn-view {
+    background: #3b82f6;
+    color: white;
+}
+
+.crew-approvals .btn-view:hover {
+    background: #2563eb;
+}
+
+.crew-approvals .access-level-select {
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+}
+
+.crew-approvals .no-approvals {
+    padding: 24px;
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
 } 

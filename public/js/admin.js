@@ -162,10 +162,6 @@ async function loadEventsTab() {
                         <div class="event-card-status">
                             <span class="status-badge ${statusClass}">${status}</span>
                         </div>
-                        <div class="event-card-actions">
-                            <button class="btn-secondary" onclick="editEvent(${event.id})">Edit</button>
-                            <button class="btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
-                        </div>
                     </div>
                 </div>
             `;

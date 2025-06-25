@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize page
     loadEventDetails(eventId);
+    loadCrewApprovals(eventId);
     setupEventListeners();
 });
 
@@ -132,6 +133,12 @@ function setupEventListeners() {
     
     // Add company to event
     document.getElementById('addCompanyToEvent').addEventListener('click', showAddCompanyModal);
+    
+    // Refresh crew approvals
+    document.getElementById('refreshApprovalsBtn').addEventListener('click', () => {
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        loadCrewApprovals(eventId);
+    });
     
     // Cancel event
     document.getElementById('cancelEventBtn').addEventListener('click', cancelEvent);
@@ -416,4 +423,213 @@ function showMessage(message, type = 'info') {
             messageEl.remove();
         }
     }, 5000);
+}
+
+// Load crew approvals for this event
+async function loadCrewApprovals(eventId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/crew-approvals`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load crew approvals');
+        }
+        
+        const approvals = await response.json();
+        displayCrewApprovals(approvals);
+        
+    } catch (error) {
+        console.error('Error loading crew approvals:', error);
+        showMessage('Failed to load crew approvals', 'error');
+    }
+}
+
+// Display crew approvals
+function displayCrewApprovals(approvals) {
+    const tbody = document.getElementById('crewApprovalsTableBody');
+    
+    if (approvals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-approvals">No pending approvals for this event</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    approvals.forEach(approval => {
+        const requestedDate = new Date(approval.created_at).toLocaleDateString();
+        const accessLevel = approval.access_level || 'No Clearance';
+        
+        html += `
+            <tr>
+                <td>${approval.first_name} ${approval.last_name}</td>
+                <td>${approval.email}</td>
+                <td>${approval.role}</td>
+                <td>${requestedDate}</td>
+                <td>
+                    <select class="access-level-select" onchange="updateAccessLevel(${approval.id}, this.value)">
+                        <option value="No Clearance" ${accessLevel === 'No Clearance' ? 'selected' : ''}>No Clearance</option>
+                        <option value="RESTRICTED" ${accessLevel === 'RESTRICTED' ? 'selected' : ''}>Restricted</option>
+                        <option value="STANDARD" ${accessLevel === 'STANDARD' ? 'selected' : ''}>Standard</option>
+                        <option value="EXTENDED" ${accessLevel === 'EXTENDED' ? 'selected' : ''}>Extended</option>
+                        <option value="FULL" ${accessLevel === 'FULL' ? 'selected' : ''}>Full</option>
+                        <option value="ADMIN" ${accessLevel === 'ADMIN' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="approval-actions">
+                        <button class="btn-view" onclick="viewCrewDetails(${approval.id})">View</button>
+                        <button class="btn-approve" onclick="approveCrewMember(${approval.id})">Approve</button>
+                        <button class="btn-reject" onclick="rejectCrewMember(${approval.id})">Reject</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Update access level for crew member
+async function updateAccessLevel(crewId, accessLevel) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/crew/${crewId}/access-level`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ access_level: accessLevel })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update access level');
+        }
+        
+        showMessage('Access level updated successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error updating access level:', error);
+        showMessage('Failed to update access level', 'error');
+    }
+}
+
+// View crew member details
+async function viewCrewDetails(crewId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/crew/${crewId}/details`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load crew details');
+        }
+        
+        const details = await response.json();
+        showCrewDetailsModal(details);
+        
+    } catch (error) {
+        console.error('Error loading crew details:', error);
+        showMessage('Failed to load crew details', 'error');
+    }
+}
+
+// Show crew details modal
+function showCrewDetailsModal(details) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Crew Member Details</h3>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="crew-details">
+                    <p><strong>Name:</strong> ${details.first_name} ${details.last_name}</p>
+                    <p><strong>Email:</strong> ${details.email}</p>
+                    <p><strong>Role:</strong> ${details.role}</p>
+                    <p><strong>Badge Number:</strong> ${details.badge_number}</p>
+                    <p><strong>Status:</strong> ${details.status}</p>
+                    <p><strong>Requested:</strong> ${new Date(details.created_at).toLocaleString()}</p>
+                    ${details.approved_at ? `<p><strong>Approved:</strong> ${new Date(details.approved_at).toLocaleString()}</p>` : ''}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Approve crew member
+async function approveCrewMember(crewId) {
+    if (!confirm('Are you sure you want to approve this crew member?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/crew/${crewId}/approve`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to approve crew member');
+        }
+        
+        showMessage('Crew member approved successfully', 'success');
+        
+        // Reload approvals
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        loadCrewApprovals(eventId);
+        
+    } catch (error) {
+        console.error('Error approving crew member:', error);
+        showMessage('Failed to approve crew member', 'error');
+    }
+}
+
+// Reject crew member
+async function rejectCrewMember(crewId) {
+    if (!confirm('Are you sure you want to reject this crew member?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/crew/${crewId}/reject`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to reject crew member');
+        }
+        
+        showMessage('Crew member rejected successfully', 'success');
+        
+        // Reload approvals
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        loadCrewApprovals(eventId);
+        
+    } catch (error) {
+        console.error('Error rejecting crew member:', error);
+        showMessage('Failed to reject crew member', 'error');
+    }
 } 
