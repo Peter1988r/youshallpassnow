@@ -211,6 +211,8 @@ function setupEventListeners() {
 
 // Tab switching function
 function switchTab(tabName) {
+    console.log('Switching to tab:', tabName);
+    
     // Remove active class from all tabs and panels
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -220,8 +222,22 @@ function switchTab(tabName) {
     });
     
     // Add active class to selected tab and panel
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.querySelector(`.tab-panel[data-tab="${tabName}"]`).classList.add('active');
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    const selectedPanel = document.querySelector(`.tab-panel[data-tab="${tabName}"]`);
+    
+    console.log('Selected tab element:', selectedTab);
+    console.log('Selected panel element:', selectedPanel);
+    
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    } else {
+        console.error('Tab element not found for:', tabName);
+    }
+    if (selectedPanel) {
+        selectedPanel.classList.add('active');
+    } else {
+        console.error('Panel element not found for:', tabName);
+    }
     
     // Load data based on the selected tab
     const eventId = new URLSearchParams(window.location.search).get('id');
@@ -229,13 +245,15 @@ function switchTab(tabName) {
     if (tabName === 'approvals') {
         loadCrewApprovals(eventId);
     } else if (tabName === 'accredited') {
-        const companyFilter = document.getElementById('companyFilter').value;
-        loadApprovedCrew(eventId, companyFilter || null);
+        const companyFilter = document.getElementById('companyFilter');
+        const filterValue = companyFilter ? companyFilter.value : '';
+        loadApprovedCrew(eventId, filterValue || null);
     }
     
     // Smooth scroll to the section
-    const activePanel = document.querySelector(`.tab-panel[data-tab="${tabName}"]`);
-    activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (selectedPanel) {
+        selectedPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // Auto-save functionality
