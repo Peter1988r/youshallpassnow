@@ -227,8 +227,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const result = await response.json();
                 
-                // Download the PDF
-                window.open(result.url, '_blank');
+                // Create a temporary download link to avoid popup blockers
+                const downloadLink = document.createElement('a');
+                downloadLink.href = result.url;
+                downloadLink.download = result.filename || 'crew-list.pdf';
+                downloadLink.target = '_blank';
+                downloadLink.style.display = 'none';
+                
+                // Add to DOM, click, and remove
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
                 showMessage('Crew list PDF generated successfully!', 'success');
                 
             } catch (error) {
