@@ -364,6 +364,27 @@ app.get('/api/events', async (req, res) => {
 app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
+        const companyId = req.user.company_id;
+        
+        console.log(`Loading crew for event ${eventId}, user company: ${companyId}`);
+        
+        // For company admins, verify they have access to this event
+        if (!req.user.is_super_admin && companyId) {
+            // Check if this event is assigned to the user's company
+            const eventAccess = await query(`
+                SELECT 1 FROM event_companies ec
+                WHERE ec.event_id = $1 AND ec.company_id = $2
+                UNION
+                SELECT 1 FROM events e
+                WHERE e.id = $1 AND e.company_id = $2
+            `, [eventId, companyId]);
+            
+            if (eventAccess.length === 0) {
+                console.log(`Access denied: Event ${eventId} not assigned to company ${companyId}`);
+                return res.status(403).json({ error: 'Access denied: Event not assigned to your company' });
+            }
+        }
+        
         const crew = await query(`
             SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
             FROM crew_members 
@@ -371,6 +392,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             ORDER BY created_at DESC
         `, [eventId]);
         
+        console.log(`Found ${crew.length} crew members for event ${eventId}`);
         res.json(crew);
     } catch (error) {
         console.error('Get crew error:', error);
@@ -482,7 +504,36 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
 app.delete('/api/crew/:crewId', authenticateToken, async (req, res) => {
     try {
         const { crewId } = req.params;
+        const companyId = req.user.company_id;
+        
+        console.log(`Delete crew request - Crew ID: ${crewId}, User Company: ${companyId}`);
+        
+        // Get crew member details first
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        if (crewMembers.length === 0) {
+            return res.status(404).json({ error: 'Crew member not found' });
+        }
+        const crewMember = crewMembers[0];
+        
+        // For company admins, verify they have access to this crew member's event
+        if (!req.user.is_super_admin && companyId) {
+            // Check if the crew member's event is assigned to the user's company
+            const eventAccess = await query(`
+                SELECT 1 FROM event_companies ec
+                WHERE ec.event_id = $1 AND ec.company_id = $2
+                UNION
+                SELECT 1 FROM events e
+                WHERE e.id = $1 AND e.company_id = $2
+            `, [crewMember.event_id, companyId]);
+            
+            if (eventAccess.length === 0) {
+                console.log(`Access denied: Crew member ${crewId} belongs to event not assigned to company ${companyId}`);
+                return res.status(403).json({ error: 'Access denied: Cannot delete crew member from this event' });
+            }
+        }
+        
         await run('DELETE FROM crew_members WHERE id = $1', [crewId]);
+        console.log(`Crew member ${crewId} deleted successfully`);
         res.json({ message: 'Crew member deleted successfully' });
     } catch (error) {
         console.error('Delete crew error:', error);
@@ -490,8 +541,8 @@ app.delete('/api/crew/:crewId', authenticateToken, async (req, res) => {
     }
 });
 
-// Approve crew member accreditation
-app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
+// Approve crew member accreditation (Super Admin only)
+app.put('/api/crew/:crewId/approve', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
         const { crewId } = req.params;
         

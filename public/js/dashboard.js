@@ -26,9 +26,29 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let currentEventId = null;
     let events = [];
+    let userInfo = null;
 
     // Initialize dashboard
+    loadUserInfo();
     loadCompanyEvents();
+
+    // Load user info to determine role
+    async function loadUserInfo() {
+        try {
+            const response = await fetch('/api/auth/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                userInfo = await response.json();
+                console.log('User info loaded:', userInfo);
+            }
+        } catch (error) {
+            console.error('Error loading user info:', error);
+        }
+    }
 
     // Load company events
     async function loadCompanyEvents() {
@@ -181,19 +201,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusClass = member.status === 'approved' ? 'complete' : 'pending';
             const statusText = member.status === 'approved' ? 'Approved' : 'Pending Approval';
             
+            // Company admins can only delete crew members, not approve them
+            let actionsHtml = '';
+            if (userInfo && userInfo.is_super_admin) {
+                // Super admins can approve/delete
+                actionsHtml = `
+                    ${member.status === 'pending_approval' ? 
+                        `<button class="btn-icon" title="Approve" onclick="approveCrewMember(${member.id})">✓</button>` : 
+                        `<button class="btn-icon" title="Download Badge" onclick="downloadBadge('${member.badge_number}')">📄</button>`
+                    }
+                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
+                `;
+            } else {
+                // Company admins can only delete
+                actionsHtml = `
+                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
+                `;
+            }
+            
             row.innerHTML = `
                 <td>${member.first_name} ${member.last_name}</td>
                 <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
                 <td>${member.access_level || 'RESTRICTED'}</td>
                 <td>${member.email || ''}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    ${member.status === 'pending_approval' ? 
-                        `<button class="btn-icon" title="Approve" onclick="approveCrewMember(${member.id})">✓</button>` : 
-                        `<button class="btn-icon" title="Download Badge" onclick="downloadBadge('${member.badge_number}')">📄</button>`
-                    }
-                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
-                </td>
+                <td>${actionsHtml}</td>
             `;
             crewTableBody.appendChild(row);
         });
@@ -365,6 +397,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global functions for table actions
     window.approveCrewMember = async (crewId) => {
+        // Only super admins can approve
+        if (!userInfo || !userInfo.is_super_admin) {
+            showMessage('Only Super Admins can approve crew members. Please contact your administrator.', 'error');
+            return;
+        }
+        
         if (!confirm('Are you sure you want to approve this crew member\'s accreditation?')) {
             return;
         }
