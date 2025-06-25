@@ -417,7 +417,7 @@ function setupEventListeners() {
         addEventBtn.addEventListener('click', () => {
             console.log('Opening event modal');
             addEventModal.style.display = 'block';
-            loadCompaniesForSelect('eventCompany');
+            loadCompaniesForSelect('eventCompanies');
         });
     }
     
@@ -524,6 +524,7 @@ function setupEventListeners() {
 // Load companies for select dropdowns
 async function loadCompaniesForSelect(selectId) {
     try {
+        console.log('Loading companies for select:', selectId);
         const token = localStorage.getItem('token');
         const response = await fetch('/api/admin/companies', {
             headers: {
@@ -534,20 +535,23 @@ async function loadCompaniesForSelect(selectId) {
         if (!response.ok) throw new Error('Failed to load companies');
         
         const companies = await response.json();
+        console.log('Companies loaded:', companies);
+        
         const select = document.getElementById(selectId);
+        console.log('Select element found:', !!select);
+        
+        if (!select) {
+            console.error('Select element not found:', selectId);
+            return;
+        }
         
         // Clear existing options
         select.innerHTML = '';
         
         // Add appropriate placeholder based on select type
         if (selectId === 'eventCompanies') {
-            // Multi-select for event companies
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = 'Select companies to assign';
-            placeholder.disabled = true;
-            placeholder.selected = true;
-            select.appendChild(placeholder);
+            // Multi-select for event companies - no placeholder needed
+            // Companies will be loaded directly
         } else {
             // Single select for other forms
             const placeholder = document.createElement('option');
@@ -563,6 +567,8 @@ async function loadCompaniesForSelect(selectId) {
             option.textContent = company.name;
             select.appendChild(option);
         });
+        
+        console.log('Companies added to select:', selectId, select.options.length);
     } catch (error) {
         console.error('Error loading companies:', error);
     }

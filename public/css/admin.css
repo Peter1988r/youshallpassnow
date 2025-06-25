@@ -1144,7 +1144,21 @@
 /* Multi-select styling */
 select[multiple] {
     min-height: 120px;
+    max-height: 200px;
     padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: white;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-y: auto;
+    cursor: pointer;
+}
+
+select[multiple]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 select[multiple] option {
@@ -1153,6 +1167,8 @@ select[multiple] option {
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s ease;
+    border: none;
+    background: transparent;
 }
 
 select[multiple] option:hover {
@@ -1162,12 +1178,14 @@ select[multiple] option:hover {
 select[multiple] option:checked {
     background-color: var(--primary-color);
     color: white;
+    font-weight: 500;
 }
 
 select[multiple] option:disabled {
     background-color: #f9fafb;
     color: #6b7280;
     cursor: not-allowed;
+    font-style: italic;
 }
 
 /* Form help text styling */
