@@ -116,11 +116,13 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
+    margin-top: 80px; /* Account for fixed navbar + extra spacing */
 }
 
 .admin-header {
     text-align: center;
     margin-bottom: 3rem;
+    margin-top: 1rem; /* Add some top spacing */
 }
 
 .admin-header h1 {
@@ -472,6 +474,7 @@
 @media (max-width: 768px) {
     .admin-main {
         padding: 1rem;
+        margin-top: 80px; /* Keep the same top margin on mobile */
     }
     
     .stats-grid {
