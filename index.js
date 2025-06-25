@@ -935,13 +935,15 @@ app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
                 c.*,
                 STRING_AGG(cr.role_name, ', ') as assigned_roles,
                 COUNT(DISTINCT e.id) as event_count,
-                COUNT(DISTINCT u.id) as user_count
+                COUNT(DISTINCT u.id) as user_count,
+                admin_user.email as admin_email
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
             LEFT JOIN events e ON c.id = e.company_id
             LEFT JOIN users u ON c.id = u.company_id
+            LEFT JOIN users admin_user ON c.id = admin_user.company_id AND admin_user.role = 'admin'
             WHERE c.id = $1
-            GROUP BY c.id
+            GROUP BY c.id, admin_user.email
         `, [companyId]);
         
         console.log('Query result:', companies);
@@ -1025,13 +1027,15 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
                 c.*,
                 STRING_AGG(cr.role_name, ', ') as assigned_roles,
                 COUNT(DISTINCT e.id) as event_count,
-                COUNT(DISTINCT u.id) as user_count
+                COUNT(DISTINCT u.id) as user_count,
+                admin_user.email as admin_email
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
             LEFT JOIN events e ON c.id = e.company_id
             LEFT JOIN users u ON c.id = u.company_id
+            LEFT JOIN users admin_user ON c.id = admin_user.company_id AND admin_user.role = 'admin'
             WHERE c.id = $1
-            GROUP BY c.id
+            GROUP BY c.id, admin_user.email
         `, [companyId]);
         
         console.log('Company updated successfully:', companies[0]);
