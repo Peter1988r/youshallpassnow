@@ -249,7 +249,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
             FROM crew_members 
             WHERE event_id = $1 
-            ORDER BY first_name, last_name
+            ORDER BY created_at DESC
         `, [eventId]);
         
         res.json(crew);
@@ -330,7 +330,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
             SELECT id, first_name, last_name, role, access_level, badge_number, status
             FROM crew_members 
             WHERE event_id = $1 
-            ORDER BY first_name, last_name
+            ORDER BY created_at DESC
         `, [eventId]);
 
         // Generate PDF
@@ -509,7 +509,7 @@ app.get('/api/admin/approvals', authenticateToken, requireSuperAdmin, async (req
             JOIN events e ON cm.event_id = e.id
             JOIN companies c ON e.company_id = c.id
             WHERE cm.status = 'pending_approval'
-            ORDER BY cm.created_at ASC
+            ORDER BY cm.created_at DESC
         `);
         
         res.json(approvals);
