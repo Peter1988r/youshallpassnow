@@ -111,9 +111,27 @@ async function loadCompaniesTab() {
     const token = localStorage.getItem('token');
     const container = document.getElementById('companiesTableContainer');
     container.innerHTML = '<div>Loading companies...</div>';
+    
+    console.log('Loading companies tab...');
+    console.log('Token exists:', !!token);
+    
     try {
-        const res = await fetch('/api/admin/companies', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/admin/companies', { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
+        
+        console.log('Companies response status:', res.status);
+        console.log('Companies response ok:', res.ok);
+        
+        if (!res.ok) {
+            const errorData = await res.json();
+            console.error('Companies API error:', errorData);
+            throw new Error(`API Error: ${errorData.error || res.statusText}`);
+        }
+        
         const companies = await res.json();
+        console.log('Companies loaded:', companies);
+        
         let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Admin Email</th><th>Phone</th><th>Assigned Roles</th><th>Events</th><th>Users</th><th>Actions</th></tr></thead><tbody>`;
         companies.forEach(c => {
             html += `<tr>
@@ -131,8 +149,10 @@ async function loadCompaniesTab() {
         });
         html += '</tbody></table>';
         container.innerHTML = html;
+        console.log('Companies table rendered successfully');
     } catch (e) {
-        container.innerHTML = '<div class="error">Failed to load companies</div>';
+        console.error('Error loading companies:', e);
+        container.innerHTML = `<div class="error">Failed to load companies: ${e.message}</div>`;
     }
 }
 
