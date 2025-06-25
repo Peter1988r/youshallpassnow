@@ -1169,7 +1169,7 @@ function editEvent(eventId) {
 
 // Cleanup events function
 async function cleanupEvents() {
-    if (!confirm('⚠️ WARNING: This will delete ALL events except the first 3 created events. This action cannot be undone!\n\nAre you sure you want to continue?')) {
+    if (!confirm('⚠️ WARNING: This will delete ALL events completely. This action cannot be undone!\n\nAre you sure you want to delete ALL events?')) {
         return;
     }
     
@@ -1185,18 +1185,18 @@ async function cleanupEvents() {
         
         if (response.ok) {
             const result = await response.json();
-            showMessage('✅ Event cleanup completed successfully!', 'success');
-            console.log('Remaining events:', result.remainingEvents);
+            showMessage(`✅ ${result.message} (${result.deletedEvents} events deleted)`, 'success');
+            console.log('Deleted events:', result.deletedEvents);
             
             // Refresh the events tab
             await loadEventsTab();
             
             // Show remaining events in console
             setTimeout(() => {
-                console.log('📋 Remaining events after cleanup:');
-                result.remainingEvents.forEach((event, index) => {
-                    console.log(`${index + 1}. ${event.name} (${event.status})`);
-                });
+                console.log('📋 Remaining events after cleanup:', result.remainingEvents.length);
+                if (result.remainingEvents.length > 0) {
+                    console.log('⚠️ Warning: Some events still remain:', result.remainingEvents);
+                }
             }, 1000);
             
         } else {

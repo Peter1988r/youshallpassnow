@@ -81,7 +81,7 @@
         <h1>Event Cleanup Tool</h1>
         
         <div class="warning">
-            <strong>⚠️ Warning:</strong> This will delete all events except the first 3 created events. This action cannot be undone!
+            <strong>⚠️ Warning:</strong> This will delete ALL events completely. This action cannot be undone!
         </div>
         
         <div class="instructions">
@@ -95,10 +95,10 @@
         </div>
         
         <div class="code-block" id="cleanupCode">
-// Event Cleanup Script
+// Event Cleanup Script - Delete ALL Events
 async function cleanupEvents() {
     try {
-        console.log('🚀 Starting event cleanup...');
+        console.log('🚀 Starting event cleanup - deleting ALL events...');
         
         // Get token from localStorage
         const token = localStorage.getItem('token');
@@ -118,8 +118,9 @@ async function cleanupEvents() {
         
         if (response.ok) {
             const result = await response.json();
-            console.log('✅ Event cleanup completed successfully!');
-            console.log('📋 Remaining events:', result.remainingEvents);
+            console.log('✅ ALL events deleted successfully!');
+            console.log(`📊 Deleted ${result.deletedEvents} events`);
+            console.log(`📋 Remaining events: ${result.remainingEvents.length}`);
             return result;
         } else {
             const error = await response.json();
@@ -176,7 +177,7 @@ cleanupEvents();
                 
                 if (response.ok) {
                     const result = await response.json();
-                    resultDiv.textContent = `✅ Event cleanup completed successfully!\n\nRemaining events:\n${JSON.stringify(result.remainingEvents, null, 2)}`;
+                    resultDiv.textContent = `✅ ALL events deleted successfully!\n\nDeleted ${result.deletedEvents} events\nRemaining events: ${result.remainingEvents.length}`;
                     resultDiv.style.background = '#e8f5e8';
                 } else {
                     const error = await response.json();

@@ -1216,36 +1216,30 @@ app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin,
     }
 });
 
-// Cleanup events endpoint - keep only 3 test events
+// Cleanup events endpoint - delete ALL events
 app.post('/api/admin/cleanup-events', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        console.log('Starting event cleanup...');
+        console.log('Starting event cleanup - deleting ALL events...');
         
         // First, delete all crew members associated with events
-        await run('DELETE FROM crew_members');
-        console.log('Deleted all crew members');
+        const crewResult = await run('DELETE FROM crew_members');
+        console.log(`Deleted ${crewResult.rowCount} crew members`);
         
         // Delete all event-company associations
-        await run('DELETE FROM event_companies');
-        console.log('Deleted all event-company associations');
+        const eventCompaniesResult = await run('DELETE FROM event_companies');
+        console.log(`Deleted ${eventCompaniesResult.rowCount} event-company associations`);
         
-        // Delete all events except the first three
-        const result = await run(`
-            DELETE FROM events 
-            WHERE id NOT IN (
-                SELECT id FROM events 
-                ORDER BY created_at ASC 
-                LIMIT 3
-            )
-        `);
-        console.log(`Deleted events, keeping 3 test events`);
+        // Delete ALL events
+        const eventsResult = await run('DELETE FROM events');
+        console.log(`Deleted ${eventsResult.rowCount} events`);
         
-        // Show remaining events
+        // Show remaining events (should be 0)
         const remainingEvents = await query('SELECT id, name, status FROM events ORDER BY created_at ASC');
         console.log('Remaining events:', remainingEvents.length);
         
         res.json({
-            message: 'Event cleanup completed successfully',
+            message: 'ALL events deleted successfully',
+            deletedEvents: eventsResult.rowCount,
             remainingEvents: remainingEvents
         });
         
