@@ -123,6 +123,22 @@ app.post('/init-db', async (req, res) => {
         await initDatabase();
         console.log('Database initialization completed');
         
+        // Also create the missing company_roles table
+        try {
+            await query(`
+                CREATE TABLE IF NOT EXISTS company_roles (
+                    id SERIAL PRIMARY KEY,
+                    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    role_name TEXT NOT NULL,
+                    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(company_id, role_name)
+                )
+            `);
+            console.log('company_roles table created successfully');
+        } catch (tableError) {
+            console.log('company_roles table already exists or error:', tableError.message);
+        }
+        
         // Check if users were created
         const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
         
@@ -138,6 +154,38 @@ app.post('/init-db', async (req, res) => {
             details: error.message,
             code: error.code,
             hint: error.hint
+        });
+    }
+});
+
+// Simple endpoint to create missing tables (GET method)
+app.get('/fix-tables', async (req, res) => {
+    try {
+        console.log('Creating missing tables via GET endpoint...');
+        
+        // Create company_roles table if it doesn't exist
+        await query(`
+            CREATE TABLE IF NOT EXISTS company_roles (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                role_name TEXT NOT NULL,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_id, role_name)
+            )
+        `);
+        
+        console.log('company_roles table created successfully');
+        
+        res.json({
+            message: 'Missing tables created successfully',
+            createdTables: ['company_roles'],
+            status: 'success'
+        });
+    } catch (error) {
+        console.error('Create missing tables error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create missing tables', 
+            details: error.message
         });
     }
 });
