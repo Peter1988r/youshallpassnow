@@ -286,17 +286,20 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         // Generate unique badge number
         const badgeNumber = generateBadgeNumber();
 
+        console.log('Inserting crew member into DB...');
         const result = await run(`
             INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [eventId, firstName, lastName, email, role, accessLevel, badgeNumber, photoPath || null]);
+        console.log('Crew member inserted, result:', result);
 
         // Get the created crew member
         const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [result.id]);
         const crewMember = crewMembers[0];
 
-        // Generate PDF badge
+        console.log('Generating PDF badge...');
         const badgeResult = await pdfGenerator.generateBadge(crewMember, event);
+        console.log('Badge generated:', badgeResult);
 
         res.json({
             ...crewMember,
@@ -305,11 +308,8 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Add crew error:', error.stack || error);
-        // Return real error in development for debugging
-        if (process.env.NODE_ENV !== 'production') {
-            return res.status(500).json({ error: error.message || 'Internal server error' });
-        }
-        res.status(500).json({ error: 'Internal server error' });
+        // TEMP: Return full error message and stack in all environments for debugging
+        return res.status(500).json({ error: error.message || 'Internal server error', stack: error.stack });
     }
 });
 
