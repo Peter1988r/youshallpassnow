@@ -82,15 +82,14 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '';
 
         crewMembers.forEach(member => {
+            const row = document.createElement('tr');
             const statusClass = member.status === 'approved' ? 'complete' : 'pending';
             const statusText = member.status === 'approved' ? 'Approved' : 'Pending Approval';
             
-            const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${member.first_name} ${member.last_name}</td>
                 <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                <td>${member.access_level || ''}</td>
-                <td>${member.email || ''}</td>
+                <td>${member.email}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
                     ${member.status === 'pending_approval' ? 

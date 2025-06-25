@@ -121,6 +121,12 @@
                     </div>
                 </div>
             </section>
+            <section class="quick-actions">
+                <h2>Role Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn-secondary" id="addRoleBtn">Add New Role</button>
+                </div>
+            </section>
             <div id="rolesManagementContainer">
                 <!-- Roles management UI will go here -->
                 <p>Manage company-specific roles here.</p>
@@ -287,6 +293,43 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" id="cancelAddUser">Cancel</button>
                     <button type="submit" class="btn-primary">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Role Modal -->
+    <div class="modal" id="addRoleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Role</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="addRoleForm">
+                <div class="form-group">
+                    <label for="roleCompany">Company</label>
+                    <select id="roleCompany" name="roleCompany" required>
+                        <option value="">Select a company</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="roleName">Role Name</label>
+                    <input type="text" id="roleName" name="roleName" required>
+                </div>
+                <div class="form-group">
+                    <label for="roleAccessLevel">Access Level</label>
+                    <select id="roleAccessLevel" name="roleAccessLevel" required>
+                        <option value="">Select access level</option>
+                        <option value="RESTRICTED">Restricted</option>
+                        <option value="STANDARD">Standard</option>
+                        <option value="EXTENDED">Extended</option>
+                        <option value="FULL">Full</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancelAddRole">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Role</button>
                 </div>
             </form>
         </div>

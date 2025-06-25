@@ -686,6 +686,128 @@ app.post('/api/admin/users', authenticateToken, requireSuperAdmin, async (req, r
     }
 });
 
+// Get all events (for super admin)
+app.get('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const events = await query(`
+            SELECT 
+                e.*,
+                c.name as company_name
+            FROM events e
+            LEFT JOIN companies c ON e.company_id = c.id
+            ORDER BY e.created_at DESC
+        `);
+        
+        res.json(events);
+    } catch (error) {
+        console.error('Get events error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get all users (for super admin)
+app.get('/api/admin/users', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const users = await query(`
+            SELECT 
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.role,
+                u.company_id,
+                c.name as company_name
+            FROM users u
+            LEFT JOIN companies c ON u.company_id = c.id
+            ORDER BY u.created_at DESC
+        `);
+        
+        res.json(users);
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get all roles (for super admin)
+app.get('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const roles = await query(`
+            SELECT 
+                r.*,
+                c.name as company_name
+            FROM roles r
+            LEFT JOIN companies c ON r.company_id = c.id
+            ORDER BY r.id DESC
+        `);
+        
+        res.json(roles);
+    } catch (error) {
+        console.error('Get roles error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Add new role
+app.post('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { roleCompany, roleName, roleAccessLevel } = req.body;
+        
+        const result = await run(`
+            INSERT INTO roles (company_id, name, access_level)
+            VALUES ($1, $2, $3)
+        `, [roleCompany, roleName, roleAccessLevel]);
+        
+        const roles = await query('SELECT * FROM roles WHERE id = $1', [result.id]);
+        
+        res.json({
+            message: 'Role added successfully',
+            role: roles[0]
+        });
+    } catch (error) {
+        console.error('Add role error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update role
+app.put('/api/admin/roles/:roleId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { roleId } = req.params;
+        const { name, access_level } = req.body;
+        
+        await run(`
+            UPDATE roles 
+            SET name = $1, access_level = $2 
+            WHERE id = $3
+        `, [name, access_level, roleId]);
+        
+        const roles = await query('SELECT * FROM roles WHERE id = $1', [roleId]);
+        
+        res.json({
+            message: 'Role updated successfully',
+            role: roles[0]
+        });
+    } catch (error) {
+        console.error('Update role error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete role
+app.delete('/api/admin/roles/:roleId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { roleId } = req.params;
+        
+        await run('DELETE FROM roles WHERE id = $1', [roleId]);
+        
+        res.json({ message: 'Role deleted successfully' });
+    } catch (error) {
+        console.error('Delete role error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Generate system report
 app.post('/api/admin/reports/generate', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {

@@ -62,7 +62,7 @@ async function loadDashboardData() {
         loadCompaniesTab(),
         loadEventsTab(),
         loadUsersTab(),
-        // Roles tab will be loaded separately
+        loadRolesTab()
     ]);
     loadPendingApprovals();
 }
@@ -126,8 +126,29 @@ async function loadUsersTab() {
 
 // Roles Tab (placeholder)
 async function loadRolesTab() {
+    const token = localStorage.getItem('token');
     const container = document.getElementById('rolesManagementContainer');
-    container.innerHTML = '<div>Roles management coming soon...</div>';
+    container.innerHTML = '<div>Loading roles...</div>';
+    try {
+        const res = await fetch('/api/admin/roles', { headers: { 'Authorization': `Bearer ${token}` } });
+        const roles = await res.json();
+        let html = `<table class="admin-table"><thead><tr><th>Role Name</th><th>Company</th><th>Access Level</th><th>Actions</th></tr></thead><tbody>`;
+        roles.forEach(r => {
+            html += `<tr>
+                <td>${r.name}</td>
+                <td>${r.company_name || 'Global'}</td>
+                <td>${r.access_level}</td>
+                <td>
+                    <button class="btn-icon" title="Edit" onclick="editRole(${r.id})">✏️</button>
+                    <button class="btn-icon" title="Delete" onclick="deleteRole(${r.id})">🗑️</button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="error">Failed to load roles</div>';
+    }
 }
 
 // Load statistics
@@ -271,11 +292,13 @@ function setupEventListeners() {
     const addCompanyModal = document.getElementById('addCompanyModal');
     const addEventModal = document.getElementById('addEventModal');
     const addUserModal = document.getElementById('addUserModal');
+    const addRoleModal = document.getElementById('addRoleModal');
     
     // Buttons
     const addCompanyBtn = document.getElementById('addCompanyBtn');
     const addEventBtn = document.getElementById('addEventBtn');
     const addUserBtn = document.getElementById('addUserBtn');
+    const addRoleBtn = document.getElementById('addRoleBtn');
     const generateReportBtn = document.getElementById('generateReportBtn');
     const signOutBtn = document.getElementById('signOutBtn');
     
@@ -296,6 +319,11 @@ function setupEventListeners() {
     addUserBtn.addEventListener('click', () => {
         addUserModal.style.display = 'block';
         loadCompaniesForSelect('userCompany');
+    });
+    
+    addRoleBtn.addEventListener('click', () => {
+        addRoleModal.style.display = 'block';
+        loadCompaniesForSelect('roleCompany');
     });
     
     generateReportBtn.addEventListener('click', generateReport);
@@ -331,6 +359,7 @@ function setupEventListeners() {
     document.getElementById('addCompanyForm').addEventListener('submit', handleAddCompany);
     document.getElementById('addEventForm').addEventListener('submit', handleAddEvent);
     document.getElementById('addUserForm').addEventListener('submit', handleAddUser);
+    document.getElementById('addRoleForm').addEventListener('submit', handleAddRole);
     
     // Approval actions
     document.getElementById('bulkApproveBtn').addEventListener('click', bulkApproveApprovals);
@@ -481,92 +510,138 @@ async function handleAddUser(e) {
     }
 }
 
-// Global functions for approval actions
-window.approveAccreditation = async (crewId) => {
-    if (!confirm('Are you sure you want to approve this accreditation?')) {
-        return;
-    }
+// Handle add role
+async function handleAddRole(e) {
+    e.preventDefault();
     
-    // Find the button and show loading state
-    const approveBtn = document.querySelector(`button[onclick="approveAccreditation(${crewId})"]`);
-    if (approveBtn) {
-        approveBtn.classList.add('loading');
-        approveBtn.disabled = true;
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/roles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add role');
+        }
+        
+        const result = await response.json();
+        showMessage('Role added successfully!', 'success');
+        
+        // Hide modal and reset form
+        document.getElementById('addRoleModal').style.display = 'none';
+        e.target.reset();
+        
+        // Reload dashboard data
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error adding role:', error);
+        showMessage('Failed to add role: ' + error.message, 'error');
+    }
+}
+
+// Edit role function
+async function editRole(roleId) {
+    // For now, show a simple prompt. In a full implementation, you'd open a modal
+    const newName = prompt('Enter new role name:');
+    const newAccessLevel = prompt('Enter new access level (RESTRICTED/STANDARD/EXTENDED/FULL/ADMIN):');
+    
+    if (newName && newAccessLevel) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/admin/roles/${roleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: newName,
+                    access_level: newAccessLevel
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update role');
+            }
+            
+            showMessage('Role updated successfully!', 'success');
+            loadDashboardData();
+            
+        } catch (error) {
+            console.error('Error updating role:', error);
+            showMessage('Failed to update role: ' + error.message, 'error');
+        }
+    }
+}
+
+// Delete role function
+async function deleteRole(roleId) {
+    if (!confirm('Are you sure you want to delete this role?')) {
+        return;
     }
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/approvals/${crewId}/approve`, {
-            method: 'PUT',
+        const response = await fetch(`/api/admin/roles/${roleId}`, {
+            method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) throw new Error('Failed to approve accreditation');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete role');
+        }
         
-        const result = await response.json();
-        showMessage('Accreditation approved successfully!', 'success');
-        
-        // Reload data
-        loadPendingApprovals();
-        loadStats();
-        loadRecentActivity();
+        showMessage('Role deleted successfully!', 'success');
+        loadDashboardData();
         
     } catch (error) {
-        console.error('Error approving accreditation:', error);
-        showMessage('Failed to approve accreditation: ' + error.message, 'error');
-    } finally {
-        // Remove loading state
-        if (approveBtn) {
-            approveBtn.classList.remove('loading');
-            approveBtn.disabled = false;
-        }
+        console.error('Error deleting role:', error);
+        showMessage('Failed to delete role: ' + error.message, 'error');
     }
+}
+
+// Global functions for approval actions
+window.approveApproval = async (id) => {
+    const accessLevel = document.querySelector(`.access-level-select[data-id='${id}']`).value;
+    const token = localStorage.getItem('token');
+    await fetch(`/api/admin/approvals/${id}/approve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessLevel })
+    });
+    loadPendingApprovals();
 };
 
-window.rejectAccreditation = async (crewId) => {
-    if (!confirm('Are you sure you want to reject this accreditation?')) {
-        return;
-    }
-    
-    // Find the button and show loading state
-    const rejectBtn = document.querySelector(`button[onclick="rejectAccreditation(${crewId})"]`);
-    if (rejectBtn) {
-        rejectBtn.classList.add('loading');
-        rejectBtn.disabled = true;
-    }
-    
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/approvals/${crewId}/reject`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to reject accreditation');
-        
-        const result = await response.json();
-        showMessage('Accreditation rejected successfully!', 'success');
-        
-        // Reload data
-        loadPendingApprovals();
-        loadStats();
-        loadRecentActivity();
-        
-    } catch (error) {
-        console.error('Error rejecting accreditation:', error);
-        showMessage('Failed to reject accreditation: ' + error.message, 'error');
-    } finally {
-        // Remove loading state
-        if (rejectBtn) {
-            rejectBtn.classList.remove('loading');
-            rejectBtn.disabled = false;
-        }
-    }
+window.rejectApproval = async (id) => {
+    const token = localStorage.getItem('token');
+    await fetch(`/api/admin/approvals/${id}/reject`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    loadPendingApprovals();
 };
+
+window.viewApproval = (id) => {
+    alert('View details coming soon!');
+};
+
+// Global functions for role management
+window.editRole = editRole;
+window.deleteRole = deleteRole;
 
 // Generate report
 async function generateReport() {
