@@ -150,24 +150,30 @@ const initDatabase = async () => {
             ON CONFLICT (email) DO NOTHING
         `, [1, 'company@demo.youshallpass.com', companyAdminPassword, 'Company', 'Admin', 'admin']);
 
-        // Insert sample events
-        await client.query(`
-            INSERT INTO events (company_id, name, location, start_date, end_date, description)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT DO NOTHING
-        `, [1, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix']);
+        // Insert sample events only if they don't exist
+        const existingEvents = await client.query('SELECT COUNT(*) as count FROM events');
+        if (existingEvents.rows[0].count === 0) {
+            console.log('Creating sample events...');
+            
+            await client.query(`
+                INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [1, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix']);
 
-        await client.query(`
-            INSERT INTO events (company_id, name, location, start_date, end_date, description)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT DO NOTHING
-        `, [1, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert']);
+            await client.query(`
+                INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [1, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert']);
 
-        await client.query(`
-            INSERT INTO events (company_id, name, location, start_date, end_date, description)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT DO NOTHING
-        `, [1, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series']);
+            await client.query(`
+                INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [1, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series']);
+            
+            console.log('Sample events created successfully');
+        } else {
+            console.log('Events already exist, skipping sample event creation');
+        }
 
         client.release();
         console.log('✅ Database initialized successfully');
