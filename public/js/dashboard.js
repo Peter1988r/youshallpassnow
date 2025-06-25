@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayEvents(events) {
         eventCards.innerHTML = '';
         
-        events.forEach(event => {
+        events.forEach((event, index) => {
             const eventCard = document.createElement('div');
             eventCard.className = 'event-card';
             eventCard.dataset.eventId = event.id;
@@ -79,11 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const endDate = new Date(event.end_date);
             const dateRange = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
             
-            // Get event image based on name
-            const eventImage = getEventImage(event.name);
+            // Get color variant and icon based on index and event type
+            const colorVariant = `variant-${(index % 5) + 1}`;
+            const eventIcon = getEventIcon(event.name);
             
             eventCard.innerHTML = `
-                <img src="${eventImage}" alt="${event.name}">
+                <div class="event-card-header ${colorVariant}">
+                    <div class="event-card-icon">${eventIcon}</div>
+                </div>
                 <div class="event-info">
                     <h3>${event.name}</h3>
                     <p>${event.location}</p>
@@ -96,18 +99,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Get event image based on event name
-    function getEventImage(eventName) {
+    // Get event icon based on event name
+    function getEventIcon(eventName) {
         const name = eventName.toLowerCase();
-        if (name.includes('formula e') || name.includes('formula-e')) {
-            return '/assets/images/formula-e.jpg';
-        } else if (name.includes('extreme e') || name.includes('extreme-e')) {
-            return '/assets/images/extreme-e.jpg';
-        } else if (name.includes('e1') || name.includes('e1-series')) {
-            return '/assets/images/e1-series.jpg';
+        if (name.includes('formula e') || name.includes('formula-e') || name.includes('racing')) {
+            return '🏎️';
+        } else if (name.includes('extreme e') || name.includes('extreme-e') || name.includes('desert')) {
+            return '🏜️';
+        } else if (name.includes('e1') || name.includes('powerboat') || name.includes('boat')) {
+            return '🚤';
+        } else if (name.includes('conference') || name.includes('meeting')) {
+            return '📊';
+        } else if (name.includes('festival') || name.includes('music')) {
+            return '🎵';
+        } else if (name.includes('sport') || name.includes('competition')) {
+            return '🏆';
         } else {
-            // Default image
-            return '/assets/images/formula-e.jpg';
+            return '��';
         }
     }
 
