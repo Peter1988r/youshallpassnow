@@ -323,7 +323,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role, is_super_admin: user.is_super_admin },
+            { id: user.id, email: user.email, role: user.role, is_super_admin: user.is_super_admin, company_id: user.company_id },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -338,7 +338,8 @@ app.post('/api/auth/login', async (req, res) => {
                 firstName: user.first_name,
                 lastName: user.last_name,
                 role: user.role,
-                is_super_admin: user.is_super_admin
+                is_super_admin: user.is_super_admin,
+                company_id: user.company_id
             }
         });
     } catch (error) {
@@ -1893,9 +1894,28 @@ app.post('/api/admin/migrate', authenticateToken, requireSuperAdmin, async (req,
             }
         }
         
+        // Link existing events to companies through event_companies junction table
+        console.log('Linking events to companies...');
+        const events = await query('SELECT id, company_id FROM events WHERE company_id IS NOT NULL');
+        
+        for (const event of events) {
+            // Check if link already exists
+            const existingLink = await query(`
+                SELECT id FROM event_companies 
+                WHERE event_id = $1 AND company_id = $2
+            `, [event.id, event.company_id]);
+            
+            if (existingLink.length === 0) {
+                await run(`
+                    INSERT INTO event_companies (event_id, company_id)
+                    VALUES ($1, $2)
+                `, [event.id, event.company_id]);
+                console.log(`Linked event ${event.id} to company ${event.company_id}`);
+            }
+        }
+        
         console.log('Database migration completed successfully!');
         res.json({ message: 'Database migration completed successfully' });
-        
     } catch (error) {
         console.error('Migration error:', error);
         res.status(500).json({ error: 'Migration failed: ' + error.message });
