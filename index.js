@@ -856,11 +856,30 @@ app.post('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, r
         }
         
         console.log('Attempting to insert role:', { roleName, roleDescription });
-        const result = await run(`
-            INSERT INTO roles (name, description)
-            VALUES ($1, $2)
-            RETURNING id
-        `, [roleName, roleDescription]);
+        
+        // Check if access_level column exists and is required
+        const structure = await query(`
+            SELECT column_name, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'roles' AND column_name = 'access_level'
+        `);
+        
+        let result;
+        if (structure.length > 0 && structure[0].is_nullable === 'NO') {
+            // access_level column exists and is NOT NULL, provide a default value
+            result = await run(`
+                INSERT INTO roles (name, description, access_level)
+                VALUES ($1, $2, $3)
+                RETURNING id
+            `, [roleName, roleDescription, 'STANDARD']);
+        } else {
+            // access_level column doesn't exist or is nullable, don't include it
+            result = await run(`
+                INSERT INTO roles (name, description)
+                VALUES ($1, $2)
+                RETURNING id
+            `, [roleName, roleDescription]);
+        }
         
         console.log('Role inserted, result:', result);
         const roles = await query('SELECT id, name, description FROM roles WHERE id = $1', [result.id]);
@@ -1390,19 +1409,71 @@ app.post('/api/admin/migrate', authenticateToken, requireSuperAdmin, async (req,
     try {
         console.log('Starting database migration...');
         
-        // Add description column to existing roles table if it doesn't exist
-        await run(`
-            DO $$ BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='roles' AND column_name='description') THEN
-                    ALTER TABLE roles ADD COLUMN description TEXT DEFAULT 'No description available';
-                    RAISE NOTICE 'Added description column to roles table';
-                ELSE
-                    RAISE NOTICE 'Description column already exists in roles table';
-                END IF;
-            END $$;
+        // First, check if roles table exists and get its current structure
+        const tableExists = await query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'roles'
+            );
         `);
         
-        // Update existing roles with descriptions
+        if (!tableExists[0].exists) {
+            return res.status(400).json({ error: 'Roles table does not exist' });
+        }
+        
+        // Get current table structure
+        const structure = await query(`
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'roles'
+            ORDER BY ordinal_position;
+        `);
+        
+        console.log('Current roles table structure:', structure);
+        
+        // Add description column if it doesn't exist
+        const hasDescription = structure.some(col => col.column_name === 'description');
+        if (!hasDescription) {
+            await run(`
+                ALTER TABLE roles ADD COLUMN description TEXT DEFAULT 'No description available'
+            `);
+            console.log('Added description column');
+        }
+        
+        // Check if access_level column exists and is not null
+        const hasAccessLevel = structure.some(col => col.column_name === 'access_level');
+        const accessLevelNotNull = structure.find(col => col.column_name === 'access_level')?.is_nullable === 'NO';
+        
+        if (hasAccessLevel && accessLevelNotNull) {
+            // Make access_level nullable or add default value
+            await run(`
+                ALTER TABLE roles ALTER COLUMN access_level DROP NOT NULL
+            `);
+            console.log('Made access_level nullable');
+        }
+        
+        // Check if name column has unique constraint
+        const uniqueConstraints = await query(`
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'roles' 
+            AND constraint_type = 'UNIQUE'
+        `);
+        
+        const hasNameUnique = uniqueConstraints.some(constraint => 
+            constraint.constraint_name.includes('name') || constraint.constraint_name.includes('roles')
+        );
+        
+        if (!hasNameUnique) {
+            // Add unique constraint on name column
+            await run(`
+                ALTER TABLE roles ADD CONSTRAINT roles_name_unique UNIQUE (name)
+            `);
+            console.log('Added unique constraint on name column');
+        }
+        
+        // Update existing roles with descriptions (without ON CONFLICT for now)
         const defaultRoles = [
             { name: 'technical_director', description: 'Oversees technical operations and equipment setup for events' },
             { name: 'media_personnel', description: 'Handles media coverage, photography, and video recording' },
@@ -1415,11 +1486,19 @@ app.post('/api/admin/migrate', authenticateToken, requireSuperAdmin, async (req,
         ];
 
         for (const role of defaultRoles) {
-            await run(`
-                INSERT INTO roles (name, description)
-                VALUES ($1, $2)
-                ON CONFLICT (name) DO UPDATE SET description = $2
-            `, [role.name, role.description]);
+            // Check if role exists first
+            const existingRole = await query('SELECT id FROM roles WHERE name = $1', [role.name]);
+            if (existingRole.length > 0) {
+                // Update existing role
+                await run(`
+                    UPDATE roles SET description = $1 WHERE name = $2
+                `, [role.description, role.name]);
+            } else {
+                // Insert new role
+                await run(`
+                    INSERT INTO roles (name, description) VALUES ($1, $2)
+                `, [role.name, role.description]);
+            }
         }
         
         console.log('Database migration completed successfully!');
