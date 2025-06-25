@@ -415,7 +415,7 @@ function setupEventListeners() {
         addCompanyBtn.addEventListener('click', async () => {
             console.log('Opening company modal');
             addCompanyModal.style.display = 'block';
-            await loadRolesForCompanySelect();
+            await loadRolesForCompanySelect('assignedRoles');
         });
     }
     
@@ -1141,28 +1141,6 @@ async function cleanupEvents() {
     }
 }
 
-// Add Company Modal
-const addCompanyBtn = document.getElementById('addCompanyBtn');
-const addCompanyModal = document.getElementById('addCompanyModal');
-const addCompanyForm = document.getElementById('addCompanyForm');
-const cancelAddCompany = document.getElementById('cancelAddCompany');
-
-if (addCompanyBtn) {
-    addCompanyBtn.addEventListener('click', async () => {
-        console.log('Opening company modal');
-        addCompanyModal.style.display = 'block';
-        await loadRolesForCompanySelect();
-    });
-}
-
-if (addCompanyForm) {
-    addCompanyForm.addEventListener('submit', handleAddCompany);
-}
-
-if (cancelAddCompany) {
-    cancelAddCompany.addEventListener('click', () => hideModal(addCompanyModal));
-}
-
 // Load roles for company select
 async function loadRolesForCompanySelect(selectId) {
     try {
@@ -1201,25 +1179,4 @@ async function loadRolesForCompanySelect(selectId) {
     } catch (error) {
         console.error('Error loading roles:', error);
     }
-}
-
-// Add Role Modal
-const addRoleBtn = document.getElementById('addRoleBtn');
-const addRoleModal = document.getElementById('addRoleModal');
-const addRoleForm = document.getElementById('addRoleForm');
-const cancelAddRole = document.getElementById('cancelAddRole');
-
-if (addRoleBtn) {
-    addRoleBtn.addEventListener('click', () => {
-        console.log('Opening role modal');
-        addRoleModal.style.display = 'block';
-    });
-}
-
-if (addRoleForm) {
-    addRoleForm.addEventListener('submit', handleAddRole);
-}
-
-if (cancelAddRole) {
-    cancelAddRole.addEventListener('click', () => hideModal(addRoleModal));
 } 

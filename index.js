@@ -957,14 +957,22 @@ app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
 // Update company
 app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
+        console.log('Updating company...');
+        console.log('Request params:', req.params);
+        console.log('Request body:', req.body);
+        
         const { companyId } = req.params;
         const { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles } = req.body;
         
+        console.log('Parsed data:', { companyId, companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles });
+        
         // Validate required fields
         if (!companyName || !companyAdminEmail || !assignedRoles || !Array.isArray(assignedRoles) || assignedRoles.length === 0) {
+            console.log('Validation failed:', { companyName: !!companyName, companyAdminEmail: !!companyAdminEmail, assignedRoles: assignedRoles });
             return res.status(400).json({ error: 'Missing required fields: company name, admin email, and at least one assigned role' });
         }
         
+        console.log('Updating company in database...');
         // Update the company
         await run(`
             UPDATE companies 
@@ -972,16 +980,19 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
             WHERE id = $5
         `, [companyName, companyDomain, contactPhone, companyAddress, companyId]);
         
+        console.log('Company updated, now updating roles...');
         // Update company roles (remove all existing and add new ones)
         await run('DELETE FROM company_roles WHERE company_id = $1', [companyId]);
         
         for (const roleName of assignedRoles) {
+            console.log('Assigning role:', roleName, 'to company:', companyId);
             await run(`
                 INSERT INTO company_roles (company_id, role_name)
                 VALUES ($1, $2)
             `, [companyId, roleName]);
         }
         
+        console.log('Roles updated, now updating admin user...');
         // Update or create company admin user
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10); // Default password, should be changed
@@ -997,6 +1008,7 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
                 role = $6
         `, [companyId, companyAdminEmail, adminPassword, 'Company', 'Admin', 'admin']);
         
+        console.log('Admin user updated, fetching updated company...');
         // Get the updated company with role information
         const companies = await query(`
             SELECT 
@@ -1012,12 +1024,20 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
             GROUP BY c.id
         `, [companyId]);
         
+        console.log('Company updated successfully:', companies[0]);
         res.json({
             message: 'Company updated successfully',
             company: companies[0]
         });
     } catch (error) {
         console.error('Update company error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            stack: error.stack
+        });
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
