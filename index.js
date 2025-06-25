@@ -376,50 +376,56 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         
         console.log(`Loading crew for event ${eventId}, user company: ${companyId}`);
         
-        // For company admins, verify they have access to this event
-        if (!req.user.is_super_admin && companyId) {
-            try {
-                // Check if this event is assigned to the user's company
-                const eventAccess = await query(`
-                    SELECT 1 as access FROM event_companies ec
-                    WHERE ec.event_id = $1 AND ec.company_id = $2
-                    UNION ALL
-                    SELECT 1 as access FROM events e
-                    WHERE e.id = $1 AND e.company_id = $2
-                    LIMIT 1
-                `, [eventId, companyId]);
-                
-                if (eventAccess.length === 0) {
-                    console.log(`Access denied: Event ${eventId} not assigned to company ${companyId}`);
-                    return res.status(403).json({ error: 'Access denied: Event not assigned to your company' });
-                }
-            } catch (authError) {
-                console.error('Authorization check error:', authError);
-                return res.status(500).json({ error: 'Authorization check failed' });
-            }
-        }
-        
-        // For company isolation: only show crew from user's company (unless super admin)
+        // For company isolation: check if company_id column exists first
         let crew;
-        if (req.user.is_super_admin) {
-            // Super admin sees all crew members with company info
-            crew = await query(`
-                SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
-                       cm.badge_number, cm.status, cm.created_at, cm.company_id,
-                       c.name as company_name
-                FROM crew_members cm
-                LEFT JOIN companies c ON cm.company_id = c.id
-                WHERE cm.event_id = $1 
-                ORDER BY cm.created_at DESC
-            `, [eventId]);
-        } else {
-            // Company users only see their own crew members
+        try {
+            // Check if company_id column exists in crew_members table
+            const columnExists = await query(`
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'crew_members' AND column_name = 'company_id'
+            `);
+            
+            if (columnExists.length > 0) {
+                // New behavior: filter by company_id
+                if (req.user.is_super_admin) {
+                    // Super admin sees all crew members with company info
+                    crew = await query(`
+                        SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
+                               cm.badge_number, cm.status, cm.created_at, cm.company_id,
+                               c.name as company_name
+                        FROM crew_members cm
+                        LEFT JOIN companies c ON cm.company_id = c.id
+                        WHERE cm.event_id = $1 
+                        ORDER BY cm.created_at DESC
+                    `, [eventId]);
+                } else {
+                    // Company users only see their own crew members
+                    crew = await query(`
+                        SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
+                        FROM crew_members 
+                        WHERE event_id = $1 AND company_id = $2
+                        ORDER BY created_at DESC
+                    `, [eventId, companyId]);
+                }
+            } else {
+                // Fallback: old behavior without company filtering (until migration is run)
+                console.log('⚠️ company_id column not found - using legacy crew loading');
+                crew = await query(`
+                    SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
+                    FROM crew_members 
+                    WHERE event_id = $1 
+                    ORDER BY created_at DESC
+                `, [eventId]);
+            }
+        } catch (error) {
+            console.error('Error checking company_id column:', error);
+            // Fallback to basic query
             crew = await query(`
                 SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
                 FROM crew_members 
-                WHERE event_id = $1 AND company_id = $2
+                WHERE event_id = $1 
                 ORDER BY created_at DESC
-            `, [eventId, companyId]);
+            `, [eventId]);
         }
         
         console.log(`Found ${crew.length} crew members for event ${eventId} (company filter: ${req.user.is_super_admin ? 'none' : companyId})`);
