@@ -168,12 +168,44 @@ app.get('/check-db-tables', async (req, res) => {
             message: 'Database tables check completed',
             tables: tableNames,
             companiesCount: companiesCount,
-            hasCompaniesTable: tableNames.includes('companies')
+            hasCompaniesTable: tableNames.includes('companies'),
+            hasCompanyRolesTable: tableNames.includes('company_roles')
         });
     } catch (error) {
         console.error('Database tables check error:', error);
         res.status(500).json({ 
             error: 'Database tables check failed', 
+            details: error.message
+        });
+    }
+});
+
+// Create missing tables endpoint
+app.post('/create-missing-tables', async (req, res) => {
+    try {
+        console.log('Creating missing tables...');
+        
+        // Create company_roles table if it doesn't exist
+        await query(`
+            CREATE TABLE IF NOT EXISTS company_roles (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                role_name TEXT NOT NULL,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_id, role_name)
+            )
+        `);
+        
+        console.log('company_roles table created successfully');
+        
+        res.json({
+            message: 'Missing tables created successfully',
+            createdTables: ['company_roles']
+        });
+    } catch (error) {
+        console.error('Create missing tables error:', error);
+        res.status(500).json({ 
+            error: 'Failed to create missing tables', 
             details: error.message
         });
     }

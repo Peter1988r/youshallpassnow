@@ -1013,13 +1013,21 @@ const addCompanyModal = document.getElementById('addCompanyModal');
 const addCompanyForm = document.getElementById('addCompanyForm');
 const cancelAddCompany = document.getElementById('cancelAddCompany');
 
-addCompanyBtn.addEventListener('click', async () => {
-    addCompanyModal.style.display = 'block';
-    await loadRolesForCompanySelect();
-});
+if (addCompanyBtn) {
+    addCompanyBtn.addEventListener('click', async () => {
+        console.log('Opening company modal');
+        addCompanyModal.style.display = 'block';
+        await loadRolesForCompanySelect();
+    });
+}
 
-addCompanyForm.addEventListener('submit', handleAddCompany);
-cancelAddCompany.addEventListener('click', () => hideModal(addCompanyModal));
+if (addCompanyForm) {
+    addCompanyForm.addEventListener('submit', handleAddCompany);
+}
+
+if (cancelAddCompany) {
+    cancelAddCompany.addEventListener('click', () => hideModal(addCompanyModal));
+}
 
 // Load roles for company select
 async function loadRolesForCompanySelect() {
