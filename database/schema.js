@@ -94,16 +94,35 @@ const initDatabase = async () => {
             )
         `);
 
-        // Add roles table for company-specific roles
+        // Add roles table for role library
         await client.query(`
             CREATE TABLE IF NOT EXISTS roles (
                 id SERIAL PRIMARY KEY,
-                company_id INTEGER REFERENCES companies(id),
-                name TEXT NOT NULL,
-                access_level TEXT NOT NULL,
-                UNIQUE(company_id, name)
+                name TEXT UNIQUE NOT NULL,
+                description TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Insert default roles if they don't exist
+        const defaultRoles = [
+            { name: 'technical_director', description: 'Oversees technical operations and equipment setup for events' },
+            { name: 'media_personnel', description: 'Handles media coverage, photography, and video recording' },
+            { name: 'security_officer', description: 'Manages event security and access control' },
+            { name: 'logistics_coordinator', description: 'Coordinates event logistics, transportation, and setup' },
+            { name: 'medical_staff', description: 'Provides medical support and emergency response during events' },
+            { name: 'catering_staff', description: 'Manages food and beverage services for events' },
+            { name: 'cleanup_crew', description: 'Handles post-event cleanup and venue restoration' },
+            { name: 'volunteer_coordinator', description: 'Manages volunteer recruitment and coordination' }
+        ];
+
+        for (const role of defaultRoles) {
+            await client.query(`
+                INSERT INTO roles (name, description)
+                VALUES ($1, $2)
+                ON CONFLICT (name) DO NOTHING
+            `, [role.name, role.description]);
+        }
 
         // Add event_companies junction table for many-to-many relationship
         await client.query(`

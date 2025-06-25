@@ -1,7 +1,6 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const { ACCESS_LEVEL_DESCRIPTIONS } = require('../config/accessMatrix');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -117,11 +116,10 @@ class PDFGenerator {
                    .text(`Badge: ${crewMember.badge_number}`, detailsX, detailsY + 35);
 
                 // Access level
-                const accessDescription = ACCESS_LEVEL_DESCRIPTIONS[crewMember.access_level];
                 doc.fontSize(9)
                    .font('Helvetica')
                    .fill('#666666')
-                   .text(accessDescription, detailsX, detailsY + 50, { width: 200 });
+                   .text(crewMember.access_level, detailsX, detailsY + 50, { width: 200 });
 
                 // Event details (bottom section)
                 const bottomY = 180;

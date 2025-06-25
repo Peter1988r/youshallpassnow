@@ -5,12 +5,13 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
 require('dotenv').config();
 
 // Import our modules
 const { initDatabase, query, run } = require('./database/schema');
-const { ROLE_ACCESS_MATRIX } = require('./config/accessMatrix');
-const pdfGenerator = require('./services/pdfGenerator');
+const { generatePDF } = require('./services/pdfGenerator');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -280,18 +281,15 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         }
         const event = events[0];
 
-        // Set access level to 'No Clearance' initially - will be assigned during approval
-        const accessLevel = 'No Clearance';
-        
         // Generate unique badge number
         const badgeNumber = generateBadgeNumber();
 
         console.log('Inserting crew member into DB...');
         const result = await run(`
-            INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id
-        `, [eventId, firstName, lastName, email, role, accessLevel, badgeNumber, photoPath || null]);
+        `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber]);
         console.log('Crew member inserted, result:', result);
 
         // Get the created crew member
@@ -386,15 +384,14 @@ app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
         }
         const crewMember = crewMembers[0];
         
-        // Get access level from role
-        const accessLevel = ROLE_ACCESS_MATRIX[crewMember.role] || 'RESTRICTED';
-        
-        // Update status to approved and assign access level
+        // Update crew member status and assign access level
         await run(`
             UPDATE crew_members 
-            SET status = 'approved', approved_at = CURRENT_TIMESTAMP, access_level = $1
+            SET status = 'approved', 
+                approved_at = CURRENT_TIMESTAMP,
+                access_level = $1
             WHERE id = $2
-        `, [accessLevel, crewId]);
+        `, ['STANDARD', crewId]);
         
         const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const updatedCrewMember = updatedCrewMembers[0];
@@ -402,10 +399,10 @@ app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
         const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        console.log(`📧 Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${accessLevel} access!`);
+        console.log(`📧 Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with STANDARD access!`);
         
         res.json({
-            message: `Accreditation approved successfully with ${accessLevel} access`,
+            message: 'Accreditation approved successfully with STANDARD access',
             crewMember: updatedCrewMember
         });
     } catch (error) {
@@ -414,10 +411,30 @@ app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
     }
 });
 
-// Get available roles
-app.get('/api/roles', (req, res) => {
-    const roles = Object.keys(ROLE_ACCESS_MATRIX);
-    res.json(roles);
+// Get available roles for crew member creation
+app.get('/api/roles', authenticateToken, async (req, res) => {
+    try {
+        const companyId = req.user.company_id;
+        
+        if (!companyId) {
+            return res.status(400).json({ error: 'Company ID not found' });
+        }
+        
+        // Get roles assigned to this company
+        const roles = await query(`
+            SELECT r.name
+            FROM roles r
+            INNER JOIN company_roles cr ON r.name = cr.role_name
+            WHERE cr.company_id = $1
+            ORDER BY r.name
+        `, [companyId]);
+        
+        const roleNames = roles.map(role => role.name);
+        res.json(roleNames);
+    } catch (error) {
+        console.error('Get roles error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Get roles assigned to a specific company
@@ -430,13 +447,14 @@ app.get('/api/company/roles', authenticateToken, async (req, res) => {
         }
         
         const roles = await query(`
-            SELECT role_name
-            FROM company_roles
-            WHERE company_id = $1
-            ORDER BY role_name
+            SELECT r.name
+            FROM roles r
+            INNER JOIN company_roles cr ON r.name = cr.role_name
+            WHERE cr.company_id = $1
+            ORDER BY r.name
         `, [companyId]);
         
-        const roleNames = roles.map(role => role.role_name);
+        const roleNames = roles.map(role => role.name);
         res.json(roleNames);
     } catch (error) {
         console.error('Get company roles error:', error);
@@ -591,15 +609,14 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
         }
         const crewMember = crewMembers[0];
         
-        // Get access level from role
-        const accessLevel = ROLE_ACCESS_MATRIX[crewMember.role] || 'RESTRICTED';
-        
-        // Update status to approved and assign access level
+        // Update crew member status and assign access level
         await run(`
             UPDATE crew_members 
-            SET status = 'approved', approved_at = CURRENT_TIMESTAMP, access_level = $1
+            SET status = 'approved', 
+                approved_at = CURRENT_TIMESTAMP,
+                access_level = $1
             WHERE id = $2
-        `, [accessLevel, crewId]);
+        `, ['STANDARD', crewId]);
         
         const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const updatedCrewMember = updatedCrewMembers[0];
@@ -607,10 +624,10 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
         const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        console.log(`📧 Super Admin approved: Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${accessLevel} access!`);
+        console.log(`📧 Super Admin approved: Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with STANDARD access!`);
         
         res.json({
-            message: `Accreditation approved successfully with ${accessLevel} access`,
+            message: 'Accreditation approved successfully with STANDARD access',
             crewMember: updatedCrewMember
         });
     } catch (error) {
@@ -786,31 +803,6 @@ app.post('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, 
     }
 });
 
-// Add new user
-app.post('/api/admin/users', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const { userCompany, userFirstName, userLastName, userEmail, userRole, userPassword } = req.body;
-        
-        // Hash password
-        const passwordHash = await bcrypt.hash(userPassword, 10);
-        
-        const result = await run(`
-            INSERT INTO users (company_id, first_name, last_name, email, password_hash, role)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        `, [userCompany, userFirstName, userLastName, userEmail, passwordHash, userRole]);
-        
-        const users = await query('SELECT id, first_name, last_name, email, role, company_id FROM users WHERE id = $1', [result.id]);
-        
-        res.json({
-            message: 'User added successfully',
-            user: users[0]
-        });
-    } catch (error) {
-        console.error('Add user error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
 // Get all events (for super admin)
 app.get('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
@@ -832,40 +824,16 @@ app.get('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, r
     }
 });
 
-// Get all users (for super admin)
-app.get('/api/admin/users', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const users = await query(`
-            SELECT 
-                u.id,
-                u.first_name,
-                u.last_name,
-                u.email,
-                u.role,
-                u.company_id,
-                c.name as company_name
-            FROM users u
-            LEFT JOIN companies c ON u.company_id = c.id
-            ORDER BY u.created_at DESC
-        `);
-        
-        res.json(users);
-    } catch (error) {
-        console.error('Get users error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
 // Get all roles (for super admin)
 app.get('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
         const roles = await query(`
             SELECT 
-                r.*,
-                c.name as company_name
-            FROM roles r
-            LEFT JOIN companies c ON r.company_id = c.id
-            ORDER BY r.id DESC
+                id,
+                name,
+                description
+            FROM roles
+            ORDER BY name ASC
         `);
         
         res.json(roles);
@@ -878,14 +846,20 @@ app.get('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, re
 // Add new role
 app.post('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        const { roleCompany, roleName, roleAccessLevel } = req.body;
+        const { roleName, roleDescription } = req.body;
+        
+        // Validate required fields
+        if (!roleName || !roleDescription) {
+            return res.status(400).json({ error: 'Missing required fields: role name and description' });
+        }
         
         const result = await run(`
-            INSERT INTO roles (company_id, name, access_level)
-            VALUES ($1, $2, $3)
-        `, [roleCompany, roleName, roleAccessLevel]);
+            INSERT INTO roles (name, description)
+            VALUES ($1, $2)
+            RETURNING id
+        `, [roleName, roleDescription]);
         
-        const roles = await query('SELECT * FROM roles WHERE id = $1', [result.id]);
+        const roles = await query('SELECT id, name, description FROM roles WHERE id = $1', [result.id]);
         
         res.json({
             message: 'Role added successfully',
@@ -955,41 +929,19 @@ app.delete('/api/admin/companies/:companyId', authenticateToken, requireSuperAdm
 });
 
 // Delete event
-app.delete('/api/admin/events/:eventId', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.delete('/api/admin/events/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        const { eventId } = req.params;
+        const eventId = req.params.id;
         
-        // Delete crew members first, then event
-        await run('DELETE FROM crew_members WHERE event_id = $1', [eventId]);
+        // Delete event companies first
+        await run('DELETE FROM event_companies WHERE event_id = $1', [eventId]);
+        
+        // Delete the event
         await run('DELETE FROM events WHERE id = $1', [eventId]);
         
-        res.json({ message: 'Event and all associated crew members deleted successfully' });
+        res.json({ message: 'Event deleted successfully' });
     } catch (error) {
         console.error('Delete event error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Delete user
-app.delete('/api/admin/users/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const { userId } = req.params;
-        
-        // Check if user is super admin
-        const users = await query('SELECT is_super_admin FROM users WHERE id = $1', [userId]);
-        if (users.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
-        if (users[0].is_super_admin) {
-            return res.status(403).json({ error: 'Cannot delete super admin user' });
-        }
-        
-        await run('DELETE FROM users WHERE id = $1', [userId]);
-        
-        res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        console.error('Delete user error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

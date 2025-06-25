@@ -71,7 +71,6 @@ async function loadDashboardData() {
     await Promise.all([
         loadCompaniesTab(),
         loadEventsTab(),
-        loadUsersTab(),
         loadRolesTab()
     ]);
     loadPendingApprovals();
@@ -185,57 +184,29 @@ async function loadEventsTab() {
     }
 }
 
-// Users Tab
-async function loadUsersTab() {
-    const token = localStorage.getItem('token');
-    const container = document.getElementById('usersTableContainer');
-    container.innerHTML = '<div>Loading users...</div>';
-    try {
-        const res = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
-        const users = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Company</th><th>Actions</th></tr></thead><tbody>`;
-        users.forEach(u => {
-            html += `<tr>
-                <td>${u.first_name} ${u.last_name}</td>
-                <td>${u.email}</td>
-                <td>${u.role}</td>
-                <td>${u.company_name || 'No Company'}</td>
-                <td>
-                    <button class="btn-icon" title="Delete" onclick="deleteUser(${u.id})">🗑️</button>
-                </td>
-            </tr>`;
-        });
-        html += '</tbody></table>';
-        container.innerHTML = html;
-    } catch (e) {
-        container.innerHTML = '<div class="error">Failed to load users</div>';
-    }
-}
-
 // Roles Tab
 async function loadRolesTab() {
     const token = localStorage.getItem('token');
-    const container = document.getElementById('rolesManagementContainer');
-    container.innerHTML = '<div>Loading roles...</div>';
+    const container = document.getElementById('rolesLibraryContainer');
+    container.innerHTML = '<div>Loading roles library...</div>';
     try {
         const res = await fetch('/api/admin/roles', { headers: { 'Authorization': `Bearer ${token}` } });
         const roles = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Role Name</th><th>Company</th><th>Access Level</th><th>Actions</th></tr></thead><tbody>`;
-        roles.forEach(r => {
+        let html = `<table class="admin-table"><thead><tr><th>Role Name</th><th>Description</th><th>Actions</th></tr></thead><tbody>`;
+        roles.forEach(role => {
             html += `<tr>
-                <td>${r.name}</td>
-                <td>${r.company_name || 'Global'}</td>
-                <td>${r.access_level}</td>
+                <td>${role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                <td>${role.description || 'No description available'}</td>
                 <td>
-                    <button class="btn-icon" title="Edit" onclick="editRole(${r.id})">✏️</button>
-                    <button class="btn-icon" title="Delete" onclick="deleteRole(${r.id})">🗑️</button>
+                    <button class="btn-icon" title="Edit" onclick="editRole(${role.id})">✏️</button>
+                    <button class="btn-icon" title="Delete" onclick="deleteRole(${role.id})">🗑️</button>
                 </td>
             </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = '<div class="error">Failed to load roles</div>';
+        container.innerHTML = '<div class="error">Failed to load roles library</div>';
     }
 }
 
@@ -435,7 +406,6 @@ function setupEventListeners() {
         addRoleBtn.addEventListener('click', () => {
             console.log('Opening role modal');
             addRoleModal.style.display = 'block';
-            loadCompaniesForSelect('roleCompany');
         });
     }
     
@@ -486,13 +456,11 @@ function setupEventListeners() {
     // Form submissions
     const addCompanyForm = document.getElementById('addCompanyForm');
     const addEventForm = document.getElementById('addEventForm');
-    const addUserForm = document.getElementById('addUserForm');
     const addRoleForm = document.getElementById('addRoleForm');
     
     console.log('Found forms:', {
         addCompanyForm: !!addCompanyForm,
         addEventForm: !!addEventForm,
-        addUserForm: !!addUserForm,
         addRoleForm: !!addRoleForm
     });
     
@@ -501,9 +469,6 @@ function setupEventListeners() {
     }
     if (addEventForm) {
         addEventForm.addEventListener('submit', handleAddEvent);
-    }
-    if (addUserForm) {
-        addUserForm.addEventListener('submit', handleAddUser);
     }
     if (addRoleForm) {
         addRoleForm.addEventListener('submit', handleAddRole);
@@ -706,48 +671,6 @@ async function handleAddEvent(e) {
     }
 }
 
-// Handle add user
-async function handleAddUser(e) {
-    console.log('handleAddUser called');
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    console.log('User data:', data);
-    
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(data)
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to add user');
-        }
-        
-        const result = await response.json();
-        console.log('User added successfully:', result);
-        showMessage('User added successfully!', 'success');
-        
-        // Hide modal and reset form
-        document.getElementById('addUserModal').style.display = 'none';
-        e.target.reset();
-        
-        // Reload dashboard data
-        loadDashboardData();
-        
-    } catch (error) {
-        console.error('Error adding user:', error);
-        showMessage('Failed to add user: ' + error.message, 'error');
-    }
-}
-
 // Handle add role
 async function handleAddRole(e) {
     console.log('handleAddRole called');
@@ -884,9 +807,9 @@ async function deleteCompany(companyId) {
     }
 }
 
-// Delete event function
+// Delete event
 async function deleteEvent(eventId) {
-    if (!confirm('Are you sure you want to delete this event? This will also delete all associated crew members.')) {
+    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
         return;
     }
     
@@ -910,35 +833,6 @@ async function deleteEvent(eventId) {
     } catch (error) {
         console.error('Error deleting event:', error);
         showMessage('Failed to delete event: ' + error.message, 'error');
-    }
-}
-
-// Delete user function
-async function deleteUser(userId) {
-    if (!confirm('Are you sure you want to delete this user?')) {
-        return;
-    }
-    
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete user');
-        }
-        
-        showMessage('User deleted successfully!', 'success');
-        loadDashboardData();
-        
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        showMessage('Failed to delete user: ' + error.message, 'error');
     }
 }
 
@@ -974,7 +868,6 @@ window.deleteRole = deleteRole;
 // Global functions for company, event, and user management
 window.deleteCompany = deleteCompany;
 window.deleteEvent = deleteEvent;
-window.deleteUser = deleteUser;
 
 // Generate report
 async function generateReport() {
@@ -1302,7 +1195,7 @@ cancelAddCompany.addEventListener('click', () => hideModal(addCompanyModal));
 async function loadRolesForCompanySelect() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/roles', {
+        const response = await fetch('/api/admin/roles', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -1327,8 +1220,8 @@ async function loadRolesForCompanySelect() {
         // Add role options
         roles.forEach(role => {
             const option = document.createElement('option');
-            option.value = role;
-            option.textContent = role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            option.value = role.name;
+            option.textContent = role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             select.appendChild(option);
         });
         
@@ -1336,4 +1229,25 @@ async function loadRolesForCompanySelect() {
     } catch (error) {
         console.error('Error loading roles:', error);
     }
+}
+
+// Add Role Modal
+const addRoleBtn = document.getElementById('addRoleBtn');
+const addRoleModal = document.getElementById('addRoleModal');
+const addRoleForm = document.getElementById('addRoleForm');
+const cancelAddRole = document.getElementById('cancelAddRole');
+
+if (addRoleBtn) {
+    addRoleBtn.addEventListener('click', () => {
+        console.log('Opening role modal');
+        addRoleModal.style.display = 'block';
+    });
+}
+
+if (addRoleForm) {
+    addRoleForm.addEventListener('submit', handleAddRole);
+}
+
+if (cancelAddRole) {
+    cancelAddRole.addEventListener('click', () => hideModal(addRoleModal));
 } 

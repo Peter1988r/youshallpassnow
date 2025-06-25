@@ -46,8 +46,7 @@
         <div class="admin-tabs">
             <button class="tab-btn active" data-tab="events-tab">Events</button>
             <button class="tab-btn" data-tab="companies-tab">Companies</button>
-            <button class="tab-btn" data-tab="users-tab">Users</button>
-            <button class="tab-btn" data-tab="roles-tab">Roles</button>
+            <button class="tab-btn" data-tab="roles-tab">Roles Library</button>
         </div>
 
         <!-- Tab Panels -->
@@ -112,32 +111,13 @@
             <div id="companiesTableContainer"></div>
         </div>
 
-        <div class="tab-panel" id="users-tab">
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-content">
-                        <h3 id="totalUsers">0</h3>
-                        <p>Total Users</p>
-                    </div>
-                </div>
-            </section>
-            <section class="quick-actions">
-                <h2>User Actions</h2>
-                <div class="action-buttons">
-                    <button class="btn-secondary" id="addUserBtn">Add User</button>
-                </div>
-            </section>
-            <div id="usersTableContainer"></div>
-        </div>
-
         <div class="tab-panel" id="roles-tab">
             <section class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon">🔑</div>
                     <div class="stat-content">
-                        <h3>Roles Management</h3>
-                        <p>Define roles per company</p>
+                        <h3>Roles Library</h3>
+                        <p>Manage available roles</p>
                     </div>
                 </div>
             </section>
@@ -147,9 +127,8 @@
                     <button class="btn-secondary" id="addRoleBtn">Add New Role</button>
                 </div>
             </section>
-            <div id="rolesManagementContainer">
-                <!-- Roles management UI will go here -->
-                <p>Manage company-specific roles here.</p>
+            <div id="rolesLibraryContainer">
+                <!-- Roles library table will be loaded here -->
             </div>
         </div>
 
@@ -273,52 +252,6 @@
         </div>
     </div>
 
-    <!-- Add User Modal -->
-    <div class="modal" id="addUserModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add New User</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <form id="addUserForm">
-                <div class="form-group">
-                    <label for="userCompany">Company</label>
-                    <select id="userCompany" name="userCompany" required>
-                        <option value="">Select a company</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="userFirstName">First Name</label>
-                    <input type="text" id="userFirstName" name="userFirstName" required>
-                </div>
-                <div class="form-group">
-                    <label for="userLastName">Last Name</label>
-                    <input type="text" id="userLastName" name="userLastName" required>
-                </div>
-                <div class="form-group">
-                    <label for="userEmail">Email</label>
-                    <input type="email" id="userEmail" name="userEmail" required>
-                </div>
-                <div class="form-group">
-                    <label for="userRole">Role</label>
-                    <select id="userRole" name="userRole" required>
-                        <option value="">Select a role</option>
-                        <option value="admin">Company Admin</option>
-                        <option value="user">User</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="userPassword">Password</label>
-                    <input type="password" id="userPassword" name="userPassword" required>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary" id="cancelAddUser">Cancel</button>
-                    <button type="submit" class="btn-primary">Add User</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Add Role Modal -->
     <div class="modal" id="addRoleModal">
         <div class="modal-content">
@@ -328,25 +261,14 @@
             </div>
             <form id="addRoleForm">
                 <div class="form-group">
-                    <label for="roleCompany">Company</label>
-                    <select id="roleCompany" name="roleCompany" required>
-                        <option value="">Select a company</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label for="roleName">Role Name</label>
-                    <input type="text" id="roleName" name="roleName" required>
+                    <input type="text" id="roleName" name="roleName" placeholder="e.g., technical_director" required>
+                    <small class="form-help">Use lowercase with underscores (e.g., technical_director, media_personnel)</small>
                 </div>
                 <div class="form-group">
-                    <label for="roleAccessLevel">Access Level</label>
-                    <select id="roleAccessLevel" name="roleAccessLevel" required>
-                        <option value="">Select access level</option>
-                        <option value="RESTRICTED">Restricted</option>
-                        <option value="STANDARD">Standard</option>
-                        <option value="EXTENDED">Extended</option>
-                        <option value="FULL">Full</option>
-                        <option value="ADMIN">Admin</option>
-                    </select>
+                    <label for="roleDescription">Role Description</label>
+                    <textarea id="roleDescription" name="roleDescription" rows="3" placeholder="Describe what this role entails..." required></textarea>
+                    <small class="form-help">Provide a clear description of the role's responsibilities and access level</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" id="cancelAddRole">Cancel</button>
