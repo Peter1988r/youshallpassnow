@@ -88,10 +88,16 @@ const initForms = () => {
             
             try {
                 const formData = new FormData(form);
-                const response = await fetch(form.action, {
-                    method: form.method,
-                    body: formData
-                });
+                const requestOptions = {
+                    method: form.method || 'POST'
+                };
+                
+                // Only add body for non-GET requests
+                if (requestOptions.method !== 'GET') {
+                    requestOptions.body = formData;
+                }
+                
+                const response = await fetch(form.action, requestOptions);
                 
                 if (!response.ok) throw new Error('Form submission failed');
                 

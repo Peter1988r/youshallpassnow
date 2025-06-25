@@ -1216,6 +1216,88 @@ app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin,
     }
 });
 
+// Cleanup events endpoint - keep only 3 test events
+app.post('/api/admin/cleanup-events', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        console.log('Starting event cleanup...');
+        
+        // First, delete all crew members associated with events
+        await run('DELETE FROM crew_members');
+        console.log('Deleted all crew members');
+        
+        // Delete all event-company associations
+        await run('DELETE FROM event_companies');
+        console.log('Deleted all event-company associations');
+        
+        // Delete all events except the first three
+        const result = await run(`
+            DELETE FROM events 
+            WHERE id NOT IN (
+                SELECT id FROM events 
+                ORDER BY created_at ASC 
+                LIMIT 3
+            )
+        `);
+        console.log(`Deleted events, keeping 3 test events`);
+        
+        // Show remaining events
+        const remainingEvents = await query('SELECT id, name, status FROM events ORDER BY created_at ASC');
+        console.log('Remaining events:', remainingEvents.length);
+        
+        res.json({
+            message: 'Event cleanup completed successfully',
+            remainingEvents: remainingEvents
+        });
+        
+    } catch (error) {
+        console.error('Error during cleanup:', error);
+        res.status(500).json({ error: 'Cleanup failed', details: error.message });
+    }
+});
+
+// Get approved crew members for events with company filter
+app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { company_id } = req.query; // Optional company filter
+        
+        let queryText = `
+            SELECT 
+                cm.id,
+                cm.first_name,
+                cm.last_name,
+                cm.email,
+                cm.role,
+                cm.access_level,
+                cm.status,
+                cm.created_at,
+                cm.approved_at,
+                c.name as company_name,
+                c.id as company_id
+            FROM crew_members cm
+            LEFT JOIN companies c ON cm.company_id = c.id
+            WHERE cm.event_id = $1 AND cm.status = 'approved'
+        `;
+        
+        let queryParams = [eventId];
+        
+        // Add company filter if provided
+        if (company_id) {
+            queryText += ' AND cm.company_id = $2';
+            queryParams.push(company_id);
+        }
+        
+        queryText += ' ORDER BY cm.approved_at DESC';
+        
+        const approvedCrew = await query(queryText, queryParams);
+        
+        res.json(approvedCrew);
+    } catch (error) {
+        console.error('Get approved crew error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

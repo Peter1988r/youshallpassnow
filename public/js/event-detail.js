@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize page
     loadEventDetails(eventId);
     loadCrewApprovals(eventId);
+    loadApprovedCrew(eventId);
     setupEventListeners();
 });
 
@@ -92,11 +93,28 @@ async function loadAssignedCompanies(eventId) {
         
         const companies = await response.json();
         displayAssignedCompanies(companies);
+        populateCompanyFilter(companies);
         
     } catch (error) {
         console.error('Error loading assigned companies:', error);
         showMessage('Failed to load assigned companies', 'error');
     }
+}
+
+// Populate company filter dropdown
+function populateCompanyFilter(companies) {
+    const filterSelect = document.getElementById('companyFilter');
+    
+    // Clear existing options except "All Companies"
+    filterSelect.innerHTML = '<option value="">All Companies</option>';
+    
+    // Add company options
+    companies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company.id;
+        option.textContent = company.name;
+        filterSelect.appendChild(option);
+    });
 }
 
 // Display assigned companies
@@ -140,6 +158,20 @@ function setupEventListeners() {
     document.getElementById('refreshApprovalsBtn').addEventListener('click', () => {
         const eventId = new URLSearchParams(window.location.search).get('id');
         loadCrewApprovals(eventId);
+    });
+    
+    // Refresh approved crew
+    document.getElementById('refreshApprovedCrewBtn').addEventListener('click', () => {
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        const companyFilter = document.getElementById('companyFilter').value;
+        loadApprovedCrew(eventId, companyFilter || null);
+    });
+    
+    // Company filter for approved crew
+    document.getElementById('companyFilter').addEventListener('change', () => {
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        const companyFilter = document.getElementById('companyFilter').value;
+        loadApprovedCrew(eventId, companyFilter || null);
     });
     
     // Cancel event
@@ -660,4 +692,62 @@ async function rejectCrewMember(crewId) {
         console.error('Error rejecting crew member:', error);
         showMessage('Failed to reject crew member', 'error');
     }
+}
+
+// Load approved crew members
+async function loadApprovedCrew(eventId, companyId = null) {
+    try {
+        const token = localStorage.getItem('token');
+        let url = `/api/admin/events/${eventId}/approved-crew`;
+        if (companyId) {
+            url += `?company_id=${companyId}`;
+        }
+        
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load approved crew');
+        }
+        
+        const approvedCrew = await response.json();
+        displayApprovedCrew(approvedCrew);
+        
+    } catch (error) {
+        console.error('Error loading approved crew:', error);
+        showMessage('Failed to load approved crew', 'error');
+    }
+}
+
+// Display approved crew members
+function displayApprovedCrew(approvedCrew) {
+    const tbody = document.getElementById('approvedCrewTableBody');
+    
+    if (approvedCrew.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-approved-crew">No approved crew members for this event</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    approvedCrew.forEach(crew => {
+        const approvedDate = new Date(crew.approved_at).toLocaleDateString();
+        const accessLevel = crew.access_level || 'No Clearance';
+        const companyName = crew.company_name || 'No Company';
+        
+        html += `
+            <tr>
+                <td>${crew.first_name} ${crew.last_name}</td>
+                <td>${crew.email}</td>
+                <td>${crew.role}</td>
+                <td>${companyName}</td>
+                <td>${accessLevel}</td>
+                <td>${approvedDate}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
 } 

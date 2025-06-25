@@ -1033,4 +1033,64 @@
     text-align: center;
     color: #6b7280;
     font-style: italic;
+}
+
+/* Approved Crew Section */
+.approved-crew {
+    margin-top: 1rem;
+}
+
+.approved-crew-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.form-select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.9rem;
+}
+
+.approved-crew-table {
+    overflow-x: auto;
+}
+
+.approved-crew-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+
+.approved-crew-table th,
+.approved-crew-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.approved-crew-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.approved-crew-table tr:hover {
+    background: #f8f9fa;
+}
+
+.no-approved-crew {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 2rem;
 } 

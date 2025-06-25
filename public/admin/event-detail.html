@@ -137,6 +137,38 @@
                     </div>
                 </div>
 
+                <div class="form-section">
+                    <h3>Approved Crew Members</h3>
+                    <div class="approved-crew">
+                        <div class="approved-crew-header">
+                            <p>View approved crew members for this event:</p>
+                            <div class="filter-controls">
+                                <select id="companyFilter" class="form-select">
+                                    <option value="">All Companies</option>
+                                </select>
+                                <button type="button" class="btn-secondary" id="refreshApprovedCrewBtn">Refresh</button>
+                            </div>
+                        </div>
+                        <div class="approved-crew-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Company</th>
+                                        <th>Access Level</th>
+                                        <th>Approved Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approvedCrewTableBody">
+                                    <!-- Approved crew rows will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">Save Changes</button>
                     <button type="button" class="btn-secondary" id="cancelEventBtn">Cancel Event</button>
