@@ -1,5 +1,117 @@
 /* Super Admin Dashboard Styles */
 
+/* Modal Overlay */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    background-color: white;
+    margin: 10vh auto;
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.close-modal:hover {
+    background-color: #f3f4f6;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.modal-footer button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
 .admin-main {
     max-width: 1200px;
     margin: 0 auto;
@@ -356,30 +468,6 @@
     background: #ef4444;
 }
 
-/* Modal Enhancements */
-.modal-content {
-    padding: 2rem 2.5rem;
-    max-width: 480px;
-}
-
-.form-group input, .form-group select, .form-group textarea {
-    margin-bottom: 1.2rem;
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-}
-
-.form-group label {
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.modal-footer {
-    margin-top: 1.5rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .admin-main {
@@ -509,25 +597,6 @@
 .detail-row span {
     color: var(--primary-color);
     font-weight: 500;
-}
-
-/* Enhanced modal styling */
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
-}
-
-.modal-footer button {
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    font-weight: 500;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
 /* Loading states for approval actions */
