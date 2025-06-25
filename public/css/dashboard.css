@@ -166,12 +166,13 @@
 
 .modal-content {
     position: relative;
-    background-color: var(--white);
+    background-color: white;
     margin: 10vh auto;
-    padding: 2rem;
+    padding: 2rem 2.5rem;
     width: 90%;
     max-width: 500px;
-    border-radius: var(--border-radius);
+    border-radius: 12px;
+    box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
@@ -179,6 +180,14 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.5rem;
 }
 
 .close-modal {
@@ -186,6 +195,14 @@
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
+    color: #6b7280;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.close-modal:hover {
+    background-color: #f3f4f6;
 }
 
 .modal-footer {
@@ -193,6 +210,16 @@
     justify-content: flex-end;
     gap: 1rem;
     margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.modal-footer button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 100px;
 }
 
 /* Responsive Design */
@@ -213,7 +240,7 @@
 
 /* Form Styles */
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .form-group label {
@@ -224,18 +251,27 @@
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid #e5e7eb;
-    border-radius: var(--border-radius);
+    border-radius: 8px;
     font-size: 1rem;
+    transition: border-color 0.2s ease;
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
 }
 
 .form-group small {
