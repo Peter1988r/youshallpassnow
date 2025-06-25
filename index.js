@@ -485,12 +485,31 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const badgeNumber = generateBadgeNumber();
 
         console.log('Inserting crew member into DB...');
-        const result = await run(`
-            INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, company_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id
-        `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber, companyId]);
-        console.log('Crew member inserted, result:', result);
+        
+        // Check if company_id column exists first
+        const columnExists = await query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'crew_members' AND column_name = 'company_id'
+        `);
+        
+        let result;
+        if (columnExists.length > 0) {
+            // New behavior: include company_id (logged-in user's company)
+            result = await run(`
+                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, company_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id
+            `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber, companyId]);
+            console.log(`Crew member inserted with company_id ${companyId}, result:`, result);
+        } else {
+            // Fallback: legacy behavior without company_id
+            result = await run(`
+                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id
+            `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber]);
+            console.log('Crew member inserted (legacy mode), result:', result);
+        }
 
         // Get the created crew member
         const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [result.id]);
@@ -584,10 +603,38 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
         
         // For company admins, verify they own this crew member
         if (!req.user.is_super_admin && companyId) {
-            // Simple company check: crew member must belong to user's company
-            if (crewMember.company_id !== companyId) {
-                console.log(`Access denied: Crew member ${crewId} belongs to company ${crewMember.company_id}, user is from company ${companyId}`);
-                return res.status(403).json({ error: 'Access denied: Cannot update crew member from another company' });
+            // Check if company_id column exists first
+            const columnExists = await query(`
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'crew_members' AND column_name = 'company_id'
+            `);
+            
+            if (columnExists.length > 0) {
+                // New behavior: direct company ownership check
+                if (crewMember.company_id !== companyId) {
+                    console.log(`Access denied: Crew member ${crewId} belongs to company ${crewMember.company_id}, user is from company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Cannot delete crew member from another company' });
+                }
+            } else {
+                // Fallback: check event-company relationship (legacy)
+                try {
+                    const eventAccess = await query(`
+                        SELECT 1 as access FROM event_companies ec
+                        WHERE ec.event_id = $1 AND ec.company_id = $2
+                        UNION ALL
+                        SELECT 1 as access FROM events e
+                        WHERE e.id = $1 AND e.company_id = $2
+                        LIMIT 1
+                    `, [crewMember.event_id, companyId]);
+                    
+                    if (eventAccess.length === 0) {
+                        console.log(`Access denied: Crew member ${crewId} belongs to event not assigned to company ${companyId}`);
+                        return res.status(403).json({ error: 'Access denied: Cannot delete crew member from this event' });
+                    }
+                } catch (authError) {
+                    console.error('Delete authorization check error:', authError);
+                    return res.status(500).json({ error: 'Authorization check failed' });
+                }
             }
         }
 
