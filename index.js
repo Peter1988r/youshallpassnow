@@ -924,6 +924,104 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
     }
 });
 
+// Get single company
+app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        
+        const companies = await query(`
+            SELECT 
+                c.*,
+                STRING_AGG(cr.role_name, ', ') as assigned_roles,
+                COUNT(DISTINCT e.id) as event_count,
+                COUNT(DISTINCT u.id) as user_count
+            FROM companies c
+            LEFT JOIN company_roles cr ON c.id = cr.company_id
+            LEFT JOIN events e ON c.id = ANY(e.company_ids)
+            LEFT JOIN users u ON c.id = u.company_id
+            WHERE c.id = $1
+            GROUP BY c.id
+        `, [companyId]);
+        
+        if (companies.length === 0) {
+            return res.status(404).json({ error: 'Company not found' });
+        }
+        
+        res.json(companies[0]);
+    } catch (error) {
+        console.error('Get company error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update company
+app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles } = req.body;
+        
+        // Validate required fields
+        if (!companyName || !companyAdminEmail || !assignedRoles || !Array.isArray(assignedRoles) || assignedRoles.length === 0) {
+            return res.status(400).json({ error: 'Missing required fields: company name, admin email, and at least one assigned role' });
+        }
+        
+        // Update the company
+        await run(`
+            UPDATE companies 
+            SET name = $1, domain = $2, contact_phone = $3, address = $4
+            WHERE id = $5
+        `, [companyName, companyDomain, contactPhone, companyAddress, companyId]);
+        
+        // Update company roles (remove all existing and add new ones)
+        await run('DELETE FROM company_roles WHERE company_id = $1', [companyId]);
+        
+        for (const roleName of assignedRoles) {
+            await run(`
+                INSERT INTO company_roles (company_id, role_name)
+                VALUES ($1, $2)
+            `, [companyId, roleName]);
+        }
+        
+        // Update or create company admin user
+        const bcrypt = require('bcryptjs');
+        const adminPassword = bcrypt.hashSync('admin123', 10); // Default password, should be changed
+        
+        await run(`
+            INSERT INTO users (company_id, email, password_hash, first_name, last_name, role)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (email) DO UPDATE SET
+                company_id = $1,
+                password_hash = $3,
+                first_name = $4,
+                last_name = $5,
+                role = $6
+        `, [companyId, companyAdminEmail, adminPassword, 'Company', 'Admin', 'admin']);
+        
+        // Get the updated company with role information
+        const companies = await query(`
+            SELECT 
+                c.*,
+                STRING_AGG(cr.role_name, ', ') as assigned_roles,
+                COUNT(DISTINCT e.id) as event_count,
+                COUNT(DISTINCT u.id) as user_count
+            FROM companies c
+            LEFT JOIN company_roles cr ON c.id = cr.company_id
+            LEFT JOIN events e ON c.id = ANY(e.company_ids)
+            LEFT JOIN users u ON c.id = u.company_id
+            WHERE c.id = $1
+            GROUP BY c.id
+        `, [companyId]);
+        
+        res.json({
+            message: 'Company updated successfully',
+            company: companies[0]
+        });
+    } catch (error) {
+        console.error('Update company error:', error);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+});
+
 // Add new event
 app.post('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {

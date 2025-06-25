@@ -143,6 +143,7 @@ async function loadCompaniesTab() {
                 <td>${c.event_count || 0}</td>
                 <td>${c.user_count || 0}</td>
                 <td>
+                    <button class="btn-icon edit-company-btn" title="Edit" data-company-id="${c.id}">✏️</button>
                     <button class="btn-icon delete-company-btn" title="Delete" data-company-id="${c.id}">🗑️</button>
                 </td>
             </tr>`;
@@ -162,6 +163,16 @@ async function loadCompaniesTab() {
 
 // Setup event listeners for company table buttons
 function setupCompanyTableEventListeners() {
+    // Edit company buttons
+    document.querySelectorAll('.edit-company-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const companyId = parseInt(btn.getAttribute('data-company-id'));
+            console.log('Edit company clicked:', companyId);
+            await editCompany(companyId);
+        });
+    });
+    
     // Delete company buttons
     document.querySelectorAll('.delete-company-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -724,16 +735,98 @@ function setupRoleEventListeners() {
             hideModal(document.getElementById('editRoleModal'));
         });
     }
+    
+    // Edit company form
+    const editCompanyForm = document.getElementById('editCompanyForm');
+    if (editCompanyForm) {
+        editCompanyForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // Handle multiple role selections
+            const roleSelect = document.getElementById('editAssignedRoles');
+            const selectedRoles = Array.from(roleSelect.selectedOptions).map(option => option.value);
+            const filteredRoles = selectedRoles.filter(role => role !== '');
+            
+            if (filteredRoles.length === 0) {
+                showMessage('Please select at least one role', 'error');
+                return;
+            }
+            
+            const companyData = {
+                ...data,
+                assignedRoles: filteredRoles
+            };
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/admin/companies/${currentEditCompanyId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(companyData)
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update company');
+                }
+                showMessage('Company updated successfully!', 'success');
+                hideModal(document.getElementById('editCompanyModal'));
+                loadDashboardData();
+            } catch (error) {
+                showMessage('Failed to update company: ' + error.message, 'error');
+            }
+        });
+    }
+
+    // Cancel edit company button
+    const cancelEditCompany = document.getElementById('cancelEditCompany');
+    if (cancelEditCompany) {
+        cancelEditCompany.addEventListener('click', function() {
+            hideModal(document.getElementById('editCompanyModal'));
+        });
+    }
 }
 
 // Global variable for current edit role
 let currentEditRoleId = null;
+
+// Global variable for current edit company
+let currentEditCompanyId = null;
 
 function openEditRoleModal(role) {
     currentEditRoleId = role.id;
     document.getElementById('editRoleName').value = role.name;
     document.getElementById('editRoleDescription').value = role.description;
     document.getElementById('editRoleModal').style.display = 'block';
+}
+
+function openEditCompanyModal(company) {
+    currentEditCompanyId = company.id;
+    document.getElementById('editCompanyName').value = company.name;
+    document.getElementById('editCompanyDomain').value = company.domain || '';
+    document.getElementById('editCompanyAdminEmail').value = company.admin_email || '';
+    document.getElementById('editCompanyPhone').value = company.contact_phone || '';
+    document.getElementById('editCompanyAddress').value = company.address || '';
+    
+    // Load roles for the select dropdown
+    loadRolesForCompanySelect('editAssignedRoles');
+    
+    // Set the currently assigned roles
+    setTimeout(() => {
+        const roleSelect = document.getElementById('editAssignedRoles');
+        if (roleSelect && company.assigned_roles) {
+            const assignedRoles = company.assigned_roles.split(', ').map(role => role.trim());
+            Array.from(roleSelect.options).forEach(option => {
+                option.selected = assignedRoles.includes(option.value);
+            });
+        }
+    }, 100);
+    
+    document.getElementById('editCompanyModal').style.display = 'block';
 }
 
 // Update handleAddRole to send correct keys
@@ -839,6 +932,27 @@ async function deleteCompany(companyId) {
     } catch (error) {
         console.error('Error deleting company:', error);
         showMessage('Failed to delete company: ' + error.message, 'error');
+    }
+}
+
+// Edit company function
+async function editCompany(companyId) {
+    console.log('editCompany function called with companyId:', companyId);
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`/api/admin/companies/${companyId}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
+        const company = await res.json();
+        console.log('Company data for editing:', company);
+        if (company) {
+            openEditCompanyModal(company);
+        } else {
+            showMessage('Company not found for editing', 'error');
+        }
+    } catch (e) {
+        console.error('Error in editCompany:', e);
+        showMessage('Failed to load company for editing', 'error');
     }
 }
 
@@ -1050,7 +1164,7 @@ if (cancelAddCompany) {
 }
 
 // Load roles for company select
-async function loadRolesForCompanySelect() {
+async function loadRolesForCompanySelect(selectId) {
     try {
         const token = localStorage.getItem('token');
         const response = await fetch('/api/admin/roles', {
@@ -1064,11 +1178,11 @@ async function loadRolesForCompanySelect() {
         const roles = await response.json();
         console.log('Roles loaded:', roles);
         
-        const select = document.getElementById('assignedRoles');
+        const select = document.getElementById(selectId);
         console.log('Select element found:', !!select);
         
         if (!select) {
-            console.error('Select element not found:', 'assignedRoles');
+            console.error('Select element not found:', selectId);
             return;
         }
         
@@ -1083,7 +1197,7 @@ async function loadRolesForCompanySelect() {
             select.appendChild(option);
         });
         
-        console.log('Roles added to select:', 'assignedRoles', select.options.length);
+        console.log('Roles added to select:', selectId, select.options.length);
     } catch (error) {
         console.error('Error loading roles:', error);
     }

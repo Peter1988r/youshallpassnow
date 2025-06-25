@@ -178,6 +178,50 @@
         </div>
     </div>
 
+    <!-- Edit Company Modal -->
+    <div class="modal" id="editCompanyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Company</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="editCompanyForm">
+                <div class="form-group">
+                    <label for="editCompanyName">Company Name</label>
+                    <input type="text" id="editCompanyName" name="companyName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editCompanyDomain">Domain</label>
+                    <input type="text" id="editCompanyDomain" name="companyDomain" placeholder="company.youshallpass.com">
+                </div>
+                <div class="form-group">
+                    <label for="editCompanyAdminEmail">Company Admin Email</label>
+                    <input type="email" id="editCompanyAdminEmail" name="companyAdminEmail" required>
+                    <small class="form-help">This email will be used for the company admin account</small>
+                </div>
+                <div class="form-group">
+                    <label for="editCompanyPhone">Contact Phone</label>
+                    <input type="tel" id="editCompanyPhone" name="contactPhone">
+                </div>
+                <div class="form-group">
+                    <label for="editCompanyAddress">Address</label>
+                    <textarea id="editCompanyAddress" name="companyAddress" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editAssignedRoles">Roles Assigned</label>
+                    <select id="editAssignedRoles" name="assignedRoles" multiple required>
+                        <option value="">Select roles to assign to this company</option>
+                    </select>
+                    <small class="form-help">Hold Ctrl/Cmd to select multiple roles. These roles will be available when adding crew members.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancelEditCompany">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Add Event Modal -->
     <div class="modal" id="addEventModal">
         <div class="modal-content">
