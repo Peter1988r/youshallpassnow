@@ -817,15 +817,16 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
             SELECT 
                 c.*,
                 STRING_AGG(cr.role_name, ', ') as assigned_roles,
-                u.email as admin_email,
-                COUNT(DISTINCT e.id) as event_count,
-                COUNT(DISTINCT u2.id) as user_count
+                COUNT(DISTINCT COALESCE(e.id, ec.event_id)) as event_count,
+                COUNT(DISTINCT u.id) as user_count,
+                admin_user.email as admin_email
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
-            LEFT JOIN users u ON c.id = u.company_id AND u.role = 'admin'
             LEFT JOIN events e ON c.id = e.company_id
-            LEFT JOIN users u2 ON c.id = u2.company_id
-            GROUP BY c.id, u.email
+            LEFT JOIN event_companies ec ON c.id = ec.company_id
+            LEFT JOIN users u ON c.id = u.company_id
+            LEFT JOIN users admin_user ON c.id = admin_user.company_id AND admin_user.role = 'admin'
+            GROUP BY c.id, admin_user.email
             ORDER BY c.created_at DESC
         `);
         
@@ -934,12 +935,13 @@ app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
             SELECT 
                 c.*,
                 STRING_AGG(cr.role_name, ', ') as assigned_roles,
-                COUNT(DISTINCT e.id) as event_count,
+                COUNT(DISTINCT COALESCE(e.id, ec.event_id)) as event_count,
                 COUNT(DISTINCT u.id) as user_count,
                 admin_user.email as admin_email
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
             LEFT JOIN events e ON c.id = e.company_id
+            LEFT JOIN event_companies ec ON c.id = ec.company_id
             LEFT JOIN users u ON c.id = u.company_id
             LEFT JOIN users admin_user ON c.id = admin_user.company_id AND admin_user.role = 'admin'
             WHERE c.id = $1
@@ -1026,12 +1028,13 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
             SELECT 
                 c.*,
                 STRING_AGG(cr.role_name, ', ') as assigned_roles,
-                COUNT(DISTINCT e.id) as event_count,
+                COUNT(DISTINCT COALESCE(e.id, ec.event_id)) as event_count,
                 COUNT(DISTINCT u.id) as user_count,
                 admin_user.email as admin_email
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
             LEFT JOIN events e ON c.id = e.company_id
+            LEFT JOIN event_companies ec ON c.id = ec.company_id
             LEFT JOIN users u ON c.id = u.company_id
             LEFT JOIN users admin_user ON c.id = admin_user.company_id AND admin_user.role = 'admin'
             WHERE c.id = $1
