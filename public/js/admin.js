@@ -229,16 +229,42 @@ async function loadRolesTab() {
                 <td>${role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
                 <td>${role.description || 'No description available'}</td>
                 <td>
-                    <button class="btn-icon" title="Edit" onclick="editRole(${role.id})">✏️</button>
-                    <button class="btn-icon" title="Delete" onclick="deleteRole(${role.id})">🗑️</button>
+                    <button class="btn-icon edit-role-btn" title="Edit" data-role-id="${role.id}">✏️</button>
+                    <button class="btn-icon delete-role-btn" title="Delete" data-role-id="${role.id}">🗑️</button>
                 </td>
             </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
+        
+        // Add event listeners to the buttons
+        setupRoleTableEventListeners();
     } catch (e) {
         container.innerHTML = '<div class="error">Failed to load roles library</div>';
     }
+}
+
+// Setup event listeners for role table buttons
+function setupRoleTableEventListeners() {
+    // Edit role buttons
+    document.querySelectorAll('.edit-role-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const roleId = parseInt(btn.getAttribute('data-role-id'));
+            console.log('Edit role clicked:', roleId);
+            await editRole(roleId);
+        });
+    });
+    
+    // Delete role buttons
+    document.querySelectorAll('.delete-role-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const roleId = parseInt(btn.getAttribute('data-role-id'));
+            console.log('Delete role clicked:', roleId);
+            await deleteRole(roleId);
+        });
+    });
 }
 
 // Load statistics
@@ -784,26 +810,40 @@ async function handleAddRole(e) {
 
 // Update editRole to use modal
 async function editRole(roleId) {
+    console.log('editRole function called with roleId:', roleId);
     const token = localStorage.getItem('token');
     try {
         const res = await fetch(`/api/admin/roles`, { headers: { 'Authorization': `Bearer ${token}` } });
         const roles = await res.json();
+        console.log('All roles loaded:', roles);
         const role = roles.find(r => r.id === roleId);
-        if (role) openEditRoleModal(role);
+        console.log('Found role to edit:', role);
+        if (role) {
+            openEditRoleModal(role);
+        } else {
+            showMessage('Role not found for editing', 'error');
+        }
     } catch (e) {
+        console.error('Error in editRole:', e);
         showMessage('Failed to load role for editing', 'error');
     }
 }
 
 // Delete role function (unchanged, but ensure reload)
 async function deleteRole(roleId) {
-    if (!confirm('Are you sure you want to delete this role?')) return;
+    console.log('deleteRole function called with roleId:', roleId);
+    if (!confirm('Are you sure you want to delete this role?')) {
+        console.log('Delete cancelled by user');
+        return;
+    }
     try {
         const token = localStorage.getItem('token');
+        console.log('Sending delete request for role:', roleId);
         const response = await fetch(`/api/admin/roles/${roleId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        console.log('Delete response status:', response.status);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to delete role');
@@ -811,6 +851,7 @@ async function deleteRole(roleId) {
         showMessage('Role deleted successfully!', 'success');
         loadDashboardData();
     } catch (error) {
+        console.error('Error in deleteRole:', error);
         showMessage('Failed to delete role: ' + error.message, 'error');
     }
 }
