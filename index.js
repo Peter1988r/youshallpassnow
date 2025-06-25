@@ -1637,6 +1637,9 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
         const { eventId } = req.params;
         const { company_id } = req.query; // Optional company filter
         
+        console.log('Getting approved crew for event:', eventId);
+        console.log('Company filter:', company_id);
+        
         let queryText = `
             SELECT 
                 cm.id,
@@ -1665,12 +1668,24 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
         
         queryText += ' ORDER BY cm.approved_at DESC';
         
+        console.log('Query:', queryText);
+        console.log('Query params:', queryParams);
+        
         const approvedCrew = await query(queryText, queryParams);
+        
+        console.log('Approved crew result:', approvedCrew);
+        console.log('Approved crew count:', approvedCrew.length);
         
         res.json(approvedCrew);
     } catch (error) {
         console.error('Get approved crew error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
