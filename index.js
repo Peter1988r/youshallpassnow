@@ -584,12 +584,15 @@ app.get('/api/company/events', authenticateToken, async (req, res) => {
     try {
         const companyId = req.user.company_id;
         
+        console.log('Company events request - User ID:', req.user.id, 'Company ID:', companyId);
+        
         if (!companyId) {
+            console.log('No company ID found for user');
             return res.status(400).json({ error: 'Company ID not found' });
         }
         
-        // Get events assigned to this company through the event_companies junction table
-        const events = await query(`
+        // First try to get events through the event_companies junction table
+        let events = await query(`
             SELECT 
                 e.id,
                 e.name,
@@ -605,11 +608,40 @@ app.get('/api/company/events', authenticateToken, async (req, res) => {
             ORDER BY e.start_date ASC
         `, [companyId]);
         
-        console.log(`Found ${events.length} events for company ${companyId}`);
+        console.log(`Found ${events.length} events through event_companies junction table`);
+        
+        // If no events found through junction table, try direct company_id relationship
+        if (events.length === 0) {
+            console.log('No events found through junction table, trying direct company_id...');
+            events = await query(`
+                SELECT 
+                    id,
+                    name,
+                    location,
+                    start_date,
+                    end_date,
+                    description,
+                    status,
+                    created_at
+                FROM events
+                WHERE company_id = $1
+                ORDER BY start_date ASC
+            `, [companyId]);
+            
+            console.log(`Found ${events.length} events through direct company_id relationship`);
+        }
+        
+        console.log(`Total events found for company ${companyId}:`, events.length);
         res.json(events);
     } catch (error) {
         console.error('Get company events error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 

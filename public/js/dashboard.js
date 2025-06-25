@@ -35,17 +35,23 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             eventCards.innerHTML = '<div class="loading-events"><p>Loading your events...</p></div>';
             
+            console.log('Fetching company events...');
             const response = await fetch('/api/company/events', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             
+            console.log('Response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to load events');
+                const errorData = await response.json();
+                console.error('API Error:', errorData);
+                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
             }
             
             events = await response.json();
+            console.log('Events loaded:', events);
             
             if (events.length === 0) {
                 eventCards.innerHTML = '<div class="no-events"><p>No events assigned to your company yet.</p></div>';
@@ -55,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayEvents(events);
         } catch (error) {
             console.error('Error loading events:', error);
-            eventCards.innerHTML = '<div class="no-events"><p>Error loading events. Please try again.</p></div>';
+            eventCards.innerHTML = `<div class="no-events"><p>Error loading events: ${error.message}</p></div>`;
         }
     }
 
