@@ -726,6 +726,13 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
         const countCheck = await query('SELECT COUNT(*) as count FROM companies');
         console.log('Number of companies:', countCheck[0].count);
         
+        // Test simple query first
+        console.log('Testing simple companies query...');
+        const simpleCompanies = await query('SELECT id, name FROM companies LIMIT 5');
+        console.log('Simple query result:', simpleCompanies);
+        
+        // Test the complex query step by step
+        console.log('Testing complex query...');
         const companies = await query(`
             SELECT 
                 c.*,
@@ -743,6 +750,7 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
         `);
         
         console.log('Companies fetched successfully:', companies.length);
+        console.log('First company sample:', companies[0]);
         res.json(companies);
     } catch (error) {
         console.error('Get companies error:', error);
@@ -1589,6 +1597,29 @@ app.post('/api/admin/migrate', authenticateToken, requireSuperAdmin, async (req,
     } catch (error) {
         console.error('Migration error:', error);
         res.status(500).json({ error: 'Migration failed: ' + error.message });
+    }
+});
+
+// Simple test endpoint for companies (no auth required)
+app.get('/test-companies', async (req, res) => {
+    try {
+        console.log('Testing companies endpoint without auth...');
+        
+        const companies = await query('SELECT id, name, domain FROM companies LIMIT 5');
+        console.log('Test companies result:', companies);
+        
+        res.json({
+            message: 'Companies test successful',
+            companies: companies,
+            count: companies.length
+        });
+    } catch (error) {
+        console.error('Test companies error:', error);
+        res.status(500).json({ 
+            error: 'Test companies failed', 
+            details: error.message,
+            code: error.code
+        });
     }
 });
 
