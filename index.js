@@ -2145,6 +2145,136 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Comprehensive debug endpoint to check company data isolation
+app.get('/debug-company-isolation', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        console.log('🔍 Running company isolation debug check...');
+        
+        // Get all companies
+        const companies = await query('SELECT id, name, domain FROM companies ORDER BY id');
+        
+        // Get all events with their company relationships
+        const eventsWithCompanies = await query(`
+            SELECT 
+                e.id,
+                e.name as event_name,
+                e.company_id as direct_company_id,
+                c1.name as direct_company_name,
+                ec.company_id as junction_company_id,
+                c2.name as junction_company_name
+            FROM events e
+            LEFT JOIN companies c1 ON e.company_id = c1.id
+            LEFT JOIN event_companies ec ON e.id = ec.event_id
+            LEFT JOIN companies c2 ON ec.company_id = c2.id
+            ORDER BY e.id
+        `);
+        
+        // Get all crew members with their event and company relationships
+        const crewWithRelationships = await query(`
+            SELECT 
+                cm.id as crew_id,
+                cm.first_name,
+                cm.last_name,
+                cm.email,
+                cm.event_id,
+                e.name as event_name,
+                e.company_id as event_direct_company_id,
+                c1.name as event_direct_company_name,
+                ec.company_id as event_junction_company_id,
+                c2.name as event_junction_company_name
+            FROM crew_members cm
+            JOIN events e ON cm.event_id = e.id
+            LEFT JOIN companies c1 ON e.company_id = c1.id
+            LEFT JOIN event_companies ec ON e.id = ec.event_id
+            LEFT JOIN companies c2 ON ec.company_id = c2.id
+            ORDER BY cm.id
+        `);
+        
+        // Get all users with their company relationships
+        const usersWithCompanies = await query(`
+            SELECT 
+                u.id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                u.company_id,
+                c.name as company_name,
+                u.is_super_admin
+            FROM users u
+            LEFT JOIN companies c ON u.company_id = c.id
+            ORDER BY u.id
+        `);
+        
+        // Check for potential data leakage scenarios
+        const potentialIssues = [];
+        
+        // Check if any events have no company relationships
+        const orphanedEvents = eventsWithCompanies.filter(e => 
+            !e.direct_company_id && !e.junction_company_id
+        );
+        if (orphanedEvents.length > 0) {
+            potentialIssues.push({
+                type: 'orphaned_events',
+                count: orphanedEvents.length,
+                description: 'Events with no company relationship',
+                data: orphanedEvents
+            });
+        }
+        
+        // Check if any crew members belong to events without proper company links
+        const problematicCrew = crewWithRelationships.filter(c => 
+            !c.event_direct_company_id && !c.event_junction_company_id
+        );
+        if (problematicCrew.length > 0) {
+            potentialIssues.push({
+                type: 'problematic_crew',
+                count: problematicCrew.length,
+                description: 'Crew members in events without company relationships',
+                data: problematicCrew
+            });
+        }
+        
+        // Check if any users have no company_id (except super admins)
+        const orphanedUsers = usersWithCompanies.filter(u => 
+            !u.company_id && !u.is_super_admin
+        );
+        if (orphanedUsers.length > 0) {
+            potentialIssues.push({
+                type: 'orphaned_users',
+                count: orphanedUsers.length,
+                description: 'Non-super-admin users without company_id',
+                data: orphanedUsers
+            });
+        }
+        
+        res.json({
+            summary: {
+                total_companies: companies.length,
+                total_events: eventsWithCompanies.length,
+                total_crew: crewWithRelationships.length,
+                total_users: usersWithCompanies.length,
+                potential_issues: potentialIssues.length
+            },
+            companies,
+            events_with_companies: eventsWithCompanies,
+            crew_with_relationships: crewWithRelationships,
+            users_with_companies: usersWithCompanies,
+            potential_issues: potentialIssues,
+            recommendations: potentialIssues.length === 0 ? 
+                ['✅ No obvious data isolation issues found'] : 
+                [
+                    '⚠️ Data isolation issues detected',
+                    '1. Run /api/admin/migrate to fix event-company relationships',
+                    '2. Ensure all users have proper company_id assignments',
+                    '3. Review authorization logic for edge cases'
+                ]
+        });
+    } catch (error) {
+        console.error('Debug company isolation error:', error);
+        res.status(500).json({ error: 'Debug error: ' + error.message });
+    }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
