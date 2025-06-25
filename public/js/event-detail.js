@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCrewApprovals(eventId);
     loadApprovedCrew(eventId);
     setupEventListeners();
+    
+    // Ensure only overview tab is active on page load
+    switchTab('overview');
 });
 
 // Load event details

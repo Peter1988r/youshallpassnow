@@ -645,11 +645,6 @@
 
 .tab-panel {
     display: none;
-    background: #fff;
-    border-radius: 0 0 12px 12px;
-    padding: 2rem 1rem;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    margin-bottom: 2rem;
 }
 
 .tab-panel.active {
@@ -1298,6 +1293,20 @@ select[multiple] option:disabled {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
+/* Tab Panel Visibility - More Specific Rules */
+.event-detail-sections .tab-panel {
+    display: none !important;
+}
+
+.event-detail-sections .tab-panel.active {
+    display: block !important;
+}
+
+/* Only show sections when they are active tab panels */
+.event-section:not(.tab-panel.active) {
+    display: none !important;
+}
+
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -1577,9 +1586,9 @@ select[multiple] option:disabled {
 }
 
 .tab-btn.active {
-    background: white;
+    background: #fff;
     color: var(--primary-color);
-    font-weight: 600;
+    border-bottom: 2px solid var(--primary-color);
 }
 
 .tab-btn.active::after {
