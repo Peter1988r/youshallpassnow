@@ -142,6 +142,43 @@ app.post('/init-db', async (req, res) => {
     }
 });
 
+// Check database tables endpoint
+app.get('/check-db-tables', async (req, res) => {
+    try {
+        console.log('Checking database tables...');
+        
+        const tables = await query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            ORDER BY table_name
+        `);
+        
+        const tableNames = tables.map(t => t.table_name);
+        console.log('Found tables:', tableNames);
+        
+        // Check if companies table exists and has data
+        let companiesCount = 0;
+        if (tableNames.includes('companies')) {
+            const countResult = await query('SELECT COUNT(*) as count FROM companies');
+            companiesCount = countResult[0].count;
+        }
+        
+        res.json({
+            message: 'Database tables check completed',
+            tables: tableNames,
+            companiesCount: companiesCount,
+            hasCompaniesTable: tableNames.includes('companies')
+        });
+    } catch (error) {
+        console.error('Database tables check error:', error);
+        res.status(500).json({ 
+            error: 'Database tables check failed', 
+            details: error.message
+        });
+    }
+});
+
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
