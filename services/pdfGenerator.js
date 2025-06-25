@@ -2,6 +2,12 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { ACCESS_LEVEL_DESCRIPTIONS } = require('../config/accessMatrix');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 class PDFGenerator {
     constructor() {
@@ -153,19 +159,38 @@ class PDFGenerator {
         });
     }
 
-    generateCrewList(crewMembers, event) {
-        return new Promise((resolve, reject) => {
+    async generateCrewList(crewMembers, event) {
+        // Generate PDF in memory
+        return new Promise(async (resolve, reject) => {
             try {
-                const doc = new PDFDocument({
-                    size: 'A4',
-                    margins: 50
+                const { Readable } = require('stream');
+                const doc = new PDFDocument({ size: 'A4', margins: 50 });
+                const buffers = [];
+                doc.on('data', buffers.push.bind(buffers));
+                doc.on('end', async () => {
+                    const pdfBuffer = Buffer.concat(buffers);
+                    const filename = `crew_list_${event.id}_${Date.now()}.pdf`;
+
+                    // Upload to Supabase Storage
+                    const { data, error } = await supabase.storage
+                        .from(process.env.SUPABASE_CREWLIST_BUCKET)
+                        .upload(filename, pdfBuffer, {
+                            contentType: 'application/pdf',
+                            upsert: true
+                        });
+                    if (error) return reject(error);
+
+                    // Generate signed URL
+                    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                        .from(process.env.SUPABASE_CREWLIST_BUCKET)
+                        .createSignedUrl(filename, 60 * 60); // 1 hour
+                    if (signedUrlError) return reject(signedUrlError);
+
+                    resolve({
+                        url: signedUrlData.signedUrl,
+                        filename
+                    });
                 });
-
-                const filename = `crew_list_${event.id}_${Date.now()}.pdf`;
-                const filepath = path.join(this.outputDir, filename);
-                const stream = fs.createWriteStream(filepath);
-
-                doc.pipe(stream);
 
                 // Header
                 doc.fontSize(24)
@@ -198,7 +223,6 @@ class PDFGenerator {
                 doc.fontSize(10)
                    .font('Helvetica-Bold')
                    .fill('#333333');
-
                 let x = 50;
                 headers.forEach((header, i) => {
                     doc.text(header, x, startY);
@@ -212,25 +236,12 @@ class PDFGenerator {
 
                 crewMembers.forEach((member, index) => {
                     const y = startY + 25 + (index * 20);
-                    
-                    if (y > 700) { // New page if needed
-                        doc.addPage();
-                        return;
-                    }
-
+                    if (y > 700) { doc.addPage(); return; }
                     x = 50;
-                    doc.text(member.badge_number, x, y);
-                    x += colWidths[0];
-                    
-                    doc.text(`${member.first_name} ${member.last_name}`, x, y);
-                    x += colWidths[1];
-                    
-                    doc.text(member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), x, y);
-                    x += colWidths[2];
-                    
-                    doc.text(member.access_level, x, y);
-                    x += colWidths[3];
-                    
+                    doc.text(member.badge_number, x, y); x += colWidths[0];
+                    doc.text(`${member.first_name} ${member.last_name}`, x, y); x += colWidths[1];
+                    doc.text(member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), x, y); x += colWidths[2];
+                    doc.text(member.access_level, x, y); x += colWidths[3];
                     doc.text(member.status, x, y);
                 });
 
@@ -241,17 +252,6 @@ class PDFGenerator {
                    .text(`Generated on ${new Date().toLocaleString()} by YouShallPass`, 0, 750, { align: 'center' });
 
                 doc.end();
-
-                stream.on('finish', () => {
-                    resolve({
-                        filename,
-                        filepath,
-                        url: `/badges/${filename}`
-                    });
-                });
-
-                stream.on('error', reject);
-
             } catch (error) {
                 reject(error);
             }
