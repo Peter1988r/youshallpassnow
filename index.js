@@ -265,6 +265,14 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const { eventId } = req.params;
         const { firstName, lastName, email, role, photoPath } = req.body;
 
+        // Log incoming data for debugging
+        console.log('Add crew member request:', { eventId, firstName, lastName, email, role, photoPath });
+
+        // Validate required fields
+        if (!firstName || !lastName || !email || !role) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
         // Validate event exists first
         const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
         if (events.length === 0) {
@@ -296,7 +304,11 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             message: 'Employee added successfully. Accreditation is pending approval.'
         });
     } catch (error) {
-        console.error('Add crew error:', error);
+        console.error('Add crew error:', error.stack || error);
+        // Return real error in development for debugging
+        if (process.env.NODE_ENV !== 'production') {
+            return res.status(500).json({ error: error.message || 'Internal server error' });
+        }
         res.status(500).json({ error: 'Internal server error' });
     }
 });
