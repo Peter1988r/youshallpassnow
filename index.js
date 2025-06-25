@@ -861,6 +861,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         console.log('Creating company with data:', { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles });
         
         // Create the company
+        console.log('Executing company creation query...');
         const result = await run(`
             INSERT INTO companies (name, domain, contact_phone, address)
             VALUES ($1, $2, $3, $4)
@@ -871,6 +872,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         console.log('Company created with ID:', companyId);
         
         // Assign roles to the company
+        console.log('Assigning roles to company...');
         for (const roleName of assignedRoles) {
             console.log('Assigning role:', roleName, 'to company:', companyId);
             await run(`
@@ -881,6 +883,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         }
         
         // Create company admin user
+        console.log('Creating company admin user...');
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10); // Default password, should be changed
         
@@ -892,6 +895,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         `, [companyId, companyAdminEmail, adminPassword, 'Company', 'Admin', 'admin']);
         
         // Get the created company with role information
+        console.log('Fetching created company details...');
         const companies = await query(`
             SELECT 
                 c.*,

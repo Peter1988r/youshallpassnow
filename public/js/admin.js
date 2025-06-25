@@ -143,17 +143,34 @@ async function loadCompaniesTab() {
                 <td>${c.event_count || 0}</td>
                 <td>${c.user_count || 0}</td>
                 <td>
-                    <button class="btn-icon" title="Delete" onclick="deleteCompany(${c.id})">🗑️</button>
+                    <button class="btn-icon delete-company-btn" title="Delete" data-company-id="${c.id}">🗑️</button>
                 </td>
             </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
+        
+        // Add event listeners to delete buttons
+        setupCompanyTableEventListeners();
+        
         console.log('Companies table rendered successfully');
     } catch (e) {
         console.error('Error loading companies:', e);
         container.innerHTML = `<div class="error">Failed to load companies: ${e.message}</div>`;
     }
+}
+
+// Setup event listeners for company table buttons
+function setupCompanyTableEventListeners() {
+    // Delete company buttons
+    document.querySelectorAll('.delete-company-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const companyId = parseInt(btn.getAttribute('data-company-id'));
+            console.log('Delete company clicked:', companyId);
+            await deleteCompany(companyId);
+        });
+    });
 }
 
 // Events Tab
@@ -472,6 +489,9 @@ function setupEventListeners() {
     if (addRoleForm) {
         addRoleForm.addEventListener('submit', handleAddRole);
     }
+    
+    // Setup role edit/delete event listeners
+    setupRoleEventListeners();
     
     console.log('Event listeners setup complete');
 }
