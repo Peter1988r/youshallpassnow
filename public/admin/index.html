@@ -44,14 +44,52 @@
 
         <!-- Tabs -->
         <div class="admin-tabs">
-            <button class="tab-btn active" data-tab="companies-tab">Companies</button>
-            <button class="tab-btn" data-tab="events-tab">Events</button>
+            <button class="tab-btn active" data-tab="events-tab">Events</button>
+            <button class="tab-btn" data-tab="companies-tab">Companies</button>
             <button class="tab-btn" data-tab="users-tab">Users</button>
             <button class="tab-btn" data-tab="roles-tab">Roles</button>
         </div>
 
         <!-- Tab Panels -->
-        <div class="tab-panel active" id="companies-tab">
+        <div class="tab-panel active" id="events-tab">
+            <!-- Quick Stats (Events) -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3 id="totalEvents">0</h3>
+                        <p>Active Events</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏃‍♂️</div>
+                    <div class="stat-content">
+                        <h3 id="ongoingEvents">0</h3>
+                        <p>Ongoing Events</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-content">
+                        <h3 id="upcomingEvents">0</h3>
+                        <p>Upcoming Events</p>
+                    </div>
+                </div>
+            </section>
+            <!-- Quick Actions (Events) -->
+            <section class="quick-actions">
+                <h2>Event Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn-primary" id="addEventBtn">Create New Event</button>
+                </div>
+            </section>
+            <!-- Events Grid -->
+            <section class="events-grid" id="eventsGrid">
+                <!-- Event thumbnails will be loaded here -->
+            </section>
+        </div>
+
+        <div class="tab-panel" id="companies-tab">
             <!-- Quick Stats (Companies) -->
             <section class="stats-grid">
                 <div class="stat-card">
@@ -71,25 +109,6 @@
             </section>
             <!-- Companies Table Placeholder -->
             <div id="companiesTableContainer"></div>
-        </div>
-
-        <div class="tab-panel" id="events-tab">
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📅</div>
-                    <div class="stat-content">
-                        <h3 id="totalEvents">0</h3>
-                        <p>Active Events</p>
-                    </div>
-                </div>
-            </section>
-            <section class="quick-actions">
-                <h2>Event Actions</h2>
-                <div class="action-buttons">
-                    <button class="btn-secondary" id="addEventBtn">Create Event</button>
-                </div>
-            </section>
-            <div id="eventsTableContainer"></div>
         </div>
 
         <div class="tab-panel" id="users-tab">

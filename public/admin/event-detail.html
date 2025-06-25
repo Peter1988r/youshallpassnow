@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details | YouShallPass</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="/assets/images/logo.jpg" alt="YouShallPass Logo" class="nav-logo-img">
+                <span>YouShallPass</span>
+            </a>
+            <div class="nav-links">
+                <span class="admin-badge">Super Admin</span>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/companies">Companies</a>
+                <a href="/admin/events" class="active">Events</a>
+                <a href="/admin/users">Users</a>
+                <button class="btn-primary" id="signOutBtn">Sign Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="btn-secondary" id="backBtn">← Back to Events</button>
+                    <h1 id="eventTitle">Event Details</h1>
+                    <p id="eventSubtitle">Manage event information and settings</p>
+                </div>
+                <div class="header-right">
+                    <div class="event-status" id="eventStatus">
+                        <span class="status-badge" id="statusBadge">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Event Details Form -->
+        <div class="event-detail-container">
+            <form id="eventDetailForm" class="event-form">
+                <div class="form-section">
+                    <h3>Event Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="eventName">Event Name</label>
+                            <input type="text" id="eventName" name="eventName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventLocation">Location</label>
+                            <input type="text" id="eventLocation" name="eventLocation" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDate">Start Date</label>
+                            <input type="date" id="startDate" name="startDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">End Date</label>
+                            <input type="date" id="endDate" name="endDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDescription">Description</label>
+                        <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Event Status</h3>
+                    <div class="form-group">
+                        <label for="eventStatusSelect">Status</label>
+                        <select id="eventStatusSelect" name="eventStatus" required>
+                            <option value="active">Active</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="ended">Ended</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <small class="form-help">Status will automatically update based on date range, but can be manually overridden.</small>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Assigned Companies</h3>
+                    <div class="companies-assignment">
+                        <div class="assignment-header">
+                            <p>Select companies that can manage this event:</p>
+                            <button type="button" class="btn-secondary" id="addCompanyToEvent">Add Company</button>
+                        </div>
+                        <div class="assigned-companies" id="assignedCompanies">
+                            <!-- Assigned companies will be listed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="button" class="btn-secondary" id="cancelEventBtn">Cancel Event</button>
+                    <button type="button" class="btn-danger" id="deleteEventBtn">Delete Event</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Add Company to Event Modal -->
+    <div class="modal" id="addCompanyToEventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Assign Company to Event</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="addCompanyToEventForm">
+                <div class="form-group">
+                    <label for="companyToAssign">Select Company</label>
+                    <select id="companyToAssign" name="companyToAssign" required>
+                        <option value="">Select a company</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancelAddCompanyToEvent">Cancel</button>
+                    <button type="submit" class="btn-primary">Assign Company</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Confirm Event Deletion</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this event? This action cannot be undone and will also delete all associated crew members.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="cancelDelete">Cancel</button>
+                <button type="button" class="btn-danger" id="confirmDelete">Delete Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JavaScript -->
+    <script src="/js/main.js"></script>
+    <script src="/js/event-detail.js"></script>
+</body>
+</html> 

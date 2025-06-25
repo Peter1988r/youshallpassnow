@@ -109,27 +109,80 @@ async function loadCompaniesTab() {
 // Events Tab
 async function loadEventsTab() {
     const token = localStorage.getItem('token');
-    const container = document.getElementById('eventsTableContainer');
+    const container = document.getElementById('eventsGrid');
     container.innerHTML = '<div>Loading events...</div>';
+    
     try {
         const res = await fetch('/api/admin/events', { headers: { 'Authorization': `Bearer ${token}` } });
         const events = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Company</th><th>Location</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
-        events.forEach(e => {
-            html += `<tr>
-                <td>${e.name}</td>
-                <td>${e.company_name || ''}</td>
-                <td>${e.location}</td>
-                <td>${e.start_date}</td>
-                <td>${e.end_date}</td>
-                <td>${e.status || 'active'}</td>
-                <td>
-                    <button class="btn-icon" title="Delete" onclick="deleteEvent(${e.id})">🗑️</button>
-                </td>
-            </tr>`;
+        
+        // Update stats
+        document.getElementById('totalEvents').textContent = events.filter(e => e.status === 'active').length;
+        document.getElementById('ongoingEvents').textContent = events.filter(e => e.status === 'ongoing').length;
+        document.getElementById('upcomingEvents').textContent = events.filter(e => {
+            const startDate = new Date(e.start_date);
+            const now = new Date();
+            return startDate > now && e.status === 'active';
+        }).length;
+        
+        if (events.length === 0) {
+            container.innerHTML = '<div class="no-events">No events found. Create your first event!</div>';
+            return;
+        }
+        
+        let html = '';
+        events.forEach(event => {
+            const startDate = new Date(event.start_date);
+            const endDate = new Date(event.end_date);
+            const now = new Date();
+            
+            // Determine status
+            let status = event.status;
+            if (status === 'active' && startDate <= now && endDate >= now) {
+                status = 'ongoing';
+            } else if (status === 'active' && endDate < now) {
+                status = 'ended';
+            }
+            
+            const statusClass = status === 'active' ? 'active' : 
+                              status === 'ongoing' ? 'ongoing' : 
+                              status === 'ended' ? 'ended' : 'cancelled';
+            
+            html += `
+                <div class="event-card" data-event-id="${event.id}">
+                    <div class="event-card-header">
+                        <h3>${event.name}</h3>
+                        <div class="event-card-location">📍 ${event.location}</div>
+                        <div class="event-card-dates">
+                            <span>📅 ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    <div class="event-card-body">
+                        <div class="event-card-company">🏢 ${event.company_name || 'No Company Assigned'}</div>
+                        <div class="event-card-status">
+                            <span class="status-badge ${statusClass}">${status}</span>
+                        </div>
+                        <div class="event-card-actions">
+                            <button class="btn-secondary" onclick="editEvent(${event.id})">Edit</button>
+                            <button class="btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
-        html += '</tbody></table>';
+        
         container.innerHTML = html;
+        
+        // Add click handlers for event cards
+        document.querySelectorAll('.event-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('button')) {
+                    const eventId = card.dataset.eventId;
+                    window.location.href = `/admin/event-detail?id=${eventId}`;
+                }
+            });
+        });
+        
     } catch (e) {
         container.innerHTML = '<div class="error">Failed to load events</div>';
     }
@@ -1107,4 +1160,9 @@ function showApplicantDetailsModal(details) {
             modal.remove();
         }
     });
+}
+
+// Edit event function
+function editEvent(eventId) {
+    window.location.href = `/admin/event-detail?id=${eventId}`;
 } 

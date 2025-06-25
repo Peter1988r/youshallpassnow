@@ -954,6 +954,10 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
+app.get('/admin/event-detail', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'event-detail.html'));
+});
+
 // Debug route to show environment variables
 app.get('/debug-env', (req, res) => {
     res.json({
@@ -967,6 +971,153 @@ app.get('/debug-env', (req, res) => {
             ALL_ENV_KEYS: Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('SUPABASE'))
         }
     });
+});
+
+// Get event details (for super admin)
+app.get('/api/admin/events/:eventId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        const events = await query(`
+            SELECT 
+                e.*,
+                c.name as company_name
+            FROM events e
+            LEFT JOIN companies c ON e.company_id = c.id
+            WHERE e.id = $1
+        `, [eventId]);
+        
+        if (events.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        res.json(events[0]);
+    } catch (error) {
+        console.error('Get event details error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update event (for super admin)
+app.put('/api/admin/events/:eventId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { name, location, start_date, end_date, description, status } = req.body;
+        
+        await run(`
+            UPDATE events 
+            SET name = $1, location = $2, start_date = $3, end_date = $4, description = $5, status = $6, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $7
+        `, [name, location, start_date, end_date, description, status, eventId]);
+        
+        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
+        
+        res.json({
+            message: 'Event updated successfully',
+            event: events[0]
+        });
+    } catch (error) {
+        console.error('Update event error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Cancel event (for super admin)
+app.put('/api/admin/events/:eventId/cancel', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        await run(`
+            UPDATE events 
+            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `, [eventId]);
+        
+        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
+        
+        res.json({
+            message: 'Event cancelled successfully',
+            event: events[0]
+        });
+    } catch (error) {
+        console.error('Cancel event error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get companies assigned to event
+app.get('/api/admin/events/:eventId/companies', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        // For now, return the company that owns the event
+        // In the future, this could be expanded to support multiple companies per event
+        const events = await query(`
+            SELECT 
+                c.id,
+                c.name,
+                c.domain,
+                c.contact_email
+            FROM events e
+            JOIN companies c ON e.company_id = c.id
+            WHERE e.id = $1
+        `, [eventId]);
+        
+        if (events.length === 0) {
+            return res.json([]);
+        }
+        
+        res.json([events[0]]);
+    } catch (error) {
+        console.error('Get event companies error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Assign company to event
+app.post('/api/admin/events/:eventId/companies', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { company_id } = req.body;
+        
+        // Update the event's company_id
+        await run(`
+            UPDATE events 
+            SET company_id = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [company_id, eventId]);
+        
+        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
+        
+        res.json({
+            message: 'Company assigned to event successfully',
+            event: events[0]
+        });
+    } catch (error) {
+        console.error('Assign company to event error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Remove company from event
+app.delete('/api/admin/events/:eventId/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId, companyId } = req.params;
+        
+        // Set company_id to null (or you could implement a many-to-many relationship)
+        await run(`
+            UPDATE events 
+            SET company_id = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND company_id = $2
+        `, [eventId, companyId]);
+        
+        res.json({
+            message: 'Company removed from event successfully'
+        });
+    } catch (error) {
+        console.error('Remove company from event error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Error handling middleware
