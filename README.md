@@ -263,3 +263,4 @@ For questions or issues, please refer to the codebase or create an issue in the 
 ---
 
 **Built with ❤️ for professional event management** # Updated for PostgreSQL deployment
+# Deploying commit 2946207: Wed Jun 25 16:48:36 CEST 2025
