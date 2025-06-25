@@ -21,8 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize page
     loadEventDetails(eventId);
-    loadCrewApprovals(eventId);
-    loadApprovedCrew(eventId);
+    // Don't load crew data initially - will be loaded when tabs are activated
     setupEventListeners();
     
     // Ensure only overview tab is active on page load
@@ -223,6 +222,16 @@ function switchTab(tabName) {
     // Add active class to selected tab and panel
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     document.querySelector(`.tab-panel[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Load data based on the selected tab
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    
+    if (tabName === 'approvals') {
+        loadCrewApprovals(eventId);
+    } else if (tabName === 'accredited') {
+        const companyFilter = document.getElementById('companyFilter').value;
+        loadApprovedCrew(eventId, companyFilter || null);
+    }
     
     // Smooth scroll to the section
     const activePanel = document.querySelector(`.tab-panel[data-tab="${tabName}"]`);
