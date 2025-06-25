@@ -390,6 +390,7 @@ function setupEventListeners() {
     const addRoleBtn = document.getElementById('addRoleBtn');
     const generateReportBtn = document.getElementById('generateReportBtn');
     const signOutBtn = document.getElementById('signOutBtn');
+    const cleanupEventsBtn = document.getElementById('cleanupEventsBtn');
     
     // Close buttons
     const closeModals = document.querySelectorAll('.close-modal');
@@ -441,6 +442,9 @@ function setupEventListeners() {
     }
     if (signOutBtn) {
         signOutBtn.addEventListener('click', signOut);
+    }
+    if (cleanupEventsBtn) {
+        cleanupEventsBtn.addEventListener('click', cleanupEvents);
     }
     
     // Hide modals
@@ -1161,4 +1165,47 @@ function showApplicantDetailsModal(details) {
 // Edit event function
 function editEvent(eventId) {
     window.location.href = `/admin/event-detail?id=${eventId}`;
+}
+
+// Cleanup events function
+async function cleanupEvents() {
+    if (!confirm('⚠️ WARNING: This will delete ALL events except the first 3 created events. This action cannot be undone!\n\nAre you sure you want to continue?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/cleanup-events', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showMessage('✅ Event cleanup completed successfully!', 'success');
+            console.log('Remaining events:', result.remainingEvents);
+            
+            // Refresh the events tab
+            await loadEventsTab();
+            
+            // Show remaining events in console
+            setTimeout(() => {
+                console.log('📋 Remaining events after cleanup:');
+                result.remainingEvents.forEach((event, index) => {
+                    console.log(`${index + 1}. ${event.name} (${event.status})`);
+                });
+            }, 1000);
+            
+        } else {
+            const error = await response.json();
+            showMessage(`❌ Cleanup failed: ${error.error || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error during cleanup:', error);
+        showMessage(`❌ Error: ${error.message}`, 'error');
+    }
 } 
