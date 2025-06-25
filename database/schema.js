@@ -104,6 +104,15 @@ const initDatabase = async () => {
             )
         `);
 
+        // Add description column to existing roles table if it doesn't exist
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='roles' AND column_name='description') THEN
+                    ALTER TABLE roles ADD COLUMN description TEXT DEFAULT 'No description available';
+                END IF;
+            END $$;
+        `);
+
         // Insert default roles if they don't exist
         const defaultRoles = [
             { name: 'technical_director', description: 'Oversees technical operations and equipment setup for events' },
@@ -120,7 +129,7 @@ const initDatabase = async () => {
             await client.query(`
                 INSERT INTO roles (name, description)
                 VALUES ($1, $2)
-                ON CONFLICT (name) DO NOTHING
+                ON CONFLICT (name) DO UPDATE SET description = $2
             `, [role.name, role.description]);
         }
 

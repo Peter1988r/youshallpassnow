@@ -27,6 +27,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup role management event listeners
     setupRoleEventListeners();
     
+    // Setup migration button
+    const migrateDbBtn = document.getElementById('migrateDbBtn');
+    if (migrateDbBtn) {
+        migrateDbBtn.addEventListener('click', async () => {
+            if (confirm('This will update the database schema to fix the roles table. Continue?')) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch('/api/admin/migrate', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Migration failed');
+                    }
+                    
+                    showMessage('Database schema updated successfully!', 'success');
+                    loadDashboardData(); // Reload to show updated roles
+                } catch (error) {
+                    showMessage('Migration failed: ' + error.message, 'error');
+                }
+            }
+        });
+    }
+    
     console.log('Admin page initialization complete');
 });
 
