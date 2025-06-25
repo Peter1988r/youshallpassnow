@@ -602,21 +602,31 @@ function showMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Load crew approvals for this event
+// Load crew approvals
 async function loadCrewApprovals(eventId) {
     try {
         const token = localStorage.getItem('token');
+        console.log('Loading crew approvals for event:', eventId);
+        console.log('Token exists:', !!token);
+        console.log('Token length:', token ? token.length : 0);
+        
         const response = await fetch(`/api/admin/events/${eventId}/crew-approvals`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
+        console.log('Approvals response status:', response.status);
+        console.log('Approvals response ok:', response.ok);
+        
         if (!response.ok) {
-            throw new Error('Failed to load crew approvals');
+            const errorText = await response.text();
+            console.error('Approvals response error text:', errorText);
+            throw new Error(`Failed to load crew approvals: ${response.status} ${errorText}`);
         }
         
         const approvals = await response.json();
+        console.log('Crew approvals data:', approvals);
         displayCrewApprovals(approvals);
         
     } catch (error) {
@@ -815,10 +825,16 @@ async function rejectCrewMember(crewId) {
 async function loadApprovedCrew(eventId, companyId = null) {
     try {
         const token = localStorage.getItem('token');
+        console.log('Loading approved crew for event:', eventId);
+        console.log('Token exists:', !!token);
+        console.log('Token length:', token ? token.length : 0);
+        
         let url = `/api/admin/events/${eventId}/approved-crew`;
         if (companyId) {
             url += `?company_id=${companyId}`;
         }
+        
+        console.log('Requesting URL:', url);
         
         const response = await fetch(url, {
             headers: {
@@ -826,11 +842,17 @@ async function loadApprovedCrew(eventId, companyId = null) {
             }
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
         if (!response.ok) {
-            throw new Error('Failed to load approved crew');
+            const errorText = await response.text();
+            console.error('Response error text:', errorText);
+            throw new Error(`Failed to load approved crew: ${response.status} ${errorText}`);
         }
         
         const approvedCrew = await response.json();
+        console.log('Approved crew data:', approvedCrew);
         displayApprovedCrew(approvedCrew);
         
     } catch (error) {
