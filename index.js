@@ -808,6 +808,65 @@ app.delete('/api/admin/roles/:roleId', authenticateToken, requireSuperAdmin, asy
     }
 });
 
+// Delete company
+app.delete('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        
+        // Delete in order: crew members -> events -> users -> company
+        await run('DELETE FROM crew_members WHERE event_id IN (SELECT id FROM events WHERE company_id = $1)', [companyId]);
+        await run('DELETE FROM events WHERE company_id = $1', [companyId]);
+        await run('DELETE FROM users WHERE company_id = $1', [companyId]);
+        await run('DELETE FROM roles WHERE company_id = $1', [companyId]);
+        await run('DELETE FROM companies WHERE id = $1', [companyId]);
+        
+        res.json({ message: 'Company and all associated data deleted successfully' });
+    } catch (error) {
+        console.error('Delete company error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete event
+app.delete('/api/admin/events/:eventId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        // Delete crew members first, then event
+        await run('DELETE FROM crew_members WHERE event_id = $1', [eventId]);
+        await run('DELETE FROM events WHERE id = $1', [eventId]);
+        
+        res.json({ message: 'Event and all associated crew members deleted successfully' });
+    } catch (error) {
+        console.error('Delete event error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete user
+app.delete('/api/admin/users/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Check if user is super admin
+        const users = await query('SELECT is_super_admin FROM users WHERE id = $1', [userId]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (users[0].is_super_admin) {
+            return res.status(403).json({ error: 'Cannot delete super admin user' });
+        }
+        
+        await run('DELETE FROM users WHERE id = $1', [userId]);
+        
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Generate system report
 app.post('/api/admin/reports/generate', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {

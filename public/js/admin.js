@@ -85,9 +85,19 @@ async function loadCompaniesTab() {
     try {
         const res = await fetch('/api/admin/companies', { headers: { 'Authorization': `Bearer ${token}` } });
         const companies = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Contact</th><th>Events</th><th>Users</th></tr></thead><tbody>`;
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Contact Email</th><th>Phone</th><th>Events</th><th>Users</th><th>Actions</th></tr></thead><tbody>`;
         companies.forEach(c => {
-            html += `<tr><td>${c.name}</td><td>${c.domain}</td><td>${c.contact_email || ''}</td><td>${c.event_count}</td><td>${c.user_count}</td></tr>`;
+            html += `<tr>
+                <td>${c.name}</td>
+                <td>${c.domain || ''}</td>
+                <td>${c.contact_email || ''}</td>
+                <td>${c.contact_phone || ''}</td>
+                <td>${c.event_count || 0}</td>
+                <td>${c.user_count || 0}</td>
+                <td>
+                    <button class="btn-icon" title="Delete" onclick="deleteCompany(${c.id})">🗑️</button>
+                </td>
+            </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -104,9 +114,19 @@ async function loadEventsTab() {
     try {
         const res = await fetch('/api/admin/events', { headers: { 'Authorization': `Bearer ${token}` } });
         const events = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Company</th><th>Location</th><th>Dates</th></tr></thead><tbody>`;
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Company</th><th>Location</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>`;
         events.forEach(e => {
-            html += `<tr><td>${e.name}</td><td>${e.company_name || ''}</td><td>${e.location}</td><td>${e.start_date} - ${e.end_date}</td></tr>`;
+            html += `<tr>
+                <td>${e.name}</td>
+                <td>${e.company_name || ''}</td>
+                <td>${e.location}</td>
+                <td>${e.start_date}</td>
+                <td>${e.end_date}</td>
+                <td>${e.status || 'active'}</td>
+                <td>
+                    <button class="btn-icon" title="Delete" onclick="deleteEvent(${e.id})">🗑️</button>
+                </td>
+            </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -123,9 +143,17 @@ async function loadUsersTab() {
     try {
         const res = await fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } });
         const users = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Company</th></tr></thead><tbody>`;
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Company</th><th>Actions</th></tr></thead><tbody>`;
         users.forEach(u => {
-            html += `<tr><td>${u.first_name} ${u.last_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.company_id || ''}</td></tr>`;
+            html += `<tr>
+                <td>${u.first_name} ${u.last_name}</td>
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.company_name || 'No Company'}</td>
+                <td>
+                    <button class="btn-icon" title="Delete" onclick="deleteUser(${u.id})">🗑️</button>
+                </td>
+            </tr>`;
         });
         html += '</tbody></table>';
         container.innerHTML = html;
@@ -134,7 +162,7 @@ async function loadUsersTab() {
     }
 }
 
-// Roles Tab (placeholder)
+// Roles Tab
 async function loadRolesTab() {
     const token = localStorage.getItem('token');
     const container = document.getElementById('rolesManagementContainer');
@@ -700,6 +728,93 @@ async function deleteRole(roleId) {
     }
 }
 
+// Delete company function
+async function deleteCompany(companyId) {
+    if (!confirm('Are you sure you want to delete this company? This will also delete all associated events, users, and crew members.')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/companies/${companyId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete company');
+        }
+        
+        showMessage('Company deleted successfully!', 'success');
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error deleting company:', error);
+        showMessage('Failed to delete company: ' + error.message, 'error');
+    }
+}
+
+// Delete event function
+async function deleteEvent(eventId) {
+    if (!confirm('Are you sure you want to delete this event? This will also delete all associated crew members.')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete event');
+        }
+        
+        showMessage('Event deleted successfully!', 'success');
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        showMessage('Failed to delete event: ' + error.message, 'error');
+    }
+}
+
+// Delete user function
+async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete user');
+        }
+        
+        showMessage('User deleted successfully!', 'success');
+        loadDashboardData();
+        
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showMessage('Failed to delete user: ' + error.message, 'error');
+    }
+}
+
 // Global functions for approval actions
 window.approveApproval = async (id) => {
     const accessLevel = document.querySelector(`.access-level-select[data-id='${id}']`).value;
@@ -728,6 +843,11 @@ window.viewApproval = (id) => {
 // Global functions for role management
 window.editRole = editRole;
 window.deleteRole = deleteRole;
+
+// Global functions for company, event, and user management
+window.deleteCompany = deleteCompany;
+window.deleteEvent = deleteEvent;
+window.deleteUser = deleteUser;
 
 // Generate report
 async function generateReport() {

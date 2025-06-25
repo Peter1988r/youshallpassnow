@@ -89,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = `
                 <td>${member.first_name} ${member.last_name}</td>
                 <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                <td>${member.email}</td>
+                <td>${member.access_level || 'RESTRICTED'}</td>
+                <td>${member.email || ''}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
                     ${member.status === 'pending_approval' ? 
