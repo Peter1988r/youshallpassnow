@@ -1,20 +1,30 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Admin page loaded, initializing...');
+    
     // Check super admin authentication
     const token = localStorage.getItem('token');
     if (!token) {
+        console.log('No token found, redirecting to signin');
         window.location.href = '/signin';
         return;
     }
 
+    console.log('Token found, verifying super admin...');
     // Verify super admin status
     verifySuperAdmin();
 
+    console.log('Setting up admin tabs...');
     // Setup tabs
     setupAdminTabs();
 
+    console.log('Loading dashboard data...');
     // Initialize dashboard
     loadDashboardData();
+    
+    console.log('Setting up event listeners...');
     setupEventListeners();
+    
+    console.log('Admin page initialization complete');
 });
 
 // Verify user is super admin
@@ -288,6 +298,8 @@ function setupApprovalButtons() {
 
 // Setup event listeners
 function setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     // Modal elements
     const addCompanyModal = document.getElementById('addCompanyModal');
     const addEventModal = document.getElementById('addEventModal');
@@ -306,64 +318,126 @@ function setupEventListeners() {
     const closeModals = document.querySelectorAll('.close-modal');
     const cancelButtons = document.querySelectorAll('[id^="cancelAdd"]');
     
+    console.log('Found elements:', {
+        addCompanyBtn: !!addCompanyBtn,
+        addEventBtn: !!addEventBtn,
+        addUserBtn: !!addUserBtn,
+        addRoleBtn: !!addRoleBtn,
+        closeModals: closeModals.length,
+        cancelButtons: cancelButtons.length
+    });
+    
     // Show modals
-    addCompanyBtn.addEventListener('click', () => {
-        addCompanyModal.style.display = 'block';
-    });
+    if (addCompanyBtn) {
+        addCompanyBtn.addEventListener('click', () => {
+            console.log('Opening company modal');
+            addCompanyModal.style.display = 'block';
+        });
+    }
     
-    addEventBtn.addEventListener('click', () => {
-        addEventModal.style.display = 'block';
-        loadCompaniesForSelect('eventCompany');
-    });
+    if (addEventBtn) {
+        addEventBtn.addEventListener('click', () => {
+            console.log('Opening event modal');
+            addEventModal.style.display = 'block';
+            loadCompaniesForSelect('eventCompany');
+        });
+    }
     
-    addUserBtn.addEventListener('click', () => {
-        addUserModal.style.display = 'block';
-        loadCompaniesForSelect('userCompany');
-    });
+    if (addUserBtn) {
+        addUserBtn.addEventListener('click', () => {
+            console.log('Opening user modal');
+            addUserModal.style.display = 'block';
+            loadCompaniesForSelect('userCompany');
+        });
+    }
     
-    addRoleBtn.addEventListener('click', () => {
-        addRoleModal.style.display = 'block';
-        loadCompaniesForSelect('roleCompany');
-    });
+    if (addRoleBtn) {
+        addRoleBtn.addEventListener('click', () => {
+            console.log('Opening role modal');
+            addRoleModal.style.display = 'block';
+            loadCompaniesForSelect('roleCompany');
+        });
+    }
     
-    generateReportBtn.addEventListener('click', generateReport);
-    signOutBtn.addEventListener('click', signOut);
+    if (generateReportBtn) {
+        generateReportBtn.addEventListener('click', generateReport);
+    }
+    if (signOutBtn) {
+        signOutBtn.addEventListener('click', signOut);
+    }
     
     // Hide modals
     const hideModal = (modal) => {
+        console.log('Hiding modal:', modal.id);
         modal.style.display = 'none';
     };
     
     closeModals.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            console.log('Close button clicked');
             const modal = btn.closest('.modal');
-            hideModal(modal);
+            if (modal) {
+                hideModal(modal);
+            }
         });
     });
     
     cancelButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            console.log('Cancel button clicked');
             const modal = btn.closest('.modal');
-            hideModal(modal);
+            if (modal) {
+                hideModal(modal);
+            }
         });
     });
     
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
+            console.log('Clicked outside modal');
             hideModal(e.target);
         }
     });
     
     // Form submissions
-    document.getElementById('addCompanyForm').addEventListener('submit', handleAddCompany);
-    document.getElementById('addEventForm').addEventListener('submit', handleAddEvent);
-    document.getElementById('addUserForm').addEventListener('submit', handleAddUser);
-    document.getElementById('addRoleForm').addEventListener('submit', handleAddRole);
+    const addCompanyForm = document.getElementById('addCompanyForm');
+    const addEventForm = document.getElementById('addEventForm');
+    const addUserForm = document.getElementById('addUserForm');
+    const addRoleForm = document.getElementById('addRoleForm');
+    
+    console.log('Found forms:', {
+        addCompanyForm: !!addCompanyForm,
+        addEventForm: !!addEventForm,
+        addUserForm: !!addUserForm,
+        addRoleForm: !!addRoleForm
+    });
+    
+    if (addCompanyForm) {
+        addCompanyForm.addEventListener('submit', handleAddCompany);
+    }
+    if (addEventForm) {
+        addEventForm.addEventListener('submit', handleAddEvent);
+    }
+    if (addUserForm) {
+        addUserForm.addEventListener('submit', handleAddUser);
+    }
+    if (addRoleForm) {
+        addRoleForm.addEventListener('submit', handleAddRole);
+    }
     
     // Approval actions
-    document.getElementById('bulkApproveBtn').addEventListener('click', bulkApproveApprovals);
-    document.getElementById('refreshApprovalsBtn').addEventListener('click', loadPendingApprovals);
+    const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+    const refreshApprovalsBtn = document.getElementById('refreshApprovalsBtn');
+    
+    if (bulkApproveBtn) {
+        bulkApproveBtn.addEventListener('click', bulkApproveApprovals);
+    }
+    if (refreshApprovalsBtn) {
+        refreshApprovalsBtn.addEventListener('click', loadPendingApprovals);
+    }
+    
+    console.log('Event listeners setup complete');
 }
 
 // Load companies for select dropdowns
@@ -395,10 +469,12 @@ async function loadCompaniesForSelect(selectId) {
 
 // Handle add company
 async function handleAddCompany(e) {
+    console.log('handleAddCompany called');
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
+    console.log('Company data:', data);
     
     try {
         const token = localStorage.getItem('token');
@@ -417,6 +493,7 @@ async function handleAddCompany(e) {
         }
         
         const result = await response.json();
+        console.log('Company added successfully:', result);
         showMessage('Company added successfully!', 'success');
         
         // Hide modal and reset form
@@ -434,10 +511,12 @@ async function handleAddCompany(e) {
 
 // Handle add event
 async function handleAddEvent(e) {
+    console.log('handleAddEvent called');
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
+    console.log('Event data:', data);
     
     try {
         const token = localStorage.getItem('token');
@@ -456,6 +535,7 @@ async function handleAddEvent(e) {
         }
         
         const result = await response.json();
+        console.log('Event created successfully:', result);
         showMessage('Event created successfully!', 'success');
         
         // Hide modal and reset form
@@ -473,10 +553,12 @@ async function handleAddEvent(e) {
 
 // Handle add user
 async function handleAddUser(e) {
+    console.log('handleAddUser called');
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
+    console.log('User data:', data);
     
     try {
         const token = localStorage.getItem('token');
@@ -495,6 +577,7 @@ async function handleAddUser(e) {
         }
         
         const result = await response.json();
+        console.log('User added successfully:', result);
         showMessage('User added successfully!', 'success');
         
         // Hide modal and reset form
@@ -512,10 +595,12 @@ async function handleAddUser(e) {
 
 // Handle add role
 async function handleAddRole(e) {
+    console.log('handleAddRole called');
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
+    console.log('Role data:', data);
     
     try {
         const token = localStorage.getItem('token');
@@ -534,6 +619,7 @@ async function handleAddRole(e) {
         }
         
         const result = await response.json();
+        console.log('Role added successfully:', result);
         showMessage('Role added successfully!', 'success');
         
         // Hide modal and reset form
