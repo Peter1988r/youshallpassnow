@@ -697,8 +697,11 @@ function hideModal(modal) {
 
 // Setup role management event listeners
 function setupRoleEventListeners() {
+    console.log('Setting up role and company event listeners...');
+    
     // Edit role form
     const editRoleForm = document.getElementById('editRoleForm');
+    console.log('Edit role form found:', !!editRoleForm);
     if (editRoleForm) {
         editRoleForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -730,6 +733,7 @@ function setupRoleEventListeners() {
 
     // Cancel edit role button
     const cancelEditRole = document.getElementById('cancelEditRole');
+    console.log('Cancel edit role button found:', !!cancelEditRole);
     if (cancelEditRole) {
         cancelEditRole.addEventListener('click', function() {
             hideModal(document.getElementById('editRoleModal'));
@@ -738,7 +742,9 @@ function setupRoleEventListeners() {
     
     // Edit company form
     const editCompanyForm = document.getElementById('editCompanyForm');
+    console.log('Edit company form found:', !!editCompanyForm);
     if (editCompanyForm) {
+        console.log('Setting up edit company form event listener');
         editCompanyForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             console.log('Edit company form submitted');
@@ -798,15 +804,20 @@ function setupRoleEventListeners() {
                 showMessage('Failed to update company: ' + error.message, 'error');
             }
         });
+    } else {
+        console.error('Edit company form not found!');
     }
 
     // Cancel edit company button
     const cancelEditCompany = document.getElementById('cancelEditCompany');
+    console.log('Cancel edit company button found:', !!cancelEditCompany);
     if (cancelEditCompany) {
         cancelEditCompany.addEventListener('click', function() {
             hideModal(document.getElementById('editCompanyModal'));
         });
     }
+    
+    console.log('Role and company event listeners setup complete');
 }
 
 // Global variable for current edit role
@@ -826,19 +837,42 @@ function openEditCompanyModal(company) {
     console.log('Opening edit company modal with data:', company);
     currentEditCompanyId = company.id;
     
+    // Check if all form elements exist
+    const nameField = document.getElementById('editCompanyName');
+    const domainField = document.getElementById('editCompanyDomain');
+    const emailField = document.getElementById('editCompanyAdminEmail');
+    const phoneField = document.getElementById('editCompanyPhone');
+    const addressField = document.getElementById('editCompanyAddress');
+    const modal = document.getElementById('editCompanyModal');
+    
+    console.log('Form elements found:', {
+        nameField: !!nameField,
+        domainField: !!domainField,
+        emailField: !!emailField,
+        phoneField: !!phoneField,
+        addressField: !!addressField,
+        modal: !!modal
+    });
+    
+    if (!nameField || !domainField || !emailField || !phoneField || !addressField || !modal) {
+        console.error('Some form elements are missing!');
+        showMessage('Error: Edit form elements not found', 'error');
+        return;
+    }
+    
     // Populate form fields
-    document.getElementById('editCompanyName').value = company.name || '';
-    document.getElementById('editCompanyDomain').value = company.domain || '';
-    document.getElementById('editCompanyAdminEmail').value = company.admin_email || '';
-    document.getElementById('editCompanyPhone').value = company.contact_phone || '';
-    document.getElementById('editCompanyAddress').value = company.address || '';
+    nameField.value = company.name || '';
+    domainField.value = company.domain || '';
+    emailField.value = company.admin_email || '';
+    phoneField.value = company.contact_phone || '';
+    addressField.value = company.address || '';
     
     console.log('Form fields populated:', {
-        name: document.getElementById('editCompanyName').value,
-        domain: document.getElementById('editCompanyDomain').value,
-        adminEmail: document.getElementById('editCompanyAdminEmail').value,
-        phone: document.getElementById('editCompanyPhone').value,
-        address: document.getElementById('editCompanyAddress').value
+        name: nameField.value,
+        domain: domainField.value,
+        adminEmail: emailField.value,
+        phone: phoneField.value,
+        address: addressField.value
     });
     
     // Load roles for the select dropdown first
@@ -856,7 +890,8 @@ function openEditCompanyModal(company) {
         }
     });
     
-    document.getElementById('editCompanyModal').style.display = 'block';
+    modal.style.display = 'block';
+    console.log('Edit company modal displayed');
 }
 
 // Update handleAddRole to send correct keys
