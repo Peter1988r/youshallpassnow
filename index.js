@@ -721,9 +721,11 @@ app.get('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, r
         const events = await query(`
             SELECT 
                 e.*,
-                c.name as company_name
+                STRING_AGG(c.name, ', ') as company_names
             FROM events e
-            LEFT JOIN companies c ON e.company_id = c.id
+            LEFT JOIN event_companies ec ON e.id = ec.event_id
+            LEFT JOIN companies c ON ec.company_id = c.id
+            GROUP BY e.id
             ORDER BY e.created_at DESC
         `);
         
@@ -1050,24 +1052,20 @@ app.get('/api/admin/events/:eventId/companies', authenticateToken, requireSuperA
     try {
         const { eventId } = req.params;
         
-        // For now, return the company that owns the event
-        // In the future, this could be expanded to support multiple companies per event
-        const events = await query(`
+        const companies = await query(`
             SELECT 
                 c.id,
                 c.name,
                 c.domain,
-                c.contact_email
-            FROM events e
-            JOIN companies c ON e.company_id = c.id
-            WHERE e.id = $1
+                c.contact_email,
+                ec.assigned_at
+            FROM event_companies ec
+            JOIN companies c ON ec.company_id = c.id
+            WHERE ec.event_id = $1
+            ORDER BY ec.assigned_at DESC
         `, [eventId]);
         
-        if (events.length === 0) {
-            return res.json([]);
-        }
-        
-        res.json([events[0]]);
+        res.json(companies);
     } catch (error) {
         console.error('Get event companies error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -1080,18 +1078,38 @@ app.post('/api/admin/events/:eventId/companies', authenticateToken, requireSuper
         const { eventId } = req.params;
         const { company_id } = req.body;
         
-        // Update the event's company_id
-        await run(`
-            UPDATE events 
-            SET company_id = $1, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $2
-        `, [company_id, eventId]);
+        // Check if assignment already exists
+        const existing = await query(`
+            SELECT id FROM event_companies 
+            WHERE event_id = $1 AND company_id = $2
+        `, [eventId, company_id]);
         
-        const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
+        if (existing.length > 0) {
+            return res.status(400).json({ error: 'Company is already assigned to this event' });
+        }
+        
+        // Add the assignment
+        await run(`
+            INSERT INTO event_companies (event_id, company_id)
+            VALUES ($1, $2)
+        `, [eventId, company_id]);
+        
+        // Get the assigned company details
+        const companies = await query(`
+            SELECT 
+                c.id,
+                c.name,
+                c.domain,
+                c.contact_email,
+                ec.assigned_at
+            FROM event_companies ec
+            JOIN companies c ON ec.company_id = c.id
+            WHERE ec.event_id = $1 AND ec.company_id = $2
+        `, [eventId, company_id]);
         
         res.json({
             message: 'Company assigned to event successfully',
-            event: events[0]
+            company: companies[0]
         });
     } catch (error) {
         console.error('Assign company to event error:', error);
@@ -1104,11 +1122,9 @@ app.delete('/api/admin/events/:eventId/companies/:companyId', authenticateToken,
     try {
         const { eventId, companyId } = req.params;
         
-        // Set company_id to null (or you could implement a many-to-many relationship)
         await run(`
-            UPDATE events 
-            SET company_id = NULL, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1 AND company_id = $2
+            DELETE FROM event_companies 
+            WHERE event_id = $1 AND company_id = $2
         `, [eventId, companyId]);
         
         res.json({

@@ -105,6 +105,17 @@ const initDatabase = async () => {
             )
         `);
 
+        // Add event_companies junction table for many-to-many relationship
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS event_companies (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(event_id, company_id)
+            )
+        `);
+
         // Add access_level column to crew_members if not exists (for per-event assignment)
         await client.query(`
             DO $$ BEGIN

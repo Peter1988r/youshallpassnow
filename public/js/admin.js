@@ -158,7 +158,7 @@ async function loadEventsTab() {
                         </div>
                     </div>
                     <div class="event-card-body">
-                        <div class="event-card-company">🏢 ${event.company_name || 'No Company Assigned'}</div>
+                        <div class="event-card-company">🏢 ${event.company_names || 'No Companies Assigned'}</div>
                         <div class="event-card-status">
                             <span class="status-badge ${statusClass}">${status}</span>
                         </div>

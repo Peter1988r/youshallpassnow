@@ -110,9 +110,11 @@ function displayAssignedCompanies(companies) {
     
     let html = '';
     companies.forEach(company => {
+        const assignedDate = new Date(company.assigned_at).toLocaleDateString();
         html += `
             <div class="company-tag">
                 <span>${company.name}</span>
+                <small>Assigned: ${assignedDate}</small>
                 <button onclick="removeCompanyFromEvent(${company.id})" title="Remove company">×</button>
             </div>
         `;
@@ -210,29 +212,55 @@ async function handleEventUpdate(e) {
 async function showAddCompanyModal() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/companies', {
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        
+        // Get all companies
+        const companiesResponse = await fetch('/api/admin/companies', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) {
+        if (!companiesResponse.ok) {
             throw new Error('Failed to load companies');
         }
         
-        const companies = await response.json();
+        const allCompanies = await companiesResponse.json();
+        
+        // Get already assigned companies
+        const assignedResponse = await fetch(`/api/admin/events/${eventId}/companies`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!assignedResponse.ok) {
+            throw new Error('Failed to load assigned companies');
+        }
+        
+        const assignedCompanies = await assignedResponse.json();
+        const assignedIds = assignedCompanies.map(c => c.id);
+        
+        // Filter out already assigned companies
+        const availableCompanies = allCompanies.filter(company => !assignedIds.includes(company.id));
+        
         const select = document.getElementById('companyToAssign');
         
         // Clear existing options
         select.innerHTML = '<option value="">Select a company</option>';
         
-        // Add company options
-        companies.forEach(company => {
-            const option = document.createElement('option');
-            option.value = company.id;
-            option.textContent = company.name;
-            select.appendChild(option);
-        });
+        if (availableCompanies.length === 0) {
+            select.innerHTML = '<option value="">All companies are already assigned</option>';
+            select.disabled = true;
+        } else {
+            // Add available company options
+            availableCompanies.forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.id;
+                option.textContent = company.name;
+                select.appendChild(option);
+            });
+        }
         
         document.getElementById('addCompanyToEventModal').style.display = 'flex';
         
