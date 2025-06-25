@@ -55,11 +55,29 @@
             </div>
         </header>
 
+        <!-- Tab Navigation Banner -->
+        <div class="event-tabs-banner">
+            <div class="tabs-container">
+                <button class="tab-btn active" data-tab="overview">
+                    <span class="tab-icon">📋</span>
+                    Event Overview
+                </button>
+                <button class="tab-btn" data-tab="approvals">
+                    <span class="tab-icon">⏳</span>
+                    Crew Approvals
+                </button>
+                <button class="tab-btn" data-tab="accredited">
+                    <span class="tab-icon">✅</span>
+                    Accredited Crew
+                </button>
+            </div>
+        </div>
+
         <!-- Event Detail Sections -->
         <div class="event-detail-sections">
             
             <!-- Section 1: Event Overview -->
-            <section class="event-section event-overview-section">
+            <section class="event-section event-overview-section tab-panel active" data-tab="overview">
                 <div class="section-header">
                     <h2>Event Overview</h2>
                     <div class="section-actions">

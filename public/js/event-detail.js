@@ -148,6 +148,14 @@ function setupEventListeners() {
         window.location.href = '/admin';
     });
     
+    // Tab switching functionality
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabName = btn.getAttribute('data-tab');
+            switchTab(tabName);
+        });
+    });
+    
     // Add company to event
     document.getElementById('addCompanyToEvent').addEventListener('click', showAddCompanyModal);
     
@@ -197,6 +205,25 @@ function setupEventListeners() {
 
     // Auto-save functionality
     setupAutoSave();
+}
+
+// Tab switching function
+function switchTab(tabName) {
+    // Remove active class from all tabs and panels
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    
+    // Add active class to selected tab and panel
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.querySelector(`.tab-panel[data-tab="${tabName}"]`).classList.add('active');
+    
+    // Smooth scroll to the section
+    const activePanel = document.querySelector(`.tab-panel[data-tab="${tabName}"]`);
+    activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Auto-save functionality
