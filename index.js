@@ -668,6 +668,27 @@ app.put('/api/admin/approvals/:crewId/reject', authenticateToken, requireSuperAd
 // Get all companies
 app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
+        console.log('Fetching companies...');
+        
+        // First, test if the companies table exists
+        const tableCheck = await query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'companies'
+            );
+        `);
+        
+        console.log('Companies table exists:', tableCheck[0].exists);
+        
+        if (!tableCheck[0].exists) {
+            return res.status(500).json({ error: 'Companies table does not exist' });
+        }
+        
+        // Check if there are any companies
+        const countCheck = await query('SELECT COUNT(*) as count FROM companies');
+        console.log('Number of companies:', countCheck[0].count);
+        
         const companies = await query(`
             SELECT 
                 c.*,
@@ -684,22 +705,35 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
             ORDER BY c.created_at DESC
         `);
         
+        console.log('Companies fetched successfully:', companies.length);
         res.json(companies);
     } catch (error) {
         console.error('Get companies error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
 // Add new company
 app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
+        console.log('Adding new company...');
+        console.log('Request body:', req.body);
+        
         const { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles } = req.body;
         
         // Validate required fields
         if (!companyName || !companyAdminEmail || !assignedRoles || !Array.isArray(assignedRoles) || assignedRoles.length === 0) {
+            console.log('Validation failed:', { companyName: !!companyName, companyAdminEmail: !!companyAdminEmail, assignedRoles: assignedRoles });
             return res.status(400).json({ error: 'Missing required fields: company name, admin email, and at least one assigned role' });
         }
+        
+        console.log('Creating company with data:', { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles });
         
         // Create the company
         const result = await run(`
@@ -709,9 +743,11 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         `, [companyName, companyDomain, contactPhone, companyAddress]);
         
         const companyId = result.id;
+        console.log('Company created with ID:', companyId);
         
         // Assign roles to the company
         for (const roleName of assignedRoles) {
+            console.log('Assigning role:', roleName, 'to company:', companyId);
             await run(`
                 INSERT INTO company_roles (company_id, role_name)
                 VALUES ($1, $2)
@@ -723,6 +759,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10); // Default password, should be changed
         
+        console.log('Creating company admin user:', companyAdminEmail);
         await run(`
             INSERT INTO users (company_id, email, password_hash, first_name, last_name, role)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -740,13 +777,21 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
             GROUP BY c.id
         `, [companyId]);
         
+        console.log('Company added successfully:', companies[0]);
         res.json({
             message: 'Company added successfully',
             company: companies[0]
         });
     } catch (error) {
         console.error('Add company error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            stack: error.stack
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
