@@ -280,6 +280,14 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// Super Admin Middleware
+const requireSuperAdmin = (req, res, next) => {
+    if (!req.user.is_super_admin) {
+        return res.status(403).json({ error: 'Super admin access required' });
+    }
+    next();
+};
+
 // Generate unique badge number
 const generateBadgeNumber = () => {
     return 'YP' + Date.now().toString().slice(-6) + Math.random().toString(36).substr(2, 3).toUpperCase();
@@ -370,18 +378,24 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         
         // For company admins, verify they have access to this event
         if (!req.user.is_super_admin && companyId) {
-            // Check if this event is assigned to the user's company
-            const eventAccess = await query(`
-                SELECT 1 FROM event_companies ec
-                WHERE ec.event_id = $1 AND ec.company_id = $2
-                UNION
-                SELECT 1 FROM events e
-                WHERE e.id = $1 AND e.company_id = $2
-            `, [eventId, companyId]);
-            
-            if (eventAccess.length === 0) {
-                console.log(`Access denied: Event ${eventId} not assigned to company ${companyId}`);
-                return res.status(403).json({ error: 'Access denied: Event not assigned to your company' });
+            try {
+                // Check if this event is assigned to the user's company
+                const eventAccess = await query(`
+                    SELECT 1 as access FROM event_companies ec
+                    WHERE ec.event_id = $1 AND ec.company_id = $2
+                    UNION ALL
+                    SELECT 1 as access FROM events e
+                    WHERE e.id = $1 AND e.company_id = $2
+                    LIMIT 1
+                `, [eventId, companyId]);
+                
+                if (eventAccess.length === 0) {
+                    console.log(`Access denied: Event ${eventId} not assigned to company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Event not assigned to your company' });
+                }
+            } catch (authError) {
+                console.error('Authorization check error:', authError);
+                return res.status(500).json({ error: 'Authorization check failed' });
             }
         }
         
@@ -517,18 +531,24 @@ app.delete('/api/crew/:crewId', authenticateToken, async (req, res) => {
         
         // For company admins, verify they have access to this crew member's event
         if (!req.user.is_super_admin && companyId) {
-            // Check if the crew member's event is assigned to the user's company
-            const eventAccess = await query(`
-                SELECT 1 FROM event_companies ec
-                WHERE ec.event_id = $1 AND ec.company_id = $2
-                UNION
-                SELECT 1 FROM events e
-                WHERE e.id = $1 AND e.company_id = $2
-            `, [crewMember.event_id, companyId]);
-            
-            if (eventAccess.length === 0) {
-                console.log(`Access denied: Crew member ${crewId} belongs to event not assigned to company ${companyId}`);
-                return res.status(403).json({ error: 'Access denied: Cannot delete crew member from this event' });
+            try {
+                // Check if the crew member's event is assigned to the user's company
+                const eventAccess = await query(`
+                    SELECT 1 as access FROM event_companies ec
+                    WHERE ec.event_id = $1 AND ec.company_id = $2
+                    UNION ALL
+                    SELECT 1 as access FROM events e
+                    WHERE e.id = $1 AND e.company_id = $2
+                    LIMIT 1
+                `, [crewMember.event_id, companyId]);
+                
+                if (eventAccess.length === 0) {
+                    console.log(`Access denied: Crew member ${crewId} belongs to event not assigned to company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Cannot delete crew member from this event' });
+                }
+            } catch (authError) {
+                console.error('Delete authorization check error:', authError);
+                return res.status(500).json({ error: 'Authorization check failed' });
             }
         }
         
@@ -696,14 +716,6 @@ app.get('/api/company/events', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
-
-// Super Admin Middleware
-const requireSuperAdmin = (req, res, next) => {
-    if (!req.user.is_super_admin) {
-        return res.status(403).json({ error: 'Super admin access required' });
-    }
-    next();
-};
 
 // Get current user info
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
