@@ -846,28 +846,34 @@ app.get('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, re
 // Add new role
 app.post('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
+        console.log('Add role request body:', req.body);
         const { roleName, roleDescription } = req.body;
         
         // Validate required fields
         if (!roleName || !roleDescription) {
+            console.log('Missing fields:', { roleName: !!roleName, roleDescription: !!roleDescription });
             return res.status(400).json({ error: 'Missing required fields: role name and description' });
         }
         
+        console.log('Attempting to insert role:', { roleName, roleDescription });
         const result = await run(`
             INSERT INTO roles (name, description)
             VALUES ($1, $2)
             RETURNING id
         `, [roleName, roleDescription]);
         
+        console.log('Role inserted, result:', result);
         const roles = await query('SELECT id, name, description FROM roles WHERE id = $1', [result.id]);
+        console.log('Retrieved role:', roles[0]);
         
         res.json({
             message: 'Role added successfully',
             role: roles[0]
         });
     } catch (error) {
-        console.error('Add role error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Add role error details:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
 });
 
@@ -1337,6 +1343,45 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
     } catch (error) {
         console.error('Get approved crew error:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Debug endpoint to check roles table
+app.get('/api/debug/roles', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        // Check if roles table exists
+        const tableExists = await query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'roles'
+            );
+        `);
+        
+        if (!tableExists[0].exists) {
+            return res.json({ error: 'Roles table does not exist' });
+        }
+        
+        // Get table structure
+        const structure = await query(`
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'roles'
+            ORDER BY ordinal_position;
+        `);
+        
+        // Get all roles
+        const roles = await query('SELECT * FROM roles ORDER BY id');
+        
+        res.json({
+            tableExists: tableExists[0].exists,
+            structure,
+            roles,
+            count: roles.length
+        });
+    } catch (error) {
+        console.error('Debug roles error:', error);
+        res.status(500).json({ error: 'Debug error: ' + error.message });
     }
 });
 

@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Setting up event listeners...');
     setupEventListeners();
     
+    // Setup role management event listeners
+    setupRoleEventListeners();
+    
     console.log('Admin page initialization complete');
 });
 
@@ -419,12 +422,6 @@ function setupEventListeners() {
         cleanupEventsBtn.addEventListener('click', cleanupEvents);
     }
     
-    // Hide modals
-    const hideModal = (modal) => {
-        console.log('Hiding modal:', modal.id);
-        modal.style.display = 'none';
-    };
-    
     closeModals.forEach(btn => {
         btn.addEventListener('click', (e) => {
             console.log('Close button clicked');
@@ -671,12 +668,54 @@ async function handleAddEvent(e) {
     }
 }
 
-// Move hideModal to global scope
+// Global hideModal function
 function hideModal(modal) {
     if (modal) modal.style.display = 'none';
 }
 
-// Add Role Modal logic
+// Setup role management event listeners
+function setupRoleEventListeners() {
+    // Edit role form
+    const editRoleForm = document.getElementById('editRoleForm');
+    if (editRoleForm) {
+        editRoleForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const roleName = document.getElementById('editRoleName').value.trim();
+            const roleDescription = document.getElementById('editRoleDescription').value.trim();
+            if (!roleName || !roleDescription) return;
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/admin/roles/${currentEditRoleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ roleName, roleDescription })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update role');
+                }
+                showMessage('Role updated successfully!', 'success');
+                hideModal(document.getElementById('editRoleModal'));
+                loadDashboardData();
+            } catch (error) {
+                showMessage('Failed to update role: ' + error.message, 'error');
+            }
+        });
+    }
+
+    // Cancel edit role button
+    const cancelEditRole = document.getElementById('cancelEditRole');
+    if (cancelEditRole) {
+        cancelEditRole.addEventListener('click', function() {
+            hideModal(document.getElementById('editRoleModal'));
+        });
+    }
+}
+
+// Global variable for current edit role
 let currentEditRoleId = null;
 
 function openEditRoleModal(role) {
@@ -685,36 +724,6 @@ function openEditRoleModal(role) {
     document.getElementById('editRoleDescription').value = role.description;
     document.getElementById('editRoleModal').style.display = 'block';
 }
-
-document.getElementById('editRoleForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const roleName = document.getElementById('editRoleName').value.trim();
-    const roleDescription = document.getElementById('editRoleDescription').value.trim();
-    if (!roleName || !roleDescription) return;
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/roles/${currentEditRoleId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roleName, roleDescription })
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to update role');
-        }
-        showMessage('Role updated successfully!', 'success');
-        hideModal(document.getElementById('editRoleModal'));
-        loadDashboardData();
-    } catch (error) {
-        showMessage('Failed to update role: ' + error.message, 'error');
-    }
-});
-document.getElementById('cancelEditRole').addEventListener('click', function() {
-    hideModal(document.getElementById('editRoleModal'));
-});
 
 // Update handleAddRole to send correct keys
 async function handleAddRole(e) {
