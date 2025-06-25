@@ -741,13 +741,19 @@ function setupRoleEventListeners() {
     if (editCompanyForm) {
         editCompanyForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            console.log('Edit company form submitted');
+            
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
+            console.log('Form data:', data);
             
             // Handle multiple role selections
             const roleSelect = document.getElementById('editAssignedRoles');
             const selectedRoles = Array.from(roleSelect.selectedOptions).map(option => option.value);
             const filteredRoles = selectedRoles.filter(role => role !== '');
+            
+            console.log('Selected roles:', selectedRoles);
+            console.log('Filtered roles:', filteredRoles);
             
             if (filteredRoles.length === 0) {
                 showMessage('Please select at least one role', 'error');
@@ -759,6 +765,9 @@ function setupRoleEventListeners() {
                 assignedRoles: filteredRoles
             };
             
+            console.log('Sending company data:', companyData);
+            console.log('Current edit company ID:', currentEditCompanyId);
+            
             try {
                 const token = localStorage.getItem('token');
                 const response = await fetch(`/api/admin/companies/${currentEditCompanyId}`, {
@@ -769,14 +778,23 @@ function setupRoleEventListeners() {
                     },
                     body: JSON.stringify(companyData)
                 });
+                
+                console.log('Response status:', response.status);
+                
                 if (!response.ok) {
                     const error = await response.json();
+                    console.error('Response error:', error);
                     throw new Error(error.error || 'Failed to update company');
                 }
+                
+                const result = await response.json();
+                console.log('Update successful:', result);
+                
                 showMessage('Company updated successfully!', 'success');
                 hideModal(document.getElementById('editCompanyModal'));
                 loadDashboardData();
             } catch (error) {
+                console.error('Error updating company:', error);
                 showMessage('Failed to update company: ' + error.message, 'error');
             }
         });
@@ -805,26 +823,38 @@ function openEditRoleModal(role) {
 }
 
 function openEditCompanyModal(company) {
+    console.log('Opening edit company modal with data:', company);
     currentEditCompanyId = company.id;
-    document.getElementById('editCompanyName').value = company.name;
+    
+    // Populate form fields
+    document.getElementById('editCompanyName').value = company.name || '';
     document.getElementById('editCompanyDomain').value = company.domain || '';
     document.getElementById('editCompanyAdminEmail').value = company.admin_email || '';
     document.getElementById('editCompanyPhone').value = company.contact_phone || '';
     document.getElementById('editCompanyAddress').value = company.address || '';
     
-    // Load roles for the select dropdown
-    loadRolesForCompanySelect('editAssignedRoles');
+    console.log('Form fields populated:', {
+        name: document.getElementById('editCompanyName').value,
+        domain: document.getElementById('editCompanyDomain').value,
+        adminEmail: document.getElementById('editCompanyAdminEmail').value,
+        phone: document.getElementById('editCompanyPhone').value,
+        address: document.getElementById('editCompanyAddress').value
+    });
     
-    // Set the currently assigned roles
-    setTimeout(() => {
+    // Load roles for the select dropdown first
+    loadRolesForCompanySelect('editAssignedRoles').then(() => {
+        // Set the currently assigned roles after roles are loaded
         const roleSelect = document.getElementById('editAssignedRoles');
         if (roleSelect && company.assigned_roles) {
+            console.log('Setting assigned roles:', company.assigned_roles);
             const assignedRoles = company.assigned_roles.split(', ').map(role => role.trim());
+            console.log('Parsed assigned roles:', assignedRoles);
+            
             Array.from(roleSelect.options).forEach(option => {
                 option.selected = assignedRoles.includes(option.value);
             });
         }
-    }, 100);
+    });
     
     document.getElementById('editCompanyModal').style.display = 'block';
 }
@@ -1144,6 +1174,7 @@ async function cleanupEvents() {
 // Load roles for company select
 async function loadRolesForCompanySelect(selectId) {
     try {
+        console.log('Loading roles for select:', selectId);
         const token = localStorage.getItem('token');
         const response = await fetch('/api/admin/roles', {
             headers: {
@@ -1176,7 +1207,9 @@ async function loadRolesForCompanySelect(selectId) {
         });
         
         console.log('Roles added to select:', selectId, select.options.length);
+        return Promise.resolve(); // Return a resolved promise
     } catch (error) {
         console.error('Error loading roles:', error);
+        return Promise.reject(error); // Return a rejected promise
     }
 } 
