@@ -399,14 +399,30 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             }
         }
         
-        const crew = await query(`
-            SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
-            FROM crew_members 
-            WHERE event_id = $1 
-            ORDER BY created_at DESC
-        `, [eventId]);
+        // For company isolation: only show crew from user's company (unless super admin)
+        let crew;
+        if (req.user.is_super_admin) {
+            // Super admin sees all crew members with company info
+            crew = await query(`
+                SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
+                       cm.badge_number, cm.status, cm.created_at, cm.company_id,
+                       c.name as company_name
+                FROM crew_members cm
+                LEFT JOIN companies c ON cm.company_id = c.id
+                WHERE cm.event_id = $1 
+                ORDER BY cm.created_at DESC
+            `, [eventId]);
+        } else {
+            // Company users only see their own crew members
+            crew = await query(`
+                SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
+                FROM crew_members 
+                WHERE event_id = $1 AND company_id = $2
+                ORDER BY created_at DESC
+            `, [eventId, companyId]);
+        }
         
-        console.log(`Found ${crew.length} crew members for event ${eventId}`);
+        console.log(`Found ${crew.length} crew members for event ${eventId} (company filter: ${req.user.is_super_admin ? 'none' : companyId})`);
         res.json(crew);
     } catch (error) {
         console.error('Get crew error:', error);
@@ -464,10 +480,10 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
 
         console.log('Inserting crew member into DB...');
         const result = await run(`
-            INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, company_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id
-        `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber]);
+        `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber, companyId]);
         console.log('Crew member inserted, result:', result);
 
         // Get the created crew member
@@ -560,26 +576,12 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
         }
         const crewMember = crewMembers[0];
         
-        // For company admins, verify they have access to this crew member's event
+        // For company admins, verify they own this crew member
         if (!req.user.is_super_admin && companyId) {
-            try {
-                // Check if the crew member's event is assigned to the user's company
-                const eventAccess = await query(`
-                    SELECT 1 as access FROM event_companies ec
-                    WHERE ec.event_id = $1 AND ec.company_id = $2
-                    UNION ALL
-                    SELECT 1 as access FROM events e
-                    WHERE e.id = $1 AND e.company_id = $2
-                    LIMIT 1
-                `, [crewMember.event_id, companyId]);
-                
-                if (eventAccess.length === 0) {
-                    console.log(`Access denied: Cannot update crew member ${crewId} - event not assigned to company ${companyId}`);
-                    return res.status(403).json({ error: 'Access denied: Cannot update crew member from this event' });
-                }
-            } catch (authError) {
-                console.error('Update crew authorization check error:', authError);
-                return res.status(500).json({ error: 'Authorization check failed' });
+            // Simple company check: crew member must belong to user's company
+            if (crewMember.company_id !== companyId) {
+                console.log(`Access denied: Crew member ${crewId} belongs to company ${crewMember.company_id}, user is from company ${companyId}`);
+                return res.status(403).json({ error: 'Access denied: Cannot update crew member from another company' });
             }
         }
 
@@ -2180,6 +2182,28 @@ app.get('/debug-public', async (req, res) => {
             });
         }
         
+        // Check for duplicate event assignments (MAJOR SECURITY ISSUE)
+        const eventAssignmentCounts = {};
+        eventCompanies.forEach(ec => {
+            eventAssignmentCounts[ec.event_id] = (eventAssignmentCounts[ec.event_id] || 0) + 1;
+        });
+        const duplicateAssignments = Object.entries(eventAssignmentCounts)
+            .filter(([eventId, count]) => count > 1)
+            .map(([eventId, count]) => ({
+                event_id: parseInt(eventId),
+                assignment_count: count,
+                event_name: events.find(e => e.id === parseInt(eventId))?.name
+            }));
+        
+        if (duplicateAssignments.length > 0) {
+            issues.push({
+                type: 'duplicate_event_assignments',
+                count: duplicateAssignments.length,
+                description: 'Events assigned to multiple companies (causes cross-company data leakage)',
+                data: duplicateAssignments
+            });
+        }
+        
         // Check if junction table has entries
         const junctionTableEntries = eventCompanies.length;
         
@@ -2198,7 +2222,8 @@ app.get('/debug-public', async (req, res) => {
                 id: e.id, 
                 name: e.name, 
                 company_id: e.company_id,
-                has_junction_link: eventCompanies.some(ec => ec.event_id === e.id)
+                has_junction_link: eventCompanies.some(ec => ec.event_id === e.id),
+                junction_assignment_count: eventCompanies.filter(ec => ec.event_id === e.id).length
             })),
             event_companies: eventCompanies,
             users: users.map(u => ({
@@ -2212,14 +2237,169 @@ app.get('/debug-public', async (req, res) => {
                 ['✅ Basic data structure looks good'] : 
                 [
                     '⚠️ Data isolation issues detected',
-                    'Run migration to fix relationships',
-                    'Check user company assignments'
+                    'CRITICAL: Remove duplicate event assignments immediately',
+                    'Run /fix-duplicate-assignments to resolve'
                 ]
         });
     } catch (error) {
         console.error('Public debug error:', error);
         res.status(500).json({ 
             error: 'Debug error: ' + error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Fix duplicate event assignments (PUBLIC - immediate security fix needed)
+app.post('/fix-duplicate-assignments', async (req, res) => {
+    try {
+        console.log('🛠️ Fixing duplicate event assignments...');
+        
+        // Get all duplicate assignments
+        const eventCompanies = await query('SELECT event_id, company_id FROM event_companies ORDER BY event_id, company_id');
+        const events = await query('SELECT id, name, company_id FROM events');
+        
+        const duplicateEvents = {};
+        eventCompanies.forEach(ec => {
+            if (!duplicateEvents[ec.event_id]) {
+                duplicateEvents[ec.event_id] = [];
+            }
+            duplicateEvents[ec.event_id].push(ec.company_id);
+        });
+        
+        const fixes = [];
+        
+        for (const [eventId, companyIds] of Object.entries(duplicateEvents)) {
+            if (companyIds.length > 1) {
+                const event = events.find(e => e.id === parseInt(eventId));
+                const primaryCompanyId = event.company_id; // Use the direct relationship as primary
+                
+                console.log(`Fixing event ${eventId} (${event.name}): keeping company ${primaryCompanyId}, removing others`);
+                
+                // Remove all assignments except the primary one
+                await run(`
+                    DELETE FROM event_companies 
+                    WHERE event_id = $1 AND company_id != $2
+                `, [eventId, primaryCompanyId]);
+                
+                fixes.push({
+                    event_id: parseInt(eventId),
+                    event_name: event.name,
+                    kept_company_id: primaryCompanyId,
+                    removed_companies: companyIds.filter(cId => cId !== primaryCompanyId)
+                });
+            }
+        }
+        
+        // Verify the fix
+        const remainingDuplicates = await query(`
+            SELECT event_id, COUNT(*) as count 
+            FROM event_companies 
+            GROUP BY event_id 
+            HAVING COUNT(*) > 1
+        `);
+        
+        res.json({
+            message: 'Duplicate event assignments fixed successfully',
+            fixes_applied: fixes,
+            remaining_duplicates: remainingDuplicates.length,
+            timestamp: new Date().toISOString(),
+            security_status: remainingDuplicates.length === 0 ? 
+                '✅ Cross-company data leakage resolved' : 
+                '⚠️ Some duplicates may still exist'
+        });
+        
+    } catch (error) {
+        console.error('Fix duplicates error:', error);
+        res.status(500).json({ 
+            error: 'Fix failed: ' + error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Add company_id to crew_members table and fix company isolation (CRITICAL SECURITY FIX)
+app.post('/fix-crew-company-isolation', async (req, res) => {
+    try {
+        console.log('🛡️ Implementing crew company isolation...');
+        
+        const fixes = [];
+        
+        // Step 1: Add company_id column to crew_members table if it doesn't exist
+        try {
+            await run(`
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='company_id') THEN
+                        ALTER TABLE crew_members ADD COLUMN company_id INTEGER REFERENCES companies(id);
+                    END IF;
+                END $$;
+            `);
+            fixes.push('✅ Added company_id column to crew_members table');
+        } catch (error) {
+            fixes.push('⚠️ company_id column may already exist: ' + error.message);
+        }
+        
+        // Step 2: Update existing crew members with company_id based on their event's primary company
+        const crewWithoutCompany = await query(`
+            SELECT cm.id, cm.event_id, e.company_id as event_company_id
+            FROM crew_members cm
+            JOIN events e ON cm.event_id = e.id
+            WHERE cm.company_id IS NULL
+        `);
+        
+        for (const crew of crewWithoutCompany) {
+            await run(`
+                UPDATE crew_members 
+                SET company_id = $1 
+                WHERE id = $2
+            `, [crew.event_company_id, crew.id]);
+        }
+        
+        fixes.push(`✅ Updated ${crewWithoutCompany.length} crew members with company_id`);
+        
+        // Step 3: Create index for better performance
+        try {
+            await run(`
+                CREATE INDEX IF NOT EXISTS idx_crew_members_company_id ON crew_members(company_id);
+            `);
+            fixes.push('✅ Created index on crew_members.company_id');
+        } catch (error) {
+            fixes.push('⚠️ Index creation: ' + error.message);
+        }
+        
+        // Step 4: Verify the fix
+        const crewStats = await query(`
+            SELECT 
+                company_id,
+                COUNT(*) as crew_count
+            FROM crew_members 
+            WHERE company_id IS NOT NULL
+            GROUP BY company_id
+            ORDER BY company_id
+        `);
+        
+        const orphanedCrew = await query(`
+            SELECT COUNT(*) as count 
+            FROM crew_members 
+            WHERE company_id IS NULL
+        `);
+        
+        res.json({
+            message: 'Crew company isolation implemented successfully',
+            fixes_applied: fixes,
+            crew_stats: crewStats,
+            orphaned_crew: orphanedCrew[0].count,
+            timestamp: new Date().toISOString(),
+            security_status: orphanedCrew[0].count === 0 ? 
+                '✅ All crew members now have company isolation' : 
+                '⚠️ Some crew members still need company assignment',
+            next_step: 'Update API endpoints to filter by company_id'
+        });
+        
+    } catch (error) {
+        console.error('Fix crew isolation error:', error);
+        res.status(500).json({ 
+            error: 'Fix failed: ' + error.message,
             timestamp: new Date().toISOString()
         });
     }
