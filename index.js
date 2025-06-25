@@ -671,14 +671,45 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
 // Add new event
 app.post('/api/admin/events', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        const { eventCompany, eventName, eventLocation, startDate, endDate, eventDescription } = req.body;
+        const { name, location, start_date, end_date, description, company_ids } = req.body;
         
+        // Validate required fields
+        if (!name || !location || !start_date || !end_date || !company_ids || !Array.isArray(company_ids) || company_ids.length === 0) {
+            return res.status(400).json({ error: 'Missing required fields: name, location, start_date, end_date, and at least one company_id' });
+        }
+        
+        // Use the first company as the primary company_id for the events table
+        const primaryCompanyId = company_ids[0];
+        
+        // Create the event
         const result = await run(`
             INSERT INTO events (company_id, name, location, start_date, end_date, description)
             VALUES ($1, $2, $3, $4, $5, $6)
-        `, [eventCompany, eventName, eventLocation, startDate, endDate, eventDescription]);
+            RETURNING id
+        `, [primaryCompanyId, name, location, start_date, end_date, description]);
         
-        const events = await query('SELECT * FROM events WHERE id = $1', [result.id]);
+        const eventId = result.id;
+        
+        // Add all companies to the event_companies junction table
+        for (const companyId of company_ids) {
+            await run(`
+                INSERT INTO event_companies (event_id, company_id)
+                VALUES ($1, $2)
+                ON CONFLICT (event_id, company_id) DO NOTHING
+            `, [eventId, companyId]);
+        }
+        
+        // Get the created event with company information
+        const events = await query(`
+            SELECT 
+                e.*,
+                STRING_AGG(c.name, ', ') as company_names
+            FROM events e
+            LEFT JOIN event_companies ec ON e.id = ec.event_id
+            LEFT JOIN companies c ON ec.company_id = c.id
+            WHERE e.id = $1
+            GROUP BY e.id
+        `, [eventId]);
         
         res.json({
             message: 'Event created successfully',

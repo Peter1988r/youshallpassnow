@@ -536,7 +536,27 @@ async function loadCompaniesForSelect(selectId) {
         const companies = await response.json();
         const select = document.getElementById(selectId);
         
-        select.innerHTML = '<option value="">Select a company</option>';
+        // Clear existing options
+        select.innerHTML = '';
+        
+        // Add appropriate placeholder based on select type
+        if (selectId === 'eventCompanies') {
+            // Multi-select for event companies
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select companies to assign';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+        } else {
+            // Single select for other forms
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select a company';
+            select.appendChild(placeholder);
+        }
+        
+        // Add company options
         companies.forEach(company => {
             const option = document.createElement('option');
             option.value = company.id;
@@ -597,7 +617,30 @@ async function handleAddEvent(e) {
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
-    console.log('Event data:', data);
+    
+    // Handle multiple company selections
+    const companySelect = document.getElementById('eventCompanies');
+    const selectedCompanies = Array.from(companySelect.selectedOptions).map(option => option.value);
+    
+    // Remove the empty option if it's selected
+    const filteredCompanies = selectedCompanies.filter(companyId => companyId !== '');
+    
+    if (filteredCompanies.length === 0) {
+        showMessage('Please select at least one company', 'error');
+        return;
+    }
+    
+    // Create the event data with company IDs
+    const eventData = {
+        name: data.eventName,
+        location: data.eventLocation,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        description: data.eventDescription,
+        company_ids: filteredCompanies
+    };
+    
+    console.log('Event data:', eventData);
     
     try {
         const token = localStorage.getItem('token');
@@ -607,7 +650,7 @@ async function handleAddEvent(e) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(eventData)
         });
         
         if (!response.ok) {

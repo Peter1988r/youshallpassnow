@@ -1139,4 +1139,41 @@
 .form-group textarea:not(:placeholder-shown) {
     border-color: #10b981;
     background-color: #f0fdf4;
+}
+
+/* Multi-select styling */
+select[multiple] {
+    min-height: 120px;
+    padding: 8px;
+}
+
+select[multiple] option {
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+select[multiple] option:hover {
+    background-color: #f3f4f6;
+}
+
+select[multiple] option:checked {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+select[multiple] option:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+/* Form help text styling */
+.form-help {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 4px;
+    display: block;
 } 

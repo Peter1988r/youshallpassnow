@@ -237,12 +237,6 @@
             </div>
             <form id="addEventForm">
                 <div class="form-group">
-                    <label for="eventCompany">Company</label>
-                    <select id="eventCompany" name="eventCompany" required>
-                        <option value="">Select a company</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label for="eventName">Event Name</label>
                     <input type="text" id="eventName" name="eventName" required>
                 </div>
@@ -263,6 +257,13 @@
                 <div class="form-group">
                     <label for="eventDescription">Description</label>
                     <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="eventCompanies">Assign Companies</label>
+                    <select id="eventCompanies" name="eventCompanies" multiple required>
+                        <option value="">Select companies to assign</option>
+                    </select>
+                    <small class="form-help">Hold Ctrl/Cmd to select multiple companies</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" id="cancelAddEvent">Cancel</button>
