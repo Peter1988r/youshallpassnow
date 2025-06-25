@@ -928,6 +928,7 @@ app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (re
 app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
         const { companyId } = req.params;
+        console.log('Getting company with ID:', companyId);
         
         const companies = await query(`
             SELECT 
@@ -937,11 +938,13 @@ app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
                 COUNT(DISTINCT u.id) as user_count
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
-            LEFT JOIN events e ON c.id = ANY(e.company_ids)
+            LEFT JOIN events e ON c.id = e.company_id
             LEFT JOIN users u ON c.id = u.company_id
             WHERE c.id = $1
             GROUP BY c.id
         `, [companyId]);
+        
+        console.log('Query result:', companies);
         
         if (companies.length === 0) {
             return res.status(404).json({ error: 'Company not found' });
@@ -950,7 +953,14 @@ app.get('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
         res.json(companies[0]);
     } catch (error) {
         console.error('Get company error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            stack: error.stack
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
@@ -1018,7 +1028,7 @@ app.put('/api/admin/companies/:companyId', authenticateToken, requireSuperAdmin,
                 COUNT(DISTINCT u.id) as user_count
             FROM companies c
             LEFT JOIN company_roles cr ON c.id = cr.company_id
-            LEFT JOIN events e ON c.id = ANY(e.company_ids)
+            LEFT JOIN events e ON c.id = e.company_id
             LEFT JOIN users u ON c.id = u.company_id
             WHERE c.id = $1
             GROUP BY c.id
