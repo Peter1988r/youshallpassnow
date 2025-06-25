@@ -298,13 +298,12 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [result.id]);
         const crewMember = crewMembers[0];
 
-        console.log('Generating PDF badge...');
-        const badgeResult = await pdfGenerator.generateBadge(crewMember, event);
-        console.log('Badge generated:', badgeResult);
+        // Generate PDF badge (SKIPPED until approval)
+        // const badgeResult = await pdfGenerator.generateBadge(crewMember, event);
 
         res.json({
             ...crewMember,
-            badgeUrl: badgeResult.url,
+            // badgeUrl: badgeResult.url, // Not generated yet
             message: 'Employee added successfully. Accreditation is pending approval.'
         });
     } catch (error) {
