@@ -148,9 +148,6 @@ function setupEventListeners() {
         window.location.href = '/admin';
     });
     
-    // Form submission
-    document.getElementById('eventDetailForm').addEventListener('submit', handleEventUpdate);
-    
     // Add company to event
     document.getElementById('addCompanyToEvent').addEventListener('click', showAddCompanyModal);
     
@@ -197,16 +194,68 @@ function setupEventListeners() {
     document.getElementById('cancelDelete').addEventListener('click', () => {
         document.getElementById('confirmDeleteModal').style.display = 'none';
     });
+
+    // Auto-save functionality
+    setupAutoSave();
 }
 
-// Handle event update
-async function handleEventUpdate(e) {
-    e.preventDefault();
-    
+// Auto-save functionality
+function setupAutoSave() {
     const eventId = new URLSearchParams(window.location.search).get('id');
-    const formData = new FormData(e.target);
+    let saveTimeout;
+    
+    // Get all form fields that should auto-save
+    const autoSaveFields = [
+        'eventName',
+        'eventLocation', 
+        'startDate',
+        'endDate',
+        'eventDescription',
+        'eventStatusSelect'
+    ];
+    
+    // Add event listeners to all auto-save fields
+    autoSaveFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', () => {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    autoSaveEvent(eventId);
+                }, 1000); // Save after 1 second of inactivity
+            });
+            
+            // For select elements, use change event
+            if (field.tagName === 'SELECT') {
+                field.addEventListener('change', () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveEvent(eventId);
+                    }, 500); // Save immediately for select changes
+                });
+            }
+        }
+    });
+}
+
+// Auto-save event function
+async function autoSaveEvent(eventId) {
+    const indicator = document.getElementById('autoSaveIndicator');
     
     try {
+        // Show saving indicator
+        indicator.textContent = 'Saving...';
+        indicator.classList.add('show', 'saving');
+        
+        const formData = {
+            name: document.getElementById('eventName').value,
+            location: document.getElementById('eventLocation').value,
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            description: document.getElementById('eventDescription').value,
+            status: document.getElementById('eventStatusSelect').value
+        };
+        
         const token = localStorage.getItem('token');
         const response = await fetch(`/api/admin/events/${eventId}`, {
             method: 'PUT',
@@ -214,29 +263,40 @@ async function handleEventUpdate(e) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                name: formData.get('eventName'),
-                location: formData.get('eventLocation'),
-                start_date: formData.get('startDate'),
-                end_date: formData.get('endDate'),
-                description: formData.get('eventDescription'),
-                status: formData.get('eventStatus')
-            })
+            body: JSON.stringify(formData)
         });
         
         if (!response.ok) {
-            throw new Error('Failed to update event');
+            throw new Error('Failed to auto-save event');
         }
         
-        const result = await response.json();
-        showMessage('Event updated successfully', 'success');
+        // Update status badge if status changed
+        updateStatusBadge(formData.status);
         
-        // Update status badge
-        updateStatusBadge(formData.get('eventStatus'));
+        // Show success indicator
+        indicator.textContent = 'Auto-saved';
+        indicator.classList.remove('saving');
+        
+        // Hide indicator after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+        
+        console.log('✅ Event auto-saved');
         
     } catch (error) {
-        console.error('Error updating event:', error);
-        showMessage('Failed to update event', 'error');
+        console.error('Error auto-saving event:', error);
+        
+        // Show error indicator
+        indicator.textContent = 'Save failed';
+        indicator.classList.remove('saving');
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        
+        // Hide indicator after 3 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+            indicator.style.background = '';
+        }, 3000);
     }
 }
 

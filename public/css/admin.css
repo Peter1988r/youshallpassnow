@@ -1096,4 +1096,47 @@
     color: #666;
     font-style: italic;
     padding: 2rem;
+}
+
+/* Auto-save indicators */
+.auto-save-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.auto-save-indicator.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.auto-save-indicator.saving {
+    background: rgba(255, 152, 0, 0.9);
+}
+
+/* Form field auto-save styling */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    transition: all 0.2s ease;
+}
+
+.form-group input:not(:placeholder-shown),
+.form-group select:not([value=""]),
+.form-group textarea:not(:placeholder-shown) {
+    border-color: #10b981;
+    background-color: #f0fdf4;
 } 
