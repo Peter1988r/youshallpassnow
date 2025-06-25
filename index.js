@@ -1834,6 +1834,55 @@ app.post('/api/admin/migrate', authenticateToken, requireSuperAdmin, async (req,
     }
 });
 
+// Test endpoint to check crew_members table
+app.get('/api/debug/crew-members', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        console.log('Testing crew_members table...');
+        
+        // Check if crew_members table exists
+        const tableExists = await query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'crew_members'
+            );
+        `);
+        
+        if (!tableExists[0].exists) {
+            return res.json({ error: 'crew_members table does not exist' });
+        }
+        
+        // Get table structure
+        const structure = await query(`
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'crew_members'
+            ORDER BY ordinal_position;
+        `);
+        
+        // Get sample data
+        const sampleData = await query('SELECT * FROM crew_members LIMIT 5');
+        
+        // Get count by status
+        const statusCount = await query(`
+            SELECT status, COUNT(*) as count 
+            FROM crew_members 
+            GROUP BY status
+        `);
+        
+        res.json({
+            tableExists: tableExists[0].exists,
+            structure,
+            sampleData,
+            statusCount,
+            totalCount: sampleData.length
+        });
+    } catch (error) {
+        console.error('Debug crew_members error:', error);
+        res.status(500).json({ error: 'Debug error: ' + error.message });
+    }
+});
+
 // Simple test endpoint for companies (no auth required)
 app.get('/test-companies', async (req, res) => {
     try {
