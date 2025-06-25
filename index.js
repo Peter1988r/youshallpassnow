@@ -419,13 +419,37 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
         const { firstName, lastName, email, role, photoPath } = req.body;
+        const companyId = req.user.company_id;
 
         // Log incoming data for debugging
-        console.log('Add crew member request:', { eventId, firstName, lastName, email, role, photoPath });
+        console.log('Add crew member request:', { eventId, firstName, lastName, email, role, photoPath, companyId });
 
         // Validate required fields
         if (!firstName || !lastName || !email || !role) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // For company admins, verify they have access to this event
+        if (!req.user.is_super_admin && companyId) {
+            try {
+                // Check if this event is assigned to the user's company
+                const eventAccess = await query(`
+                    SELECT 1 as access FROM event_companies ec
+                    WHERE ec.event_id = $1 AND ec.company_id = $2
+                    UNION ALL
+                    SELECT 1 as access FROM events e
+                    WHERE e.id = $1 AND e.company_id = $2
+                    LIMIT 1
+                `, [eventId, companyId]);
+                
+                if (eventAccess.length === 0) {
+                    console.log(`Access denied: Cannot add crew to event ${eventId} - not assigned to company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Cannot add crew to this event' });
+                }
+            } catch (authError) {
+                console.error('Add crew authorization check error:', authError);
+                return res.status(500).json({ error: 'Authorization check failed' });
+            }
         }
 
         // Validate event exists first
@@ -469,6 +493,30 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
 app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
+        const companyId = req.user.company_id;
+
+        // For company admins, verify they have access to this event
+        if (!req.user.is_super_admin && companyId) {
+            try {
+                // Check if this event is assigned to the user's company
+                const eventAccess = await query(`
+                    SELECT 1 as access FROM event_companies ec
+                    WHERE ec.event_id = $1 AND ec.company_id = $2
+                    UNION ALL
+                    SELECT 1 as access FROM events e
+                    WHERE e.id = $1 AND e.company_id = $2
+                    LIMIT 1
+                `, [eventId, companyId]);
+                
+                if (eventAccess.length === 0) {
+                    console.log(`Access denied: Cannot generate PDF for event ${eventId} - not assigned to company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Cannot generate PDF for this event' });
+                }
+            } catch (authError) {
+                console.error('PDF generation authorization check error:', authError);
+                return res.status(500).json({ error: 'Authorization check failed' });
+            }
+        }
 
         // Validate event exists first
         const events = await query('SELECT * FROM events WHERE id = $1', [eventId]);
@@ -503,11 +551,42 @@ app.put('/api/crew/:crewId', authenticateToken, async (req, res) => {
     try {
         const { crewId } = req.params;
         const { status } = req.body;
+        const companyId = req.user.company_id;
+
+        // Get crew member details first
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        if (crewMembers.length === 0) {
+            return res.status(404).json({ error: 'Crew member not found' });
+        }
+        const crewMember = crewMembers[0];
+        
+        // For company admins, verify they have access to this crew member's event
+        if (!req.user.is_super_admin && companyId) {
+            try {
+                // Check if the crew member's event is assigned to the user's company
+                const eventAccess = await query(`
+                    SELECT 1 as access FROM event_companies ec
+                    WHERE ec.event_id = $1 AND ec.company_id = $2
+                    UNION ALL
+                    SELECT 1 as access FROM events e
+                    WHERE e.id = $1 AND e.company_id = $2
+                    LIMIT 1
+                `, [crewMember.event_id, companyId]);
+                
+                if (eventAccess.length === 0) {
+                    console.log(`Access denied: Cannot update crew member ${crewId} - event not assigned to company ${companyId}`);
+                    return res.status(403).json({ error: 'Access denied: Cannot update crew member from this event' });
+                }
+            } catch (authError) {
+                console.error('Update crew authorization check error:', authError);
+                return res.status(500).json({ error: 'Authorization check failed' });
+            }
+        }
 
         await run('UPDATE crew_members SET status = $1 WHERE id = $2', [status, crewId]);
         
-        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
-        res.json(crewMembers[0]);
+        const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        res.json(updatedCrewMembers[0]);
     } catch (error) {
         console.error('Update crew error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -2034,10 +2113,10 @@ app.get('/api/debug/crew-members', authenticateToken, requireSuperAdmin, async (
     }
 });
 
-// Simple test endpoint for companies (no auth required)
-app.get('/test-companies', async (req, res) => {
+// Simple test endpoint for companies (Super Admin only)
+app.get('/test-companies', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        console.log('Testing companies endpoint without auth...');
+        console.log('Testing companies endpoint...');
         
         const companies = await query('SELECT id, name, domain FROM companies LIMIT 5');
         console.log('Test companies result:', companies);
