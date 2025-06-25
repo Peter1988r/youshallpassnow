@@ -1623,6 +1623,15 @@ app.get('/test-companies', async (req, res) => {
     }
 });
 
+// Simple health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ 
+        message: 'Server is running', 
+        timestamp: new Date().toISOString(),
+        status: 'ok'
+    });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
