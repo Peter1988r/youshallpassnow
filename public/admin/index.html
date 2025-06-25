@@ -201,8 +201,9 @@
                     <input type="text" id="companyDomain" name="companyDomain" placeholder="company.youshallpass.com">
                 </div>
                 <div class="form-group">
-                    <label for="contactEmail">Contact Email</label>
-                    <input type="email" id="contactEmail" name="contactEmail" required>
+                    <label for="companyAdminEmail">Company Admin Email</label>
+                    <input type="email" id="companyAdminEmail" name="companyAdminEmail" required>
+                    <small class="form-help">This email will be used to create the company admin account</small>
                 </div>
                 <div class="form-group">
                     <label for="contactPhone">Contact Phone</label>
@@ -213,12 +214,11 @@
                     <textarea id="companyAddress" name="companyAddress" rows="3"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="subscriptionPlan">Subscription Plan</label>
-                    <select id="subscriptionPlan" name="subscriptionPlan" required>
-                        <option value="basic">Basic</option>
-                        <option value="professional">Professional</option>
-                        <option value="enterprise">Enterprise</option>
+                    <label for="assignedRoles">Roles Assigned</label>
+                    <select id="assignedRoles" name="assignedRoles" multiple required>
+                        <option value="">Select roles to assign to this company</option>
                     </select>
+                    <small class="form-help">Hold Ctrl/Cmd to select multiple roles. These roles will be available when adding crew members.</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" id="cancelAddCompany">Cancel</button>

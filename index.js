@@ -420,6 +420,30 @@ app.get('/api/roles', (req, res) => {
     res.json(roles);
 });
 
+// Get roles assigned to a specific company
+app.get('/api/company/roles', authenticateToken, async (req, res) => {
+    try {
+        const companyId = req.user.company_id;
+        
+        if (!companyId) {
+            return res.status(400).json({ error: 'Company ID not found' });
+        }
+        
+        const roles = await query(`
+            SELECT role_name
+            FROM company_roles
+            WHERE company_id = $1
+            ORDER BY role_name
+        `, [companyId]);
+        
+        const roleNames = roles.map(role => role.role_name);
+        res.json(roleNames);
+    } catch (error) {
+        console.error('Get company roles error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Super Admin Middleware
 const requireSuperAdmin = (req, res, next) => {
     if (!req.user.is_super_admin) {
@@ -630,12 +654,16 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
         const companies = await query(`
             SELECT 
                 c.*,
+                STRING_AGG(cr.role_name, ', ') as assigned_roles,
+                u.email as admin_email,
                 COUNT(DISTINCT e.id) as event_count,
-                COUNT(DISTINCT u.id) as user_count
+                COUNT(DISTINCT u2.id) as user_count
             FROM companies c
+            LEFT JOIN company_roles cr ON c.id = cr.company_id
+            LEFT JOIN users u ON c.id = u.company_id AND u.role = 'admin'
             LEFT JOIN events e ON c.id = e.company_id
-            LEFT JOIN users u ON c.id = u.company_id
-            GROUP BY c.id
+            LEFT JOIN users u2 ON c.id = u2.company_id
+            GROUP BY c.id, u.email
             ORDER BY c.created_at DESC
         `);
         
@@ -649,14 +677,51 @@ app.get('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req
 // Add new company
 app.post('/api/admin/companies', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
-        const { companyName, companyDomain, contactEmail, contactPhone, companyAddress, subscriptionPlan } = req.body;
+        const { companyName, companyDomain, companyAdminEmail, contactPhone, companyAddress, assignedRoles } = req.body;
         
+        // Validate required fields
+        if (!companyName || !companyAdminEmail || !assignedRoles || !Array.isArray(assignedRoles) || assignedRoles.length === 0) {
+            return res.status(400).json({ error: 'Missing required fields: company name, admin email, and at least one assigned role' });
+        }
+        
+        // Create the company
         const result = await run(`
-            INSERT INTO companies (name, domain, contact_email, contact_phone, address, subscription_plan)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        `, [companyName, companyDomain, contactEmail, contactPhone, companyAddress, subscriptionPlan]);
+            INSERT INTO companies (name, domain, contact_phone, address)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+        `, [companyName, companyDomain, contactPhone, companyAddress]);
         
-        const companies = await query('SELECT * FROM companies WHERE id = $1', [result.id]);
+        const companyId = result.id;
+        
+        // Assign roles to the company
+        for (const roleName of assignedRoles) {
+            await run(`
+                INSERT INTO company_roles (company_id, role_name)
+                VALUES ($1, $2)
+                ON CONFLICT (company_id, role_name) DO NOTHING
+            `, [companyId, roleName]);
+        }
+        
+        // Create company admin user
+        const bcrypt = require('bcryptjs');
+        const adminPassword = bcrypt.hashSync('admin123', 10); // Default password, should be changed
+        
+        await run(`
+            INSERT INTO users (company_id, email, password_hash, first_name, last_name, role)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (email) DO NOTHING
+        `, [companyId, companyAdminEmail, adminPassword, 'Company', 'Admin', 'admin']);
+        
+        // Get the created company with role information
+        const companies = await query(`
+            SELECT 
+                c.*,
+                STRING_AGG(cr.role_name, ', ') as assigned_roles
+            FROM companies c
+            LEFT JOIN company_roles cr ON c.id = cr.company_id
+            WHERE c.id = $1
+            GROUP BY c.id
+        `, [companyId]);
         
         res.json({
             message: 'Company added successfully',

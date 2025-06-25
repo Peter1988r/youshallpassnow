@@ -116,6 +116,17 @@ const initDatabase = async () => {
             )
         `);
 
+        // Add company_roles junction table for role assignments
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS company_roles (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                role_name TEXT NOT NULL,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_id, role_name)
+            )
+        `);
+
         // Add access_level column to crew_members if not exists (for per-event assignment)
         await client.query(`
             DO $$ BEGIN

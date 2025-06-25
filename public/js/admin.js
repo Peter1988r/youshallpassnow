@@ -85,13 +85,14 @@ async function loadCompaniesTab() {
     try {
         const res = await fetch('/api/admin/companies', { headers: { 'Authorization': `Bearer ${token}` } });
         const companies = await res.json();
-        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Contact Email</th><th>Phone</th><th>Events</th><th>Users</th><th>Actions</th></tr></thead><tbody>`;
+        let html = `<table class="admin-table"><thead><tr><th>Name</th><th>Domain</th><th>Admin Email</th><th>Phone</th><th>Assigned Roles</th><th>Events</th><th>Users</th><th>Actions</th></tr></thead><tbody>`;
         companies.forEach(c => {
             html += `<tr>
                 <td>${c.name}</td>
                 <td>${c.domain || ''}</td>
-                <td>${c.contact_email || ''}</td>
+                <td>${c.admin_email || ''}</td>
                 <td>${c.contact_phone || ''}</td>
+                <td>${c.assigned_roles || 'No roles assigned'}</td>
                 <td>${c.event_count || 0}</td>
                 <td>${c.user_count || 0}</td>
                 <td>
@@ -407,9 +408,10 @@ function setupEventListeners() {
     
     // Show modals
     if (addCompanyBtn) {
-        addCompanyBtn.addEventListener('click', () => {
+        addCompanyBtn.addEventListener('click', async () => {
             console.log('Opening company modal');
             addCompanyModal.style.display = 'block';
+            await loadRolesForCompanySelect();
         });
     }
     
@@ -581,7 +583,30 @@ async function handleAddCompany(e) {
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
-    console.log('Company data:', data);
+    
+    // Handle multiple role selections
+    const roleSelect = document.getElementById('assignedRoles');
+    const selectedRoles = Array.from(roleSelect.selectedOptions).map(option => option.value);
+    
+    // Remove the empty option if it's selected
+    const filteredRoles = selectedRoles.filter(role => role !== '');
+    
+    if (filteredRoles.length === 0) {
+        showMessage('Please select at least one role', 'error');
+        return;
+    }
+    
+    // Create the company data with role assignments
+    const companyData = {
+        companyName: data.companyName,
+        companyDomain: data.companyDomain,
+        companyAdminEmail: data.companyAdminEmail,
+        contactPhone: data.contactPhone,
+        companyAddress: data.companyAddress,
+        assignedRoles: filteredRoles
+    };
+    
+    console.log('Company data:', companyData);
     
     try {
         const token = localStorage.getItem('token');
@@ -591,7 +616,7 @@ async function handleAddCompany(e) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(companyData)
         });
         
         if (!response.ok) {
@@ -1256,5 +1281,59 @@ async function cleanupEvents() {
     } catch (error) {
         console.error('Error during cleanup:', error);
         showMessage(`❌ Error: ${error.message}`, 'error');
+    }
+}
+
+// Add Company Modal
+const addCompanyBtn = document.getElementById('addCompanyBtn');
+const addCompanyModal = document.getElementById('addCompanyModal');
+const addCompanyForm = document.getElementById('addCompanyForm');
+const cancelAddCompany = document.getElementById('cancelAddCompany');
+
+addCompanyBtn.addEventListener('click', async () => {
+    addCompanyModal.style.display = 'block';
+    await loadRolesForCompanySelect();
+});
+
+addCompanyForm.addEventListener('submit', handleAddCompany);
+cancelAddCompany.addEventListener('click', () => hideModal(addCompanyModal));
+
+// Load roles for company select
+async function loadRolesForCompanySelect() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/roles', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load roles');
+        
+        const roles = await response.json();
+        console.log('Roles loaded:', roles);
+        
+        const select = document.getElementById('assignedRoles');
+        console.log('Select element found:', !!select);
+        
+        if (!select) {
+            console.error('Select element not found:', 'assignedRoles');
+            return;
+        }
+        
+        // Clear existing options except the first placeholder
+        select.innerHTML = '<option value="">Select roles to assign to this company</option>';
+        
+        // Add role options
+        roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role;
+            option.textContent = role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            select.appendChild(option);
+        });
+        
+        console.log('Roles added to select:', 'assignedRoles', select.options.length);
+    } catch (error) {
+        console.error('Error loading roles:', error);
     }
 } 

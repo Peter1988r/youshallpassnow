@@ -39,7 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load available roles
     async function loadRoles() {
         try {
-            const response = await fetch('/api/roles');
+            const response = await fetch('/api/company/roles', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             const roles = await response.json();
             
             const roleSelect = document.getElementById('role');
