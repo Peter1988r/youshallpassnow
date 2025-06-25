@@ -1654,7 +1654,9 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
                 c.name as company_name,
                 c.id as company_id
             FROM crew_members cm
-            LEFT JOIN companies c ON cm.company_id = c.id
+            LEFT JOIN events e ON cm.event_id = e.id
+            LEFT JOIN event_companies ec ON e.id = ec.event_id
+            LEFT JOIN companies c ON ec.company_id = c.id
             WHERE cm.event_id = $1 AND cm.status = 'approved'
         `;
         
@@ -1662,7 +1664,7 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
         
         // Add company filter if provided
         if (company_id) {
-            queryText += ' AND cm.company_id = $2';
+            queryText += ' AND ec.company_id = $2';
             queryParams.push(company_id);
         }
         
