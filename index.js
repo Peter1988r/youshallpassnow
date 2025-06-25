@@ -290,6 +290,7 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         const result = await run(`
             INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
         `, [eventId, firstName, lastName, email, role, accessLevel, badgeNumber, photoPath || null]);
         console.log('Crew member inserted, result:', result);
 
