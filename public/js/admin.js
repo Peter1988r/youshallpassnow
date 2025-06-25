@@ -671,15 +671,57 @@ async function handleAddEvent(e) {
     }
 }
 
-// Handle add role
-async function handleAddRole(e) {
-    console.log('handleAddRole called');
+// Move hideModal to global scope
+function hideModal(modal) {
+    if (modal) modal.style.display = 'none';
+}
+
+// Add Role Modal logic
+let currentEditRoleId = null;
+
+function openEditRoleModal(role) {
+    currentEditRoleId = role.id;
+    document.getElementById('editRoleName').value = role.name;
+    document.getElementById('editRoleDescription').value = role.description;
+    document.getElementById('editRoleModal').style.display = 'block';
+}
+
+document.getElementById('editRoleForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+    const roleName = document.getElementById('editRoleName').value.trim();
+    const roleDescription = document.getElementById('editRoleDescription').value.trim();
+    if (!roleName || !roleDescription) return;
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/roles/${currentEditRoleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roleName, roleDescription })
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update role');
+        }
+        showMessage('Role updated successfully!', 'success');
+        hideModal(document.getElementById('editRoleModal'));
+        loadDashboardData();
+    } catch (error) {
+        showMessage('Failed to update role: ' + error.message, 'error');
+    }
+});
+document.getElementById('cancelEditRole').addEventListener('click', function() {
+    hideModal(document.getElementById('editRoleModal'));
+});
+
+// Update handleAddRole to send correct keys
+async function handleAddRole(e) {
+    e.preventDefault();
     const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    console.log('Role data:', data);
-    
+    const roleName = formData.get('roleName');
+    const roleDescription = formData.get('roleDescription');
     try {
         const token = localStorage.getItem('token');
         const response = await fetch('/api/admin/roles', {
@@ -688,92 +730,50 @@ async function handleAddRole(e) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify({ roleName, roleDescription })
         });
-        
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to add role');
         }
-        
-        const result = await response.json();
-        console.log('Role added successfully:', result);
         showMessage('Role added successfully!', 'success');
-        
-        // Hide modal and reset form
-        document.getElementById('addRoleModal').style.display = 'none';
+        hideModal(document.getElementById('addRoleModal'));
         e.target.reset();
-        
-        // Reload dashboard data
         loadDashboardData();
-        
     } catch (error) {
-        console.error('Error adding role:', error);
         showMessage('Failed to add role: ' + error.message, 'error');
     }
 }
 
-// Edit role function
+// Update editRole to use modal
 async function editRole(roleId) {
-    // For now, show a simple prompt. In a full implementation, you'd open a modal
-    const newName = prompt('Enter new role name:');
-    const newAccessLevel = prompt('Enter new access level (RESTRICTED/STANDARD/EXTENDED/FULL/ADMIN):');
-    
-    if (newName && newAccessLevel) {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`/api/admin/roles/${roleId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name: newName,
-                    access_level: newAccessLevel
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update role');
-            }
-            
-            showMessage('Role updated successfully!', 'success');
-            loadDashboardData();
-            
-        } catch (error) {
-            console.error('Error updating role:', error);
-            showMessage('Failed to update role: ' + error.message, 'error');
-        }
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`/api/admin/roles`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const roles = await res.json();
+        const role = roles.find(r => r.id === roleId);
+        if (role) openEditRoleModal(role);
+    } catch (e) {
+        showMessage('Failed to load role for editing', 'error');
     }
 }
 
-// Delete role function
+// Delete role function (unchanged, but ensure reload)
 async function deleteRole(roleId) {
-    if (!confirm('Are you sure you want to delete this role?')) {
-        return;
-    }
-    
+    if (!confirm('Are you sure you want to delete this role?')) return;
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`/api/admin/roles/${roleId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to delete role');
         }
-        
         showMessage('Role deleted successfully!', 'success');
         loadDashboardData();
-        
     } catch (error) {
-        console.error('Error deleting role:', error);
         showMessage('Failed to delete role: ' + error.message, 'error');
     }
 }

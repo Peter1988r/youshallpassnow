@@ -257,7 +257,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Add New Role</h3>
-                <button class="close-modal">&times;</button>
+                <button class="close-modal" onclick="hideModal(document.getElementById('addRoleModal'))">&times;</button>
             </div>
             <form id="addRoleForm">
                 <div class="form-group">
@@ -271,8 +271,32 @@
                     <small class="form-help">Provide a clear description of the role's responsibilities and access level</small>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" id="cancelAddRole">Cancel</button>
+                    <button type="button" class="btn-secondary" id="cancelAddRole" onclick="hideModal(document.getElementById('addRoleModal'))">Cancel</button>
                     <button type="submit" class="btn-primary">Add Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Role Modal -->
+    <div class="modal" id="editRoleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Role</h3>
+                <button class="close-modal" onclick="hideModal(document.getElementById('editRoleModal'))">&times;</button>
+            </div>
+            <form id="editRoleForm">
+                <div class="form-group">
+                    <label for="editRoleName">Role Name</label>
+                    <input type="text" id="editRoleName" name="editRoleName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editRoleDescription">Role Description</label>
+                    <textarea id="editRoleDescription" name="editRoleDescription" rows="3" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancelEditRole" onclick="hideModal(document.getElementById('editRoleModal'))">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>

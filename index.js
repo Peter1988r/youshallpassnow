@@ -875,16 +875,16 @@ app.post('/api/admin/roles', authenticateToken, requireSuperAdmin, async (req, r
 app.put('/api/admin/roles/:roleId', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
         const { roleId } = req.params;
-        const { name, access_level } = req.body;
-        
+        const { roleName, roleDescription } = req.body;
+        if (!roleName || !roleDescription) {
+            return res.status(400).json({ error: 'Missing required fields: role name and description' });
+        }
         await run(`
             UPDATE roles 
-            SET name = $1, access_level = $2 
+            SET name = $1, description = $2
             WHERE id = $3
-        `, [name, access_level, roleId]);
-        
-        const roles = await query('SELECT * FROM roles WHERE id = $1', [roleId]);
-        
+        `, [roleName, roleDescription, roleId]);
+        const roles = await query('SELECT id, name, description FROM roles WHERE id = $1', [roleId]);
         res.json({
             message: 'Role updated successfully',
             role: roles[0]
