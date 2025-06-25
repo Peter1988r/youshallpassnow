@@ -55,128 +55,153 @@
             </div>
         </header>
 
-        <!-- Event Details Form -->
-        <div class="event-detail-container">
-            <form id="eventDetailForm" class="event-form">
-                <div class="form-section">
-                    <h3>Event Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="eventName">Event Name</label>
-                            <input type="text" id="eventName" name="eventName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="eventLocation">Location</label>
-                            <input type="text" id="eventLocation" name="eventLocation" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="startDate">Start Date</label>
-                            <input type="date" id="startDate" name="startDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="endDate">End Date</label>
-                            <input type="date" id="endDate" name="endDate" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="eventDescription">Description</label>
-                        <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
+        <!-- Event Detail Sections -->
+        <div class="event-detail-sections">
+            
+            <!-- Section 1: Event Overview -->
+            <section class="event-section event-overview-section">
+                <div class="section-header">
+                    <h2>Event Overview</h2>
+                    <div class="section-actions">
+                        <button type="button" class="btn-secondary" id="cancelEventBtn">Cancel Event</button>
+                        <button type="button" class="btn-danger" id="deleteEventBtn">Delete Event</button>
                     </div>
                 </div>
-
-                <div class="form-section">
-                    <h3>Event Status</h3>
-                    <div class="form-group">
-                        <label for="eventStatusSelect">Status</label>
-                        <select id="eventStatusSelect" name="eventStatus" required>
-                            <option value="active">Active</option>
-                            <option value="ongoing">Ongoing</option>
-                            <option value="ended">Ended</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                        <small class="form-help">Status will automatically update based on date range, but can be manually overridden.</small>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <h3>Assigned Companies</h3>
-                    <div class="companies-assignment">
-                        <div class="assignment-header">
-                            <p>Select companies that can manage this event:</p>
-                            <button type="button" class="btn-secondary" id="addCompanyToEvent">Add Company</button>
-                        </div>
-                        <div class="assigned-companies" id="assignedCompanies">
-                            <!-- Assigned companies will be listed here -->
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <h3>Crew Approvals</h3>
-                    <div class="crew-approvals">
-                        <div class="approvals-header">
-                            <p>Manage crew member approvals and access levels for this event:</p>
-                            <button type="button" class="btn-secondary" id="refreshApprovalsBtn">Refresh</button>
-                        </div>
-                        <div class="approvals-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Role</th>
-                                        <th>Requested</th>
-                                        <th>Access Level</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="crewApprovalsTableBody">
-                                    <!-- Crew approval rows will be loaded here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <h3>Approved Crew Members</h3>
-                    <div class="approved-crew">
-                        <div class="approved-crew-header">
-                            <p>View approved crew members for this event:</p>
-                            <div class="filter-controls">
-                                <select id="companyFilter" class="form-select">
-                                    <option value="">All Companies</option>
-                                </select>
-                                <button type="button" class="btn-secondary" id="refreshApprovedCrewBtn">Refresh</button>
+                
+                <div class="section-content">
+                    <form id="eventDetailForm" class="event-form">
+                        <!-- Event Information -->
+                        <div class="overview-card">
+                            <h3>Event Information</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventName">Event Name</label>
+                                    <input type="text" id="eventName" name="eventName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="eventLocation">Location</label>
+                                    <input type="text" id="eventLocation" name="eventLocation" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="startDate">Start Date</label>
+                                    <input type="date" id="startDate" name="startDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="endDate">End Date</label>
+                                    <input type="date" id="endDate" name="endDate" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="eventDescription">Description</label>
+                                <textarea id="eventDescription" name="eventDescription" rows="3"></textarea>
                             </div>
                         </div>
-                        <div class="approved-crew-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Role</th>
-                                        <th>Company</th>
-                                        <th>Access Level</th>
-                                        <th>Approved Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="approvedCrewTableBody">
-                                    <!-- Approved crew rows will be loaded here -->
-                                </tbody>
-                            </table>
+
+                        <!-- Event Status -->
+                        <div class="overview-card">
+                            <h3>Event Status</h3>
+                            <div class="form-group">
+                                <label for="eventStatusSelect">Status</label>
+                                <select id="eventStatusSelect" name="eventStatus" required>
+                                    <option value="active">Active</option>
+                                    <option value="ongoing">Ongoing</option>
+                                    <option value="ended">Ended</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <small class="form-help">Status will automatically update based on date range, but can be manually overridden.</small>
+                            </div>
                         </div>
+
+                        <!-- Assigned Companies -->
+                        <div class="overview-card">
+                            <h3>Assigned Companies</h3>
+                            <div class="companies-assignment">
+                                <div class="assignment-header">
+                                    <p>Select companies that can manage this event:</p>
+                                    <button type="button" class="btn-secondary" id="addCompanyToEvent">Add Company</button>
+                                </div>
+                                <div class="assigned-companies" id="assignedCompanies">
+                                    <!-- Assigned companies will be listed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Section 2: Crew Approvals -->
+            <section class="event-section crew-approvals-section">
+                <div class="section-header">
+                    <h2>Crew Approvals</h2>
+                    <div class="section-actions">
+                        <button type="button" class="btn-secondary" id="refreshApprovalsBtn">Refresh</button>
                     </div>
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelEventBtn">Cancel Event</button>
-                    <button type="button" class="btn-danger" id="deleteEventBtn">Delete Event</button>
+                
+                <div class="section-content">
+                    <div class="approvals-description">
+                        <p>Manage crew member approvals and access levels for this event:</p>
+                    </div>
+                    <div class="approvals-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Requested</th>
+                                    <th>Access Level</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crewApprovalsTableBody">
+                                <!-- Crew approval rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </form>
+            </section>
+
+            <!-- Section 3: Accredited Crew -->
+            <section class="event-section accredited-crew-section">
+                <div class="section-header">
+                    <h2>Accredited Crew</h2>
+                    <div class="section-actions">
+                        <div class="filter-controls">
+                            <select id="companyFilter" class="form-select">
+                                <option value="">All Companies</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-secondary" id="refreshApprovedCrewBtn">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="accredited-crew-description">
+                        <p>View approved crew members for this event:</p>
+                    </div>
+                    <div class="accredited-crew-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Company</th>
+                                    <th>Access Level</th>
+                                    <th>Approved Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approvedCrewTableBody">
+                                <!-- Approved crew rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 

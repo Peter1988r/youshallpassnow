@@ -1275,4 +1275,236 @@ select[multiple] option:disabled {
     .admin-table td:nth-child(5) {
         display: none;
     }
+}
+
+/* Event Detail Sections - New Layout */
+.event-detail-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.event-section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.event-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.section-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.section-content {
+    padding: 2rem;
+}
+
+/* Event Overview Section */
+.event-overview-section .section-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.overview-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+}
+
+.overview-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.overview-card h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+/* Crew Approvals Section */
+.crew-approvals-section {
+    border-left: 4px solid #f59e0b;
+}
+
+.crew-approvals-section .section-header {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.approvals-description {
+    margin-bottom: 1.5rem;
+}
+
+.approvals-description p {
+    color: var(--secondary-color);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.approvals-table-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+/* Accredited Crew Section */
+.accredited-crew-section {
+    border-left: 4px solid #10b981;
+}
+
+.accredited-crew-section .section-header {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.accredited-crew-description {
+    margin-bottom: 1.5rem;
+}
+
+.accredited-crew-description p {
+    color: var(--secondary-color);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.accredited-crew-table-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+/* Data Tables */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.data-table thead {
+    background: #f8fafc;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.data-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--secondary-color);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: var(--secondary-color);
+}
+
+.data-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Filter Controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: white;
+    color: var(--secondary-color);
+    min-width: 150px;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .event-detail-sections {
+        gap: 1.5rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem 1.5rem;
+    }
+    
+    .section-content {
+        padding: 1.5rem;
+    }
+    
+    .overview-card {
+        padding: 1rem;
+    }
+    
+    .section-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+    }
 } 
