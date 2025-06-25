@@ -104,7 +104,6 @@ async function loadDashboardData() {
         loadEventsTab(),
         loadRolesTab()
     ]);
-    loadPendingApprovals();
 }
 
 // Companies Tab
@@ -331,77 +330,6 @@ async function loadRecentActivity() {
     }
 }
 
-// Pending Approvals: Add access level assignment and fix approve/reject/view
-async function loadPendingApprovals() {
-    const token = localStorage.getItem('token');
-    const tbody = document.getElementById('approvalsTableBody');
-    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
-    try {
-        const res = await fetch('/api/admin/approvals', { headers: { 'Authorization': `Bearer ${token}` } });
-        const approvals = await res.json();
-        let html = '';
-        approvals.forEach(a => {
-            html += `<tr>
-                <td><input type="checkbox" class="approval-checkbox" data-id="${a.id}"></td>
-                <td>${a.company_name}</td>
-                <td>${a.event_name}</td>
-                <td>${a.first_name} ${a.last_name}</td>
-                <td>${a.role}</td>
-                <td>${a.email || ''}</td>
-                <td>${a.created_at}</td>
-                <td>
-                    <select class="access-level-select" data-id="${a.id}">
-                        <option value="RESTRICTED">Restricted</option>
-                        <option value="STANDARD">Standard</option>
-                        <option value="EXTENDED">Extended</option>
-                        <option value="FULL">Full</option>
-                        <option value="ADMIN">Admin</option>
-                    </select>
-                    <button class="btn-approve" data-id="${a.id}">Approve</button>
-                    <button class="btn-reject" data-id="${a.id}">Reject</button>
-                    <button class="btn-view" data-id="${a.id}">View</button>
-                </td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
-        setupApprovalButtons();
-    } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="8">Failed to load approvals</td></tr>';
-    }
-}
-
-function setupApprovalButtons() {
-    document.querySelectorAll('.btn-approve').forEach(btn => {
-        btn.onclick = async () => {
-            const id = btn.dataset.id;
-            const accessLevel = document.querySelector(`.access-level-select[data-id='${id}']`).value;
-            const token = localStorage.getItem('token');
-            await fetch(`/api/admin/approvals/${id}/approve`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accessLevel })
-            });
-            loadPendingApprovals();
-        };
-    });
-    document.querySelectorAll('.btn-reject').forEach(btn => {
-        btn.onclick = async () => {
-            const id = btn.dataset.id;
-            const token = localStorage.getItem('token');
-            await fetch(`/api/admin/approvals/${id}/reject`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            loadPendingApprovals();
-        };
-    });
-    document.querySelectorAll('.btn-view').forEach(btn => {
-        btn.onclick = () => {
-            alert('View details coming soon!');
-        };
-    });
-}
-
 // Setup event listeners
 function setupEventListeners() {
     console.log('Setting up event listeners...');
@@ -523,17 +451,6 @@ function setupEventListeners() {
     }
     if (addRoleForm) {
         addRoleForm.addEventListener('submit', handleAddRole);
-    }
-    
-    // Approval actions
-    const bulkApproveBtn = document.getElementById('bulkApproveBtn');
-    const refreshApprovalsBtn = document.getElementById('refreshApprovalsBtn');
-    
-    if (bulkApproveBtn) {
-        bulkApproveBtn.addEventListener('click', bulkApproveApprovals);
-    }
-    if (refreshApprovalsBtn) {
-        refreshApprovalsBtn.addEventListener('click', loadPendingApprovals);
     }
     
     console.log('Event listeners setup complete');
@@ -914,39 +831,6 @@ async function deleteEvent(eventId) {
     }
 }
 
-// Global functions for approval actions
-window.approveApproval = async (id) => {
-    const accessLevel = document.querySelector(`.access-level-select[data-id='${id}']`).value;
-    const token = localStorage.getItem('token');
-    await fetch(`/api/admin/approvals/${id}/approve`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessLevel })
-    });
-    loadPendingApprovals();
-};
-
-window.rejectApproval = async (id) => {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/admin/approvals/${id}/reject`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    loadPendingApprovals();
-};
-
-window.viewApproval = (id) => {
-    alert('View details coming soon!');
-};
-
-// Global functions for role management
-window.editRole = editRole;
-window.deleteRole = deleteRole;
-
-// Global functions for company, event, and user management
-window.deleteCompany = deleteCompany;
-window.deleteEvent = deleteEvent;
-
 // Generate report
 async function generateReport() {
     try {
@@ -1053,158 +937,6 @@ function showMessage(message, type = 'info') {
             messageEl.remove();
         }
     }, 5000);
-}
-
-// Setup approval checkboxes functionality
-function setupApprovalCheckboxes() {
-    const selectAllCheckbox = document.getElementById('selectAllApprovals');
-    const approvalCheckboxes = document.querySelectorAll('.approval-checkbox');
-    const bulkApproveBtn = document.getElementById('bulkApproveBtn');
-    
-    // Select all functionality
-    selectAllCheckbox.addEventListener('change', (e) => {
-        approvalCheckboxes.forEach(checkbox => {
-            checkbox.checked = e.target.checked;
-        });
-        updateBulkApproveButton();
-    });
-    
-    // Individual checkbox functionality
-    approvalCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateBulkApproveButton);
-    });
-    
-    function updateBulkApproveButton() {
-        const checkedCount = document.querySelectorAll('.approval-checkbox:checked').length;
-        bulkApproveBtn.disabled = checkedCount === 0;
-        bulkApproveBtn.textContent = checkedCount > 0 ? `Bulk Approve (${checkedCount})` : 'Bulk Approve Selected';
-    }
-}
-
-// Bulk approve selected approvals
-async function bulkApproveApprovals() {
-    const selectedCheckboxes = document.querySelectorAll('.approval-checkbox:checked');
-    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-    
-    if (selectedIds.length === 0) {
-        showMessage('No approvals selected', 'error');
-        return;
-    }
-    
-    if (!confirm(`Are you sure you want to approve ${selectedIds.length} accreditation(s)?`)) {
-        return;
-    }
-    
-    try {
-        const token = localStorage.getItem('token');
-        const promises = selectedIds.map(id => 
-            fetch(`/api/admin/approvals/${id}/approve`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-        );
-        
-        const results = await Promise.all(promises);
-        const failedCount = results.filter(r => !r.ok).length;
-        const successCount = results.length - failedCount;
-        
-        if (successCount > 0) {
-            showMessage(`Successfully approved ${successCount} accreditation(s)!`, 'success');
-        }
-        
-        if (failedCount > 0) {
-            showMessage(`Failed to approve ${failedCount} accreditation(s)`, 'error');
-        }
-        
-        // Reload data
-        loadPendingApprovals();
-        loadStats();
-        
-    } catch (error) {
-        console.error('Error bulk approving:', error);
-        showMessage('Failed to bulk approve accreditations', 'error');
-    }
-}
-
-// View applicant details
-window.viewApplicantDetails = async (crewId) => {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/approvals/${crewId}/details`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to load applicant details');
-        
-        const details = await response.json();
-        
-        // Create and show modal with details
-        showApplicantDetailsModal(details);
-        
-    } catch (error) {
-        console.error('Error loading applicant details:', error);
-        showMessage('Failed to load applicant details', 'error');
-    }
-};
-
-// Show applicant details modal
-function showApplicantDetailsModal(details) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Applicant Details</h3>
-                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
-            </div>
-            <div class="applicant-details">
-                <div class="detail-row">
-                    <strong>Name:</strong> ${details.first_name} ${details.last_name}
-                </div>
-                <div class="detail-row">
-                    <strong>Email:</strong> ${details.email}
-                </div>
-                <div class="detail-row">
-                    <strong>Role:</strong> ${details.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </div>
-                <div class="detail-row">
-                    <strong>Company:</strong> ${details.company_name}
-                </div>
-                <div class="detail-row">
-                    <strong>Event:</strong> ${details.event_name}
-                </div>
-                <div class="detail-row">
-                    <strong>Requested:</strong> ${formatTime(details.created_at)}
-                </div>
-                <div class="detail-row">
-                    <strong>Badge Number:</strong> ${details.badge_number}
-                </div>
-                <div class="detail-row">
-                    <strong>Access Level:</strong> ${details.access_level}
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
-                <button class="approve-btn" onclick="approveAccreditation(${details.id}); this.closest('.modal').remove()">Approve</button>
-                <button class="reject-btn" onclick="rejectAccreditation(${details.id}); this.closest('.modal').remove()">Reject</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Close modal when clicking outside
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
 }
 
 // Edit event function
