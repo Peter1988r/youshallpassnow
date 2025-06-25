@@ -82,7 +82,7 @@ const initNavbarScroll = () => {
 
 // Form submission handling (if needed)
 const initForms = () => {
-    document.querySelectorAll('form').forEach(form => {
+    document.querySelectorAll('form:not(#addCompanyForm):not(#addEventForm):not(#addRoleForm):not(#editRoleForm)').forEach(form => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
