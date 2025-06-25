@@ -280,8 +280,8 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         }
         const event = events[0];
 
-        // Get access level from role
-        const accessLevel = ROLE_ACCESS_MATRIX[role] || 'RESTRICTED';
+        // Set access level to 'No Clearance' initially - will be assigned during approval
+        const accessLevel = 'No Clearance';
         
         // Generate unique badge number
         const badgeNumber = generateBadgeNumber();
@@ -379,28 +379,34 @@ app.put('/api/crew/:crewId/approve', authenticateToken, async (req, res) => {
     try {
         const { crewId } = req.params;
         
-        // Update status to approved
-        await run(`
-            UPDATE crew_members 
-            SET status = 'approved', approved_at = CURRENT_TIMESTAMP 
-            WHERE id = $1
-        `, [crewId]);
-        
-        // Get the updated crew member
+        // Get the crew member first to get their role
         const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        if (crewMembers.length === 0) {
+            return res.status(404).json({ error: 'Crew member not found' });
+        }
         const crewMember = crewMembers[0];
         
-        // Get event details for notification
-        const events = await query('SELECT * FROM events WHERE id = $1', [crewMember.event_id]);
+        // Get access level from role
+        const accessLevel = ROLE_ACCESS_MATRIX[crewMember.role] || 'RESTRICTED';
+        
+        // Update status to approved and assign access level
+        await run(`
+            UPDATE crew_members 
+            SET status = 'approved', approved_at = CURRENT_TIMESTAMP, access_level = $1
+            WHERE id = $2
+        `, [accessLevel, crewId]);
+        
+        const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        const updatedCrewMember = updatedCrewMembers[0];
+        
+        const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        // TODO: Send email notification to crew member
-        // For MVP, we'll just log the notification
-        console.log(`📧 Notification sent to ${crewMember.email}: Your accreditation for ${event.name} has been approved!`);
+        console.log(`📧 Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${accessLevel} access!`);
         
         res.json({
-            ...crewMember,
-            message: `Accreditation approved. Notification sent to ${crewMember.email}`
+            message: `Accreditation approved successfully with ${accessLevel} access`,
+            crewMember: updatedCrewMember
         });
     } catch (error) {
         console.error('Approve crew error:', error);
@@ -554,23 +560,34 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
     try {
         const { crewId } = req.params;
         
-        await run(`
-            UPDATE crew_members 
-            SET status = 'approved', approved_at = CURRENT_TIMESTAMP 
-            WHERE id = $1
-        `, [crewId]);
-        
+        // Get the crew member first to get their role
         const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        if (crewMembers.length === 0) {
+            return res.status(404).json({ error: 'Crew member not found' });
+        }
         const crewMember = crewMembers[0];
         
-        const events = await query('SELECT * FROM events WHERE id = $1', [crewMember.event_id]);
+        // Get access level from role
+        const accessLevel = ROLE_ACCESS_MATRIX[crewMember.role] || 'RESTRICTED';
+        
+        // Update status to approved and assign access level
+        await run(`
+            UPDATE crew_members 
+            SET status = 'approved', approved_at = CURRENT_TIMESTAMP, access_level = $1
+            WHERE id = $2
+        `, [accessLevel, crewId]);
+        
+        const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        const updatedCrewMember = updatedCrewMembers[0];
+        
+        const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        console.log(`📧 Super Admin approved: Notification sent to ${crewMember.email}: Your accreditation for ${event.name} has been approved!`);
+        console.log(`📧 Super Admin approved: Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${accessLevel} access!`);
         
         res.json({
-            message: 'Accreditation approved successfully',
-            crewMember: crewMember
+            message: `Accreditation approved successfully with ${accessLevel} access`,
+            crewMember: updatedCrewMember
         });
     } catch (error) {
         console.error('Super admin approve error:', error);
