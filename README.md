@@ -1,5 +1,7 @@
 # YouShallPass - Event Accreditation MVP
 
+<!-- Last updated: 2024-12-19 -->
+
 A professional event accreditation system with PDF badge generation, role-based access control, and **multi-company management**.
 
 ## 🚀 7-Day MVP Features
