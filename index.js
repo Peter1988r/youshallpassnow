@@ -691,14 +691,13 @@ app.put('/api/crew/:crewId/approve', authenticateToken, requireSuperAdmin, async
         }
         const crewMember = crewMembers[0];
         
-        // Update crew member status and assign access level
+        // Update crew member status (preserve existing access level)
         await run(`
             UPDATE crew_members 
             SET status = 'approved', 
-                approved_at = CURRENT_TIMESTAMP,
-                access_level = $1
-            WHERE id = $2
-        `, ['STANDARD', crewId]);
+                approved_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `, [crewId]);
         
         const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const updatedCrewMember = updatedCrewMembers[0];
@@ -706,10 +705,10 @@ app.put('/api/crew/:crewId/approve', authenticateToken, requireSuperAdmin, async
         const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        console.log(`📧 Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with STANDARD access!`);
+        console.log(`📧 Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${updatedCrewMember.access_level} access!`);
         
         res.json({
-            message: 'Accreditation approved successfully with STANDARD access',
+            message: `Accreditation approved successfully with ${updatedCrewMember.access_level} access`,
             crewMember: updatedCrewMember
         });
     } catch (error) {
@@ -974,14 +973,13 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
         }
         const crewMember = crewMembers[0];
         
-        // Update crew member status and assign access level
+        // Update crew member status (preserve existing access level)
         await run(`
             UPDATE crew_members 
             SET status = 'approved', 
-                approved_at = CURRENT_TIMESTAMP,
-                access_level = $1
-            WHERE id = $2
-        `, ['STANDARD', crewId]);
+                approved_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `, [crewId]);
         
         const updatedCrewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
         const updatedCrewMember = updatedCrewMembers[0];
@@ -989,10 +987,10 @@ app.put('/api/admin/approvals/:crewId/approve', authenticateToken, requireSuperA
         const events = await query('SELECT * FROM events WHERE id = $1', [updatedCrewMember.event_id]);
         const event = events[0];
         
-        console.log(`📧 Super Admin approved: Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with STANDARD access!`);
+        console.log(`📧 Super Admin approved: Notification sent to ${updatedCrewMember.email}: Your accreditation for ${event.name} has been approved with ${updatedCrewMember.access_level} access!`);
         
         res.json({
-            message: 'Accreditation approved successfully with STANDARD access',
+            message: `Accreditation approved successfully with ${updatedCrewMember.access_level} access`,
             crewMember: updatedCrewMember
         });
     } catch (error) {
