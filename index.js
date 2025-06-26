@@ -2499,3 +2499,76 @@ startServer();
 
 // Export for Vercel
 module.exports = app;
+
+// Check migration status - specifically for company_id column
+app.get('/check-migration-status', async (req, res) => {
+    try {
+        console.log('🔍 Checking migration status...');
+        
+        // Check if company_id column exists in crew_members
+        const columnExists = await query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'crew_members' AND column_name = 'company_id'
+        `);
+        
+        const migrationApplied = columnExists.length > 0;
+        
+        if (migrationApplied) {
+            // Get crew members with company assignments
+            const crewWithCompany = await query(`
+                SELECT 
+                    cm.id,
+                    cm.first_name,
+                    cm.last_name,
+                    cm.email,
+                    cm.company_id,
+                    c.name as company_name,
+                    cm.event_id,
+                    e.name as event_name
+                FROM crew_members cm
+                LEFT JOIN companies c ON cm.company_id = c.id
+                LEFT JOIN events e ON cm.event_id = e.id
+                ORDER BY cm.id
+            `);
+            
+            const crewWithoutCompany = crewWithCompany.filter(c => !c.company_id);
+            const crewStats = {};
+            crewWithCompany.forEach(c => {
+                if (c.company_id) {
+                    crewStats[c.company_id] = (crewStats[c.company_id] || 0) + 1;
+                }
+            });
+            
+            res.json({
+                migration_status: '✅ APPLIED',
+                company_id_column_exists: true,
+                crew_members: {
+                    total: crewWithCompany.length,
+                    with_company: crewWithCompany.length - crewWithoutCompany.length,
+                    without_company: crewWithoutCompany.length,
+                    by_company: crewStats
+                },
+                crew_details: crewWithCompany,
+                security_status: crewWithoutCompany.length === 0 ? 
+                    '🔒 SECURE - All crew members have company assignments' : 
+                    '⚠️ WARNING - Some crew members missing company assignment',
+                timestamp: new Date().toISOString()
+            });
+        } else {
+            res.json({
+                migration_status: '❌ NOT APPLIED',
+                company_id_column_exists: false,
+                message: 'Run POST /fix-crew-company-isolation to apply migration',
+                security_status: '🚨 VULNERABLE - Cross-company data leakage possible',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+    } catch (error) {
+        console.error('Migration status check error:', error);
+        res.status(500).json({ 
+            error: 'Migration status check failed: ' + error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
