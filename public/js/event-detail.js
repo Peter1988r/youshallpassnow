@@ -135,12 +135,21 @@ function displayAssignedCompanies(companies) {
             <div class="company-tag">
                 <span>${company.name}</span>
                 <small>Assigned: ${assignedDate}</small>
-                <button onclick="removeCompanyFromEvent(${company.id})" title="Remove company">×</button>
+                <button data-company-id="${company.id}" data-action="remove-company" title="Remove company">×</button>
             </div>
         `;
     });
     
     container.innerHTML = html;
+    
+    // Add event listener for remove company buttons
+    container.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action="remove-company"]');
+        if (button) {
+            const companyId = button.dataset.companyId;
+            removeCompanyFromEvent(companyId);
+        }
+    });
 }
 
 // Setup event listeners
@@ -656,7 +665,7 @@ function displayCrewApprovals(approvals) {
                 <td>${approval.role}</td>
                 <td>${requestedDate}</td>
                 <td>
-                    <select class="access-level-select" onchange="updateAccessLevel(${approval.id}, this.value)">
+                    <select class="access-level-select" data-crew-id="${approval.id}">
                         <option value="No Clearance" ${accessLevel === 'No Clearance' ? 'selected' : ''}>No Clearance</option>
                         <option value="RESTRICTED" ${accessLevel === 'RESTRICTED' ? 'selected' : ''}>Restricted</option>
                         <option value="STANDARD" ${accessLevel === 'STANDARD' ? 'selected' : ''}>Standard</option>
@@ -667,9 +676,9 @@ function displayCrewApprovals(approvals) {
                 </td>
                 <td>
                     <div class="approval-actions">
-                        <button class="btn-view" onclick="viewCrewDetails(${approval.id})">View</button>
-                        <button class="btn-approve" onclick="approveCrewMember(${approval.id})">Approve</button>
-                        <button class="btn-reject" onclick="rejectCrewMember(${approval.id})">Reject</button>
+                        <button class="btn-view" data-crew-id="${approval.id}" data-action="view">View</button>
+                        <button class="btn-approve" data-crew-id="${approval.id}" data-action="approve">Approve</button>
+                        <button class="btn-reject" data-crew-id="${approval.id}" data-action="reject">Reject</button>
                     </div>
                 </td>
             </tr>
@@ -677,6 +686,36 @@ function displayCrewApprovals(approvals) {
     });
     
     tbody.innerHTML = html;
+    
+    // Add event listeners for approval actions
+    tbody.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const crewId = button.dataset.crewId;
+        const action = button.dataset.action;
+        
+        switch (action) {
+            case 'view':
+                viewCrewDetails(crewId);
+                break;
+            case 'approve':
+                approveCrewMember(crewId);
+                break;
+            case 'reject':
+                rejectCrewMember(crewId);
+                break;
+        }
+    });
+    
+    // Add event listeners for access level changes
+    tbody.addEventListener('change', (e) => {
+        if (e.target.classList.contains('access-level-select')) {
+            const crewId = e.target.dataset.crewId;
+            const accessLevel = e.target.value;
+            updateAccessLevel(crewId, accessLevel);
+        }
+    });
 }
 
 // Update access level for crew member
@@ -748,7 +787,7 @@ function showCrewDetailsModal(details) {
         <div class="modal-content badge-modal">
             <div class="modal-header">
                 <h3>🏷️ Crew Badge Details</h3>
-                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                <button class="close-modal" data-action="close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="badge-container">
@@ -786,10 +825,18 @@ function showCrewDetailsModal(details) {
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                <button type="button" class="btn-secondary" data-action="close-modal">Close</button>
             </div>
         </div>
     `;
+    
+    // Add event listeners for the modal
+    const closeButtons = modal.querySelectorAll('[data-action="close-modal"]');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            modal.remove();
+        });
+    });
     
     document.body.appendChild(modal);
 }
