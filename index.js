@@ -373,53 +373,38 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
         const companyId = req.user.company_id;
-        
-        console.log(`Loading crew for event ${eventId}, user company: ${companyId}`);
-        
-        // For company isolation: check if company_id column exists first
+        const isSuperAdmin = req.user.is_super_admin;
+
         let crew;
-        try {
-            // Check if company_id column exists in crew_members table
-            const columnExists = await query(`
-                SELECT 1 FROM information_schema.columns 
-                WHERE table_name = 'crew_members' AND column_name = 'company_id'
-            `);
-            
-            if (columnExists.length > 0) {
-                // New behavior: filter by company_id
-                if (req.user.is_super_admin) {
-                    // Super admin sees all crew members with company info
-                    crew = await query(`
-                        SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
-                               cm.badge_number, cm.status, cm.created_at, cm.company_id,
-                               c.name as company_name
-                        FROM crew_members cm
-                        LEFT JOIN companies c ON cm.company_id = c.id
-                        WHERE cm.event_id = $1 
-                        ORDER BY cm.created_at DESC
-                    `, [eventId]);
-                } else {
-                    // Company users only see their own crew members
-                    crew = await query(`
-                        SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
-                        FROM crew_members 
-                        WHERE event_id = $1 AND company_id = $2
-                        ORDER BY created_at DESC
-                    `, [eventId, companyId]);
-                }
+        // Check if company_id column exists in crew_members table
+        const columnExists = await query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'crew_members' AND column_name = 'company_id'
+        `);
+
+        if (columnExists.length > 0) {
+            if (isSuperAdmin) {
+                // Super admin sees all crew members with company info
+                crew = await query(`
+                    SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
+                           cm.badge_number, cm.status, cm.created_at, cm.company_id,
+                           c.name as company_name
+                    FROM crew_members cm
+                    LEFT JOIN companies c ON cm.company_id = c.id
+                    WHERE cm.event_id = $1 
+                    ORDER BY cm.created_at DESC
+                `, [eventId]);
             } else {
-                // Fallback: old behavior without company filtering (until migration is run)
-                console.log('⚠️ company_id column not found - using legacy crew loading');
+                // Company users only see their own crew members
                 crew = await query(`
                     SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
                     FROM crew_members 
-                    WHERE event_id = $1 
+                    WHERE event_id = $1 AND company_id = $2
                     ORDER BY created_at DESC
-                `, [eventId]);
+                `, [eventId, companyId]);
             }
-        } catch (error) {
-            console.error('Error checking company_id column:', error);
-            // Fallback to basic query
+        } else {
+            // Fallback: old behavior without company filtering (until migration is run)
             crew = await query(`
                 SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
                 FROM crew_members 
@@ -427,8 +412,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
                 ORDER BY created_at DESC
             `, [eventId]);
         }
-        
-        console.log(`Found ${crew.length} crew members for event ${eventId} (company filter: ${req.user.is_super_admin ? 'none' : companyId})`);
+
         res.json(crew);
     } catch (error) {
         console.error('Get crew error:', error);
