@@ -1783,26 +1783,49 @@ app.delete('/api/admin/events/:eventId/companies/:companyId', authenticateToken,
 });
 
 // Get crew approvals for a specific event
-app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
-        
-        const approvals = await query(`
-            SELECT 
-                cm.id,
-                cm.first_name,
-                cm.last_name,
-                cm.email,
-                cm.role,
-                cm.access_level,
-                cm.status,
-                cm.created_at,
-                cm.approved_at
-            FROM crew_members cm
-            WHERE cm.event_id = $1 AND cm.status = 'pending_approval'
-            ORDER BY cm.created_at DESC
-        `, [eventId]);
-        
+        const companyId = req.user.company_id;
+        const isSuperAdmin = req.user.is_super_admin;
+
+        let approvals;
+        if (isSuperAdmin) {
+            approvals = await query(`
+                SELECT 
+                    cm.id,
+                    cm.first_name,
+                    cm.last_name,
+                    cm.email,
+                    cm.role,
+                    cm.access_level,
+                    cm.status,
+                    cm.created_at,
+                    cm.approved_at,
+                    cm.company_id,
+                    c.name as company_name
+                FROM crew_members cm
+                LEFT JOIN companies c ON cm.company_id = c.id
+                WHERE cm.event_id = $1 AND cm.status = 'pending_approval'
+                ORDER BY cm.created_at DESC
+            `, [eventId]);
+        } else {
+            approvals = await query(`
+                SELECT 
+                    cm.id,
+                    cm.first_name,
+                    cm.last_name,
+                    cm.email,
+                    cm.role,
+                    cm.access_level,
+                    cm.status,
+                    cm.created_at,
+                    cm.approved_at
+                FROM crew_members cm
+                WHERE cm.event_id = $1 AND cm.status = 'pending_approval' AND cm.company_id = $2
+                ORDER BY cm.created_at DESC
+            `, [eventId, companyId]);
+        }
         res.json(approvals);
     } catch (error) {
         console.error('Get event crew approvals error:', error);
@@ -1896,14 +1919,17 @@ app.post('/api/admin/cleanup-events', authenticateToken, requireSuperAdmin, asyn
 });
 
 // Get approved crew members for events with company filter
-app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { company_id } = req.query; // Optional company filter
-        
-        console.log('Getting approved crew for event:', eventId);
-        console.log('Company filter:', company_id);
-        
+        let company_id = req.query.company_id;
+        const isSuperAdmin = req.user.is_super_admin;
+
+        // For non-super-admins, always use their own company_id
+        if (!isSuperAdmin) {
+            company_id = req.user.company_id;
+        }
+
         let queryText = `
             SELECT 
                 cm.id,
@@ -1918,40 +1944,20 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, requireSu
                 c.name as company_name,
                 c.id as company_id
             FROM crew_members cm
-            LEFT JOIN events e ON cm.event_id = e.id
-            LEFT JOIN event_companies ec ON e.id = ec.event_id
-            LEFT JOIN companies c ON ec.company_id = c.id
+            LEFT JOIN companies c ON cm.company_id = c.id
             WHERE cm.event_id = $1 AND cm.status = 'approved'
         `;
-        
         let queryParams = [eventId];
-        
-        // Add company filter if provided
         if (company_id) {
-            queryText += ' AND ec.company_id = $2';
+            queryText += ' AND cm.company_id = $2';
             queryParams.push(company_id);
         }
-        
         queryText += ' ORDER BY cm.approved_at DESC';
-        
-        console.log('Query:', queryText);
-        console.log('Query params:', queryParams);
-        
         const approvedCrew = await query(queryText, queryParams);
-        
-        console.log('Approved crew result:', approvedCrew);
-        console.log('Approved crew count:', approvedCrew.length);
-        
         res.json(approvedCrew);
     } catch (error) {
         console.error('Get approved crew error:', error);
-        console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            detail: error.detail,
-            hint: error.hint
-        });
-        res.status(500).json({ error: 'Internal server error', details: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -2494,12 +2500,6 @@ const startServer = async () => {
     }
 };
 
-// Initialize database on startup
-startServer();
-
-// Export for Vercel
-module.exports = app;
-
 // Check migration status - specifically for company_id column
 app.get('/check-migration-status', async (req, res) => {
     try {
@@ -2572,3 +2572,9 @@ app.get('/check-migration-status', async (req, res) => {
         });
     }
 });
+
+// Initialize database on startup
+startServer();
+
+// Export for Vercel
+module.exports = app;
