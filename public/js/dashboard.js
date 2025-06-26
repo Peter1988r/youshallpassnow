@@ -357,7 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 if (!uploadResponse.ok) {
-                    throw new Error('Failed to upload photo');
+                    const errorText = await uploadResponse.text();
+                    console.error('Upload response error:', uploadResponse.status, errorText);
+                    throw new Error(`Failed to upload photo: ${uploadResponse.status} - ${errorText}`);
                 }
                 
                 const uploadResult = await uploadResponse.json();

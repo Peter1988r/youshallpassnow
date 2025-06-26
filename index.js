@@ -443,6 +443,21 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     }
 });
 
+// Test Supabase configuration endpoint
+app.get('/api/test-supabase-config', authenticateToken, (req, res) => {
+    try {
+        res.json({
+            supabaseUrl: process.env.SUPABASE_URL ? 'SET' : 'NOT SET',
+            supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+            photoBucket: process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos (default)',
+            crewlistBucket: process.env.SUPABASE_CREWLIST_BUCKET ? 'SET' : 'NOT SET',
+            supabaseClient: supabase ? 'INITIALIZED' : 'NOT INITIALIZED'
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Test Supabase storage endpoint
 app.get('/api/test-storage', authenticateToken, async (req, res) => {
     try {
@@ -502,8 +517,22 @@ app.post('/api/upload', authenticateToken, (req, res) => {
             const fileExtension = path.extname(req.file.originalname);
             const uniqueFilename = `crew-photo-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
             
+            // Check Supabase configuration
+            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                console.error('Supabase configuration missing');
+                return res.status(500).json({ 
+                    error: 'Storage service not configured. Please contact administrator.',
+                    debug: {
+                        supabaseUrl: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
+                        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING'
+                    }
+                });
+            }
+            
             // Upload to Supabase Storage
             const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
+            console.log(`Attempting upload to bucket: ${bucketName}`);
+            
             const { data, error } = await supabase.storage
                 .from(bucketName)
                 .upload(uniqueFilename, req.file.buffer, {
@@ -513,7 +542,15 @@ app.post('/api/upload', authenticateToken, (req, res) => {
             
             if (error) {
                 console.error('Supabase storage error:', error);
-                return res.status(500).json({ error: 'Failed to upload to storage: ' + error.message });
+                return res.status(500).json({ 
+                    error: 'Failed to upload to storage: ' + error.message,
+                    debug: {
+                        bucket: bucketName,
+                        filename: uniqueFilename,
+                        errorCode: error.statusCode,
+                        errorMessage: error.message
+                    }
+                });
             }
             
             console.log('File uploaded to Supabase successfully:', data);
