@@ -483,7 +483,7 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
                 INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, company_id)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
-            `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber, companyId]);
+            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber, companyId]);
             console.log(`Crew member inserted with company_id ${companyId}, result:`, result);
         } else {
             // Fallback: legacy behavior without company_id
@@ -491,7 +491,7 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
                 INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id
-            `, [eventId, firstName, lastName, email, role, 'STANDARD', badgeNumber]);
+            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber]);
             console.log('Crew member inserted (legacy mode), result:', result);
         }
 

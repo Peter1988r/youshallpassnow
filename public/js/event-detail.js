@@ -59,13 +59,32 @@ function populateEventForm(event) {
     
     document.getElementById('eventName').value = event.name;
     document.getElementById('eventLocation').value = event.location;
-    document.getElementById('startDate').value = event.start_date;
-    document.getElementById('endDate').value = event.end_date;
+    
+    // Format dates for HTML date inputs (yyyy-MM-dd)
+    document.getElementById('startDate').value = formatDateForInput(event.start_date);
+    document.getElementById('endDate').value = formatDateForInput(event.end_date);
+    
     document.getElementById('eventDescription').value = event.description || '';
     document.getElementById('eventStatusSelect').value = event.status || 'active';
     
     // Update status badge
     updateStatusBadge(event.status);
+}
+
+// Helper function to format date for HTML date input
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    
+    // Handle both ISO format and already formatted dates
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    
+    // Format as yyyy-MM-dd
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
 }
 
 // Update status badge
