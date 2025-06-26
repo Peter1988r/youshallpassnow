@@ -113,6 +113,15 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Ensure the roles table has a unique constraint on name
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'roles_name_key') THEN
+                    ALTER TABLE roles ADD CONSTRAINT roles_name_key UNIQUE (name);
+                END IF;
+            END $$;
+        `);
+
         // Insert default roles if they don't exist
         const defaultRoles = [
             { name: 'technical_director', description: 'Oversees technical operations and equipment setup for events' },
@@ -126,11 +135,21 @@ const initDatabase = async () => {
         ];
 
         for (const role of defaultRoles) {
-            await client.query(`
-                INSERT INTO roles (name, description)
-                VALUES ($1, $2)
-                ON CONFLICT (name) DO UPDATE SET description = $2
-            `, [role.name, role.description]);
+            try {
+                await client.query(`
+                    INSERT INTO roles (name, description)
+                    VALUES ($1, $2)
+                    ON CONFLICT (name) DO UPDATE SET description = $2
+                `, [role.name, role.description]);
+            } catch (roleError) {
+                // If there's still an issue, try a simple check-and-insert
+                const existing = await client.query('SELECT id FROM roles WHERE name = $1', [role.name]);
+                if (existing.rows.length === 0) {
+                    await client.query(`
+                        INSERT INTO roles (name, description) VALUES ($1, $2)
+                    `, [role.name, role.description]);
+                }
+            }
         }
 
         // Add event_companies junction table for many-to-many relationship
@@ -164,6 +183,15 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Add company_id column to crew_members table if not exists
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='company_id') THEN
+                    ALTER TABLE crew_members ADD COLUMN company_id INTEGER REFERENCES companies(id);
+                END IF;
+            END $$;
+        `);
+
         // Insert default super admin user
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10);
@@ -174,44 +202,57 @@ const initDatabase = async () => {
             ON CONFLICT (email) DO NOTHING
         `, ['admin@youshallpass.com', adminPassword, 'Super', 'Admin', 'super_admin', true]);
 
-        // Insert sample company
-        await client.query(`
+        // Insert sample company and get its ID
+        const companyResult = await client.query(`
             INSERT INTO companies (name, domain, contact_email, contact_phone, address)
             VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (domain) DO NOTHING
+            ON CONFLICT (domain) DO UPDATE SET name = EXCLUDED.name
+            RETURNING id
         `, ['YouShallPass Demo Company', 'demo.youshallpass.com', 'contact@demo.youshallpass.com', '+1-555-0123', '123 Demo Street, Demo City, DC 12345']);
 
-        // Insert sample company admin
-        const companyAdminPassword = bcrypt.hashSync('company123', 10);
-        await client.query(`
-            INSERT INTO users (company_id, email, password_hash, first_name, last_name, role)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (email) DO NOTHING
-        `, [1, 'company@demo.youshallpass.com', companyAdminPassword, 'Company', 'Admin', 'admin']);
+        let companyId = companyResult.rows[0]?.id;
+        
+        // If no ID returned (conflict case), get the existing company ID
+        if (!companyId) {
+            const existingCompany = await client.query('SELECT id FROM companies WHERE domain = $1', ['demo.youshallpass.com']);
+            companyId = existingCompany.rows[0]?.id;
+        }
 
-        // Insert sample events only if they don't exist
-        const existingEvents = await client.query('SELECT COUNT(*) as count FROM events');
-        if (existingEvents.rows[0].count === 0) {
-            console.log('Creating sample events...');
-            
+        // Insert sample company admin with the correct company ID
+        if (companyId) {
+            const companyAdminPassword = bcrypt.hashSync('company123', 10);
             await client.query(`
-                INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                INSERT INTO users (company_id, email, password_hash, first_name, last_name, role)
                 VALUES ($1, $2, $3, $4, $5, $6)
-            `, [1, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix']);
+                ON CONFLICT (email) DO NOTHING
+            `, [companyId, 'company@demo.youshallpass.com', companyAdminPassword, 'Company', 'Admin', 'admin']);
+        }
 
-            await client.query(`
-                INSERT INTO events (company_id, name, location, start_date, end_date, description)
-                VALUES ($1, $2, $3, $4, $5, $6)
-            `, [1, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert']);
+        // Insert sample events only if they don't exist and we have a valid company ID
+        if (companyId) {
+            const existingEvents = await client.query('SELECT COUNT(*) as count FROM events');
+            if (existingEvents.rows[0].count === 0) {
+                console.log('Creating sample events...');
+                
+                await client.query(`
+                    INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [companyId, 'Formula E World Championship', 'São Paulo, Brazil', '2024-03-15', '2024-03-16', 'Experience the future of racing at the São Paulo E-Prix']);
 
-            await client.query(`
-                INSERT INTO events (company_id, name, location, start_date, end_date, description)
-                VALUES ($1, $2, $3, $4, $5, $6)
-            `, [1, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series']);
-            
-            console.log('Sample events created successfully');
-        } else {
-            console.log('Events already exist, skipping sample event creation');
+                await client.query(`
+                    INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [companyId, 'Extreme E Desert X Prix', 'Saudi Arabia', '2024-04-03', '2024-04-04', 'Watch electric SUVs battle it out in the desert']);
+
+                await client.query(`
+                    INSERT INTO events (company_id, name, location, start_date, end_date, description)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [companyId, 'E1 Series Championship', 'Venice, Italy', '2024-05-20', '2024-05-21', 'The world\'s first electric powerboat racing series']);
+                
+                console.log('Sample events created successfully');
+            } else {
+                console.log('Events already exist, skipping sample event creation');
+            }
         }
 
         client.release();
