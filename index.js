@@ -39,20 +39,16 @@ const { generatePDF } = require('./services/pdfGenerator');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware - Set custom CSP headers to allow Supabase images
+// Security middleware - Remove all CSP headers to allow Supabase images
 app.use((req, res, next) => {
-    // Set CSP header that allows Supabase images
-    res.setHeader('Content-Security-Policy', 
-        "default-src 'self'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "script-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https://*.supabase.co https://lqcsuivqcdamkaskbwhz.supabase.co; " +
-        "connect-src 'self' https://*.supabase.co https://lqcsuivqcdamkaskbwhz.supabase.co; " +
-        "font-src 'self'; " +
-        "object-src 'none'; " +
-        "media-src 'self'; " +
-        "frame-src 'none';"
-    );
+    // Remove any existing CSP headers
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('Content-Security-Policy-Report-Only');
+    
+    // Set permissive CSP that allows everything
+    res.setHeader('Content-Security-Policy', "img-src *; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
+    
+    console.log('CSP Headers set:', res.getHeaders()['content-security-policy']);
     next();
 });
 
@@ -460,6 +456,16 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         console.error('Get crew error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// Debug headers endpoint
+app.get('/api/debug-headers', (req, res) => {
+    res.json({
+        message: 'Headers debug',
+        allHeaders: res.getHeaders(),
+        cspHeader: res.getHeader('Content-Security-Policy'),
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Test Supabase configuration endpoint
