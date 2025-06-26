@@ -794,7 +794,12 @@ function showCrewDetailsModal(details) {
     // Create badge-like popup with photo
     const photoSection = details.photo_path ? 
         `<div class="badge-photo">
-            <img src="${details.photo_path}" alt="Crew Photo" style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;">
+            <img src="${details.photo_path}" alt="Crew Photo" style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="width: 120px; height: 120px; border-radius: 8px; background: #fee2e2; display: none; align-items: center; justify-content: center; color: #991b1b; text-align: center; font-size: 10px;">
+                Photo failed to load<br>
+                <small>${details.photo_path}</small>
+            </div>
         </div>` : 
         `<div class="badge-photo">
             <div style="width: 120px; height: 120px; border-radius: 8px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #666;">

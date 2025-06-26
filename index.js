@@ -501,6 +501,59 @@ app.get('/api/test-storage', authenticateToken, async (req, res) => {
     }
 });
 
+// Setup storage policies endpoint
+app.post('/api/setup-storage-policies', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
+        
+        // Create storage policies using SQL
+        const policies = [
+            {
+                name: 'Allow authenticated uploads',
+                sql: `
+                    CREATE POLICY "Allow authenticated uploads" ON storage.objects
+                    FOR INSERT WITH CHECK (
+                        bucket_id = '${bucketName}' AND 
+                        auth.role() = 'authenticated'
+                    );
+                `
+            },
+            {
+                name: 'Allow public downloads',
+                sql: `
+                    CREATE POLICY "Allow public downloads" ON storage.objects
+                    FOR SELECT USING (bucket_id = '${bucketName}');
+                `
+            }
+        ];
+        
+        const results = [];
+        
+        for (const policy of policies) {
+            try {
+                await query(policy.sql);
+                results.push({ policy: policy.name, status: 'created' });
+            } catch (error) {
+                if (error.message.includes('already exists')) {
+                    results.push({ policy: policy.name, status: 'already exists' });
+                } else {
+                    results.push({ policy: policy.name, status: 'failed', error: error.message });
+                }
+            }
+        }
+        
+        res.json({
+            message: 'Storage policies setup completed',
+            bucket: bucketName,
+            results
+        });
+        
+    } catch (error) {
+        console.error('Setup storage policies error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // File upload endpoint using Supabase Storage
 app.post('/api/upload', authenticateToken, (req, res) => {
     // Use multer middleware with error handling
