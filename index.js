@@ -6,35 +6,17 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        try {
-            // Create uploads directory if it doesn't exist
-            const uploadDir = path.join(__dirname, 'public', 'uploads');
-            console.log('Upload directory path:', uploadDir);
-            
-            if (!fs.existsSync(uploadDir)) {
-                console.log('Creating uploads directory...');
-                fs.mkdirSync(uploadDir, { recursive: true });
-                console.log('Uploads directory created successfully');
-            }
-            cb(null, uploadDir);
-        } catch (error) {
-            console.error('Error creating upload directory:', error);
-            cb(error);
-        }
-    },
-    filename: function (req, file, cb) {
-        // Generate unique filename with timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Configure Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
+// Configure multer for memory storage (no disk writes)
 const upload = multer({ 
-    storage: storage,
+    storage: multer.memoryStorage(),
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB limit
     },
@@ -461,33 +443,39 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     }
 });
 
-// Test upload directory endpoint
-app.get('/api/test-upload-dir', authenticateToken, (req, res) => {
+// Test Supabase storage endpoint
+app.get('/api/test-storage', authenticateToken, async (req, res) => {
     try {
-        const uploadDir = path.join(__dirname, 'public', 'uploads');
-        const exists = fs.existsSync(uploadDir);
+        const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
         
-        let files = [];
-        if (exists) {
-            files = fs.readdirSync(uploadDir);
+        // List files in the bucket
+        const { data, error } = await supabase.storage
+            .from(bucketName)
+            .list('', {
+                limit: 10,
+                offset: 0
+            });
+        
+        if (error) {
+            return res.status(500).json({ error: 'Storage test failed: ' + error.message });
         }
         
         res.json({
-            uploadDir,
-            exists,
-            files,
-            __dirname,
-            fullPath: path.resolve(uploadDir)
+            message: 'Supabase storage test successful',
+            bucket: bucketName,
+            files: data,
+            supabaseUrl: process.env.SUPABASE_URL ? 'SET' : 'NOT SET',
+            serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// File upload endpoint
+// File upload endpoint using Supabase Storage
 app.post('/api/upload', authenticateToken, (req, res) => {
     // Use multer middleware with error handling
-    upload.single('photo')(req, res, (err) => {
+    upload.single('photo')(req, res, async (err) => {
         if (err) {
             console.error('Multer error:', err);
             if (err.code === 'LIMIT_FILE_SIZE') {
@@ -504,18 +492,46 @@ app.post('/api/upload', authenticateToken, (req, res) => {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
             
-            console.log('File uploaded successfully:', req.file);
+            console.log('File received for upload:', {
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            });
             
-            // Return the relative path for storing in database
-            const relativePath = `/uploads/${req.file.filename}`;
+            // Generate unique filename
+            const fileExtension = path.extname(req.file.originalname);
+            const uniqueFilename = `crew-photo-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+            
+            // Upload to Supabase Storage
+            const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
+            const { data, error } = await supabase.storage
+                .from(bucketName)
+                .upload(uniqueFilename, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+            
+            if (error) {
+                console.error('Supabase storage error:', error);
+                return res.status(500).json({ error: 'Failed to upload to storage: ' + error.message });
+            }
+            
+            console.log('File uploaded to Supabase successfully:', data);
+            
+            // Get public URL for the uploaded file
+            const { data: urlData } = supabase.storage
+                .from(bucketName)
+                .getPublicUrl(uniqueFilename);
             
             res.json({
                 message: 'File uploaded successfully',
-                path: relativePath,
-                filename: req.file.filename,
+                path: urlData.publicUrl,
+                filename: uniqueFilename,
                 originalName: req.file.originalname,
-                size: req.file.size
+                size: req.file.size,
+                bucket: bucketName
             });
+            
         } catch (error) {
             console.error('File upload processing error:', error);
             res.status(500).json({ error: 'File upload processing failed: ' + error.message });
