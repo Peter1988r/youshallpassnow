@@ -88,12 +88,13 @@ const initForms = () => {
             
             try {
                 const formData = new FormData(form);
+                const method = (form.method || 'POST').toUpperCase();
                 const requestOptions = {
-                    method: form.method || 'POST'
+                    method: method
                 };
                 
-                // Only add body for non-GET requests
-                if (requestOptions.method !== 'GET') {
+                // Only add body for non-GET/HEAD requests
+                if (method !== 'GET' && method !== 'HEAD') {
                     requestOptions.body = formData;
                 }
                 

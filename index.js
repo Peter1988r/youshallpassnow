@@ -10,13 +10,21 @@ const multer = require('multer');
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Create uploads directory if it doesn't exist
-        const fs = require('fs');
-        const uploadDir = path.join(__dirname, 'public', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        try {
+            // Create uploads directory if it doesn't exist
+            const uploadDir = path.join(__dirname, 'public', 'uploads');
+            console.log('Upload directory path:', uploadDir);
+            
+            if (!fs.existsSync(uploadDir)) {
+                console.log('Creating uploads directory...');
+                fs.mkdirSync(uploadDir, { recursive: true });
+                console.log('Uploads directory created successfully');
+            }
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error('Error creating upload directory:', error);
+            cb(error);
         }
-        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         // Generate unique filename with timestamp
@@ -453,25 +461,66 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     }
 });
 
-// File upload endpoint
-app.post('/api/upload', authenticateToken, upload.single('photo'), (req, res) => {
+// Test upload directory endpoint
+app.get('/api/test-upload-dir', authenticateToken, (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        const exists = fs.existsSync(uploadDir);
+        
+        let files = [];
+        if (exists) {
+            files = fs.readdirSync(uploadDir);
         }
         
-        // Return the relative path for storing in database
-        const relativePath = `/uploads/${req.file.filename}`;
-        
         res.json({
-            message: 'File uploaded successfully',
-            path: relativePath,
-            filename: req.file.filename
+            uploadDir,
+            exists,
+            files,
+            __dirname,
+            fullPath: path.resolve(uploadDir)
         });
     } catch (error) {
-        console.error('File upload error:', error);
-        res.status(500).json({ error: 'File upload failed' });
+        res.status(500).json({ error: error.message });
     }
+});
+
+// File upload endpoint
+app.post('/api/upload', authenticateToken, (req, res) => {
+    // Use multer middleware with error handling
+    upload.single('photo')(req, res, (err) => {
+        if (err) {
+            console.error('Multer error:', err);
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+            }
+            if (err.message === 'Only image files are allowed!') {
+                return res.status(400).json({ error: 'Only image files are allowed.' });
+            }
+            return res.status(500).json({ error: 'File upload failed: ' + err.message });
+        }
+        
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            
+            console.log('File uploaded successfully:', req.file);
+            
+            // Return the relative path for storing in database
+            const relativePath = `/uploads/${req.file.filename}`;
+            
+            res.json({
+                message: 'File uploaded successfully',
+                path: relativePath,
+                filename: req.file.filename,
+                originalName: req.file.originalname,
+                size: req.file.size
+            });
+        } catch (error) {
+            console.error('File upload processing error:', error);
+            res.status(500).json({ error: 'File upload processing failed: ' + error.message });
+        }
+    });
 });
 
 // Add crew member
