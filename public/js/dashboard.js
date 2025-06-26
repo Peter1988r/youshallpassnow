@@ -187,6 +187,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Handle crew action button clicks
+    function handleCrewActions(e) {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const action = button.dataset.action;
+        const crewId = button.dataset.crewId;
+        const badgeNumber = button.dataset.badgeNumber;
+        
+        switch (action) {
+            case 'approve':
+                approveCrewMember(crewId);
+                break;
+            case 'delete':
+                deleteCrewMember(crewId);
+                break;
+            case 'download':
+                downloadBadge(badgeNumber);
+                break;
+        }
+    }
+
     // Update crew table
     function updateCrewTable(crewMembers) {
         crewTableBody.innerHTML = '';
@@ -207,15 +229,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Super admins can approve/delete
                 actionsHtml = `
                     ${member.status === 'pending_approval' ? 
-                        `<button class="btn-icon" title="Approve" onclick="approveCrewMember(${member.id})">✓</button>` : 
-                        `<button class="btn-icon" title="Download Badge" onclick="downloadBadge('${member.badge_number}')">📄</button>`
+                        `<button class="btn-icon" title="Approve" data-crew-id="${member.id}" data-action="approve">✓</button>` : 
+                        `<button class="btn-icon" title="Download Badge" data-badge-number="${member.badge_number}" data-action="download">📄</button>`
                     }
-                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
+                    <button class="btn-icon" title="Delete" data-crew-id="${member.id}" data-action="delete">🗑️</button>
                 `;
             } else {
                 // Company admins can only delete
                 actionsHtml = `
-                    <button class="btn-icon" title="Delete" onclick="deleteCrewMember(${member.id})">🗑️</button>
+                    <button class="btn-icon" title="Delete" data-crew-id="${member.id}" data-action="delete">🗑️</button>
                 `;
             }
             
@@ -229,6 +251,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             crewTableBody.appendChild(row);
         });
+        
+        // Add event delegation for crew action buttons (remove existing listeners first)
+        crewTableBody.removeEventListener('click', handleCrewActions);
+        crewTableBody.addEventListener('click', handleCrewActions);
     }
 
     // Update progress bar
