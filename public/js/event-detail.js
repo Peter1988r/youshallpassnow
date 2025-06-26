@@ -733,21 +733,56 @@ function showCrewDetailsModal(details) {
     modal.className = 'modal';
     modal.style.display = 'flex';
     
+    // Create badge-like popup with photo
+    const photoSection = details.photo_path ? 
+        `<div class="badge-photo">
+            <img src="${details.photo_path}" alt="Crew Photo" style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;">
+        </div>` : 
+        `<div class="badge-photo">
+            <div style="width: 120px; height: 120px; border-radius: 8px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #666;">
+                No Photo
+            </div>
+        </div>`;
+    
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="modal-content badge-modal">
             <div class="modal-header">
-                <h3>Crew Member Details</h3>
+                <h3>🏷️ Crew Badge Details</h3>
                 <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="crew-details">
-                    <p><strong>Name:</strong> ${details.first_name} ${details.last_name}</p>
-                    <p><strong>Email:</strong> ${details.email}</p>
-                    <p><strong>Role:</strong> ${details.role}</p>
-                    <p><strong>Badge Number:</strong> ${details.badge_number}</p>
-                    <p><strong>Status:</strong> ${details.status}</p>
-                    <p><strong>Requested:</strong> ${new Date(details.created_at).toLocaleString()}</p>
-                    ${details.approved_at ? `<p><strong>Approved:</strong> ${new Date(details.approved_at).toLocaleString()}</p>` : ''}
+                <div class="badge-container">
+                    ${photoSection}
+                    <div class="badge-info">
+                        <h4>${details.first_name} ${details.last_name}</h4>
+                        <div class="badge-field">
+                            <strong>Role:</strong> ${details.role}
+                        </div>
+                        <div class="badge-field">
+                            <strong>Email:</strong> ${details.email}
+                        </div>
+                        <div class="badge-field">
+                            <strong>Badge #:</strong> ${details.badge_number || 'Not assigned'}
+                        </div>
+                        <div class="badge-field">
+                            <strong>Access Level:</strong> ${details.access_level || 'Not set'}
+                        </div>
+                        <div class="badge-field">
+                            <strong>Status:</strong> 
+                            <span class="status-badge ${details.status}">${details.status}</span>
+                        </div>
+                        <div class="badge-field">
+                            <strong>Requested:</strong> ${new Date(details.created_at).toLocaleString()}
+                        </div>
+                        ${details.approved_at ? `
+                        <div class="badge-field">
+                            <strong>Approved:</strong> ${new Date(details.approved_at).toLocaleString()}
+                        </div>` : ''}
+                        ${details.company_name ? `
+                        <div class="badge-field">
+                            <strong>Company:</strong> ${details.company_name}
+                        </div>` : ''}
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -767,7 +802,7 @@ async function approveCrewMember(crewId) {
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/crew/${crewId}/approve`, {
+        const response = await fetch(`/api/admin/approvals/${crewId}/approve`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -798,7 +833,7 @@ async function rejectCrewMember(crewId) {
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/crew/${crewId}/reject`, {
+        const response = await fetch(`/api/admin/approvals/${crewId}/reject`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`

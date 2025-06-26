@@ -1612,4 +1612,100 @@ select[multiple] option:disabled {
 
 .tab-panel.active {
     display: block;
-} 
+}
+
+/* Badge Modal Styles */
+.badge-modal {
+    max-width: 600px;
+}
+
+.badge-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.badge-photo {
+    flex-shrink: 0;
+}
+
+.badge-photo img {
+    border: 3px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.badge-info {
+    flex: 1;
+}
+
+.badge-info h4 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 1rem 0;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.badge-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.95rem;
+}
+
+.badge-field:last-child {
+    border-bottom: none;
+}
+
+.badge-field strong {
+    color: var(--secondary-color);
+    min-width: 120px;
+    font-weight: 500;
+}
+
+.badge-field .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-field .status-badge.pending_approval {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-field .status-badge.approved {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-field .status-badge.rejected {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+@media (max-width: 768px) {
+    .badge-container {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .badge-photo {
+        align-self: center;
+    }
+    
+    .badge-field {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .badge-field strong {
+        min-width: auto;
+    }
+}
