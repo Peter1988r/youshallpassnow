@@ -39,9 +39,26 @@ const { generatePDF } = require('./services/pdfGenerator');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware - Temporarily disable helmet entirely to allow Supabase images
+// Security middleware - Set custom CSP headers to allow Supabase images
+app.use((req, res, next) => {
+    // Set CSP header that allows Supabase images
+    res.setHeader('Content-Security-Policy', 
+        "default-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: https://*.supabase.co https://lqcsuivqcdamkaskbwhz.supabase.co; " +
+        "connect-src 'self' https://*.supabase.co https://lqcsuivqcdamkaskbwhz.supabase.co; " +
+        "font-src 'self'; " +
+        "object-src 'none'; " +
+        "media-src 'self'; " +
+        "frame-src 'none';"
+    );
+    next();
+});
+
+// Keep helmet disabled for now
 // app.use(helmet({
-//     contentSecurityPolicy: false, // Disable CSP to allow Supabase images
+//     contentSecurityPolicy: false,
 // }));
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
