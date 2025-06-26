@@ -1494,14 +1494,23 @@ app.delete('/api/admin/companies/:companyId', authenticateToken, requireSuperAdm
     try {
         const { companyId } = req.params;
         
-        // Delete in order: crew members -> events -> users -> company
-        await run('DELETE FROM crew_members WHERE event_id IN (SELECT id FROM events WHERE company_id = $1)', [companyId]);
-        await run('DELETE FROM events WHERE company_id = $1', [companyId]);
+        // Delete in order: crew members -> event associations -> company roles -> users -> company
+        // Note: We delete crew members from this company but preserve events
+        await run('DELETE FROM crew_members WHERE company_id = $1', [companyId]);
+        
+        // Remove company from event associations (but keep the events)
+        await run('DELETE FROM event_companies WHERE company_id = $1', [companyId]);
+        
+        // Delete company roles
+        await run('DELETE FROM company_roles WHERE company_id = $1', [companyId]);
+        
+        // Delete users from this company
         await run('DELETE FROM users WHERE company_id = $1', [companyId]);
-        await run('DELETE FROM roles WHERE company_id = $1', [companyId]);
+        
+        // Finally delete the company itself
         await run('DELETE FROM companies WHERE id = $1', [companyId]);
         
-        res.json({ message: 'Company and all associated data deleted successfully' });
+        res.json({ message: 'Company deleted successfully. Events have been preserved.' });
     } catch (error) {
         console.error('Delete company error:', error);
         res.status(500).json({ error: 'Internal server error' });
