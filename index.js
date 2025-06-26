@@ -6,6 +6,39 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // Create uploads directory if it doesn't exist
+        const fs = require('fs');
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // Generate unique filename with timestamp
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: function (req, file, cb) {
+        // Accept only image files
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
 const fs = require('fs');
 require('dotenv').config();
 
@@ -420,6 +453,27 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     }
 });
 
+// File upload endpoint
+app.post('/api/upload', authenticateToken, upload.single('photo'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        // Return the relative path for storing in database
+        const relativePath = `/uploads/${req.file.filename}`;
+        
+        res.json({
+            message: 'File uploaded successfully',
+            path: relativePath,
+            filename: req.file.filename
+        });
+    } catch (error) {
+        console.error('File upload error:', error);
+        res.status(500).json({ error: 'File upload failed' });
+    }
+});
+
 // Add crew member
 app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
     try {
@@ -478,21 +532,21 @@ app.post('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         
         let result;
         if (columnExists.length > 0) {
-            // New behavior: include company_id (logged-in user's company)
+            // New behavior: include company_id and photo_path
             result = await run(`
-                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, company_id)
+                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path, company_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING id
+            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber, photoPath, companyId]);
+            console.log(`Crew member inserted with company_id ${companyId} and photo_path ${photoPath}, result:`, result);
+        } else {
+            // Fallback: legacy behavior without company_id but with photo_path
+            result = await run(`
+                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number, photo_path)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
-            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber, companyId]);
-            console.log(`Crew member inserted with company_id ${companyId}, result:`, result);
-        } else {
-            // Fallback: legacy behavior without company_id
-            result = await run(`
-                INSERT INTO crew_members (event_id, first_name, last_name, email, role, access_level, badge_number)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id
-            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber]);
-            console.log('Crew member inserted (legacy mode), result:', result);
+            `, [eventId, firstName, lastName, email, role, 'RESTRICTED', badgeNumber, photoPath]);
+            console.log('Crew member inserted (legacy mode) with photo_path, result:', result);
         }
 
         // Get the created crew member
@@ -1880,7 +1934,7 @@ app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin,
                 c.name as company_name
             FROM crew_members cm
             JOIN events e ON cm.event_id = e.id
-            LEFT JOIN companies c ON e.company_id = c.id
+            LEFT JOIN companies c ON cm.company_id = c.id
             WHERE cm.id = $1
         `, [crewId]);
         

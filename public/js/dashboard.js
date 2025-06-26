@@ -342,8 +342,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const photoFile = formData.get('photo');
         let photoPath = null;
         
+        // Upload photo first if provided
         if (photoFile && photoFile.size > 0) {
-            photoPath = `/uploads/photos/${Date.now()}_${photoFile.name}`;
+            try {
+                const photoFormData = new FormData();
+                photoFormData.append('photo', photoFile);
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: photoFormData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload photo');
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                photoPath = uploadResult.path;
+                console.log('Photo uploaded successfully:', photoPath);
+            } catch (uploadError) {
+                console.error('Photo upload error:', uploadError);
+                showMessage('Failed to upload photo: ' + uploadError.message, 'error');
+                return;
+            }
         }
         
         try {
