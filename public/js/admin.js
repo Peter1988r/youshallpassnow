@@ -973,7 +973,7 @@ async function deleteRole(roleId) {
 
 // Delete company function
 async function deleteCompany(companyId) {
-    if (!confirm('Are you sure you want to delete this company? This will also delete all associated events, users, and crew members.')) {
+    if (!confirm('Are you sure you want to delete this company? This will delete the company, its users, and crew members. Events will be preserved but the company will be removed from event assignments.')) {
         return;
     }
     

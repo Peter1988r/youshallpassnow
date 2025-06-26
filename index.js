@@ -1494,6 +1494,19 @@ app.delete('/api/admin/companies/:companyId', authenticateToken, requireSuperAdm
     try {
         const { companyId } = req.params;
         
+        // First, check if this company has events directly assigned to it
+        const eventsWithThisCompany = await query('SELECT id, name FROM events WHERE company_id = $1', [companyId]);
+        
+        if (eventsWithThisCompany.length > 0) {
+            // For events that have this company as their primary company_id, 
+            // we need to reassign them to another company or handle the constraint
+            // For now, we'll prevent deletion if events are directly assigned
+            return res.status(400).json({ 
+                error: `Cannot delete company. The following events are directly assigned to this company: ${eventsWithThisCompany.map(e => e.name).join(', ')}. Please reassign these events to another company first.`,
+                events: eventsWithThisCompany
+            });
+        }
+        
         // Delete in order: crew members -> event associations -> company roles -> users -> company
         // Note: We delete crew members from this company but preserve events
         await run('DELETE FROM crew_members WHERE company_id = $1', [companyId]);
@@ -1513,7 +1526,13 @@ app.delete('/api/admin/companies/:companyId', authenticateToken, requireSuperAdm
         res.json({ message: 'Company deleted successfully. Events have been preserved.' });
     } catch (error) {
         console.error('Delete company error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint
+        });
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
