@@ -152,6 +152,16 @@
     color: #059669;
 }
 
+.status-badge.pending {
+    background-color: #FEF3C7;
+    color: #D97706;
+}
+
+.status-badge.rejected {
+    background-color: #FEE2E2;
+    color: #DC2626;
+}
+
 /* Modal */
 .modal {
     display: none;

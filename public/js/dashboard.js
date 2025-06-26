@@ -220,8 +220,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         crewMembers.forEach(member => {
             const row = document.createElement('tr');
-            const statusClass = member.status === 'approved' ? 'complete' : 'pending';
-            const statusText = member.status === 'approved' ? 'Approved' : 'Pending Approval';
+            let statusClass, statusText;
+            
+            if (member.status === 'approved') {
+                statusClass = 'complete';
+                statusText = 'Approved';
+            } else if (member.status === 'rejected') {
+                statusClass = 'rejected';
+                statusText = 'Rejected';
+            } else {
+                statusClass = 'pending';
+                statusText = 'Pending Approval';
+            }
             
             // Company admins can only delete crew members, not approve them
             let actionsHtml = '';
