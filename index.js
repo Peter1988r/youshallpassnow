@@ -39,21 +39,9 @@ const { generatePDF } = require('./services/pdfGenerator');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware
+// Security middleware - Disable CSP temporarily to allow Supabase images
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "*.supabase.co"],
-            connectSrc: ["'self'", "*.supabase.co"],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"],
-        },
-    },
+    contentSecurityPolicy: false, // Disable CSP to allow Supabase images
 }));
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
