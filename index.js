@@ -39,10 +39,10 @@ const { generatePDF } = require('./services/pdfGenerator');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware - Disable CSP temporarily to allow Supabase images
-app.use(helmet({
-    contentSecurityPolicy: false, // Disable CSP to allow Supabase images
-}));
+// Security middleware - Temporarily disable helmet entirely to allow Supabase images
+// app.use(helmet({
+//     contentSecurityPolicy: false, // Disable CSP to allow Supabase images
+// }));
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true

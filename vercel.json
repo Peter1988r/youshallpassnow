@@ -22,6 +22,7 @@
     "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxY3N1aXZxY2RhbWthc2tid2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MDg2ODQsImV4cCI6MjA2NjI4NDY4NH0.BznWVLmyvgnfsIqaOAMzvlKzjck-5iJEV0OgwQT_Ttw",
     "SUPABASE_URL": "https://lqcsuivqcdamkaskbwhz.supabase.co",
     "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxY3N1aXZxY2RhbWthc2tid2h6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDcwODY4NCwiZXhwIjoyMDY2Mjg0Njg0fQ.A-ukqtx19ixFf0EHAmcmkot0f1378xGYbeX_tfhMn-Q",
-    "SUPABASE_CREWLIST_BUCKET": "youshallpasscrewlist"
+    "SUPABASE_CREWLIST_BUCKET": "youshallpasscrewlist",
+    "SUPABASE_PHOTOS_BUCKET": "crew-photos"
   }
 } 
