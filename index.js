@@ -2157,11 +2157,14 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         }
         
         const crewMember = crewDetails[0];
-        const PDFGenerator = require('./services/pdfGenerator');
-        const pdfGenerator = new PDFGenerator();
+        const pdfGenerator = require('./services/pdfGenerator');
+        
+        console.log('Generating A5 badge for crew member:', crewMember.id, crewMember.first_name, crewMember.last_name);
         
         // Generate A5 badge PDF
         const pdfBuffer = await pdfGenerator.generateA5Badge(crewMember);
+        
+        console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
         
         // Set response headers for PDF download
         res.setHeader('Content-Type', 'application/pdf');
@@ -2173,7 +2176,12 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         
     } catch (error) {
         console.error('Generate badge PDF error:', error);
-        res.status(500).json({ error: 'Failed to generate badge PDF' });
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            crewMemberId: req.params.crewId
+        });
+        res.status(500).json({ error: 'Failed to generate badge PDF: ' + error.message });
     }
 });
 

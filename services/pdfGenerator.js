@@ -3,10 +3,18 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase only if credentials are available
+let supabase = null;
+try {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+    }
+} catch (error) {
+    console.warn('Supabase initialization failed:', error.message);
+}
 
 class PDFGenerator {
     constructor() {
@@ -168,6 +176,10 @@ class PDFGenerator {
                 doc.on('end', async () => {
                     const pdfBuffer = Buffer.concat(buffers);
                     const filename = `crew_list_${event.id}_${Date.now()}.pdf`;
+
+                    if (!supabase) {
+                        return reject(new Error('Supabase not configured for crew list generation'));
+                    }
 
                     // Upload to Supabase Storage
                     const { data, error } = await supabase.storage
