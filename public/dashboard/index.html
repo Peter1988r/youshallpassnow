@@ -148,13 +148,13 @@
         }
         
         .event-card {
-            background: #FFFFFF;
+            background: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px var(--shadow);
+            border: 1px solid var(--border-color);
             overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.3s ease;
             cursor: pointer;
-            border: 2px solid transparent;
         }
         
         .event-card:hover {
@@ -214,7 +214,7 @@
         
         .event-info h3 {
             font-size: 1.25rem;
-            color: #1F2937;
+            color: var(--text-primary);
             margin-bottom: 0.5rem;
         }
         
@@ -231,10 +231,12 @@
         
         /* Event details section */
         .event-details {
-            background: #FFFFFF;
+            background: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px var(--shadow);
+            border: 1px solid var(--border-color);
             padding: 2rem;
+            transition: all 0.3s ease;
         }
         
         .event-header {
@@ -246,7 +248,7 @@
         
         .event-header h2 {
             font-size: 1.5rem;
-            color: #1F2937;
+            color: var(--text-primary);
         }
         
         .event-actions {
@@ -263,20 +265,21 @@
         }
         
         .info-card {
-            background: #F9FAFB;
+            background: var(--bg-tertiary);
             padding: 1.5rem;
             border-radius: 8px;
-            border: 1px solid #E5E7EB;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
         }
         
         .info-card h4 {
-            color: #6B7280;
+            color: var(--text-muted);
             font-size: 0.875rem;
             margin-bottom: 0.5rem;
         }
         
         .info-card p {
-            color: #1F2937;
+            color: var(--text-primary);
             font-weight: 500;
         }
         
@@ -592,6 +595,8 @@
         </div>
     </main>
 
+    <!-- Theme JavaScript -->
+    <script src="/js/theme.js"></script>
     <!-- Main JavaScript -->
     <script src="/js/main.js"></script>
     <script src="/js/dashboard.js"></script>

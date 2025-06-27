@@ -698,11 +698,11 @@
 }
 
 .event-card {
-    background: white;
+    background: var(--card-bg);
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px var(--shadow);
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.3s ease;
     cursor: pointer;
     border: 2px solid transparent;
 }
@@ -807,10 +807,12 @@
 }
 
 .event-form {
-    background: white;
+    background: var(--card-bg);
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px var(--shadow);
+    border: 1px solid var(--border-color);
     overflow: hidden;
+    transition: all 0.3s ease;
 }
 
 .form-section {
