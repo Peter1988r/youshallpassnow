@@ -388,18 +388,18 @@ class PDFGenerator {
                    .fillColor('#DC2626')
                    .text(`BADGE #${crewMember.badge_number}`, 50, badgeY);
 
-                // Access level with background
-                doc.roundedRect(240, badgeY - 5, 130, 30, 5)
+                // Access level with background (moved down to avoid overlap)
+                doc.roundedRect(50, badgeY + 35, 130, 25, 5)
                    .fillColor('#FEF3C7')
                    .fill();
 
-                doc.fontSize(12)
+                doc.fontSize(11)
                    .font('Helvetica-Bold')
                    .fillColor('#92400E')
-                   .text(`${crewMember.access_level} ACCESS`, 250, badgeY + 5);
+                   .text(`${crewMember.access_level} ACCESS`, 60, badgeY + 42);
 
                 // Event information section
-                const eventY = 340;
+                const eventY = 360;
                 
                 doc.fontSize(16)
                    .font('Helvetica-Bold')
@@ -417,7 +417,7 @@ class PDFGenerator {
                     doc.fontSize(12)
                        .font('Helvetica')
                        .fillColor('#6B7280')
-                       .text(`📍 ${crewMember.event_location}`, 50, eventY + 55);
+                       .text(`Location: ${crewMember.event_location}`, 50, eventY + 55);
                 }
 
                 // Dates
@@ -439,11 +439,11 @@ class PDFGenerator {
                     doc.fontSize(12)
                        .font('Helvetica')
                        .fillColor('#6B7280')
-                       .text(`🗓️ ${dateText}`, 50, eventY + 75);
+                       .text(`Dates: ${dateText}`, 50, eventY + 75);
                 }
 
                 // Status section
-                const statusY = 450;
+                const statusY = 470;
                 
                 // Status with colored background
                 let statusColor = '#10B981'; // Green for approved
@@ -475,13 +475,13 @@ class PDFGenerator {
                 }
 
                 // Footer section
-                const footerY = 520;
+                const footerY = 530;
                 
                 // Security notice
                 doc.fontSize(10)
                    .font('Helvetica-Bold')
                    .fillColor('#991B1B')
-                   .text('⚠️ THIS BADGE MUST BE VISIBLE AT ALL TIMES', 50, footerY, { align: 'center', width: 320 });
+                   .text('WARNING: THIS BADGE MUST BE VISIBLE AT ALL TIMES', 50, footerY, { align: 'center', width: 320 });
 
                 doc.fontSize(8)
                    .font('Helvetica')
