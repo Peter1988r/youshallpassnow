@@ -668,7 +668,7 @@ function displayCrewApprovals(approvals) {
     const tbody = document.getElementById('crewApprovalsTableBody');
     
     if (approvals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-approvals">No pending approvals for this event</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="no-approvals">No pending approvals for this event</td></tr>';
         return;
     }
     
@@ -676,10 +676,12 @@ function displayCrewApprovals(approvals) {
     approvals.forEach(approval => {
         const requestedDate = new Date(approval.created_at).toLocaleDateString();
         const accessLevel = approval.access_level || 'No Clearance';
+        const companyName = approval.company_name || 'No Company';
         
         html += `
             <tr>
                 <td>${approval.first_name} ${approval.last_name}</td>
+                <td>${companyName}</td>
                 <td>${approval.email}</td>
                 <td>${approval.role}</td>
                 <td>${requestedDate}</td>
@@ -983,7 +985,7 @@ function displayApprovedCrew(approvedCrew) {
     const tbody = document.getElementById('approvedCrewTableBody');
     
     if (approvedCrew.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-approved-crew">No approved crew members for this event</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="no-approved-crew">No approved crew members for this event</td></tr>';
         return;
     }
     
@@ -996,14 +998,30 @@ function displayApprovedCrew(approvedCrew) {
         html += `
             <tr>
                 <td>${crew.first_name} ${crew.last_name}</td>
+                <td>${companyName}</td>
                 <td>${crew.email}</td>
                 <td>${crew.role}</td>
-                <td>${companyName}</td>
                 <td>${accessLevel}</td>
                 <td>${approvedDate}</td>
+                <td>
+                    <button class="btn-view" data-crew-id="${crew.id}" data-action="view">View</button>
+                </td>
             </tr>
         `;
     });
     
     tbody.innerHTML = html;
+    
+    // Add event listeners for view buttons in approved crew table
+    tbody.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const crewId = button.dataset.crewId;
+        const action = button.dataset.action;
+        
+        if (action === 'view') {
+            viewCrewDetails(crewId);
+        }
+    });
 } 
