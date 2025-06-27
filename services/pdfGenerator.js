@@ -541,13 +541,15 @@ class PDFGenerator {
         });
     }
 
-    generateCrewListDirect(crewMembers, event) {
+    generateCrewListDirect(crewMembers, event, options = {}) {
         return new Promise((resolve, reject) => {
             try {
                 console.log('Starting PDF generation for crew list:', {
                     eventName: event.name,
                     crewCount: crewMembers.length,
-                    hasEvent: !!event
+                    hasEvent: !!event,
+                    isCompanyFiltered: options.isCompanyFiltered,
+                    companyName: options.companyName
                 });
                 // Generate PDF in memory without Supabase
                 const doc = new PDFDocument({ size: 'A4', margins: 50 });
@@ -570,11 +572,20 @@ class PDFGenerator {
                    .fillColor('#666666')
                    .text('YouShallPass Event Accreditation System', 0, 80, { align: 'center' });
 
+                // Show company filter if applicable
+                if (options.isCompanyFiltered && options.companyName) {
+                    doc.fontSize(12)
+                       .font('Helvetica-Bold')
+                       .fillColor('#4F46E5')
+                       .text(`Filtered for: ${options.companyName}`, 0, 100, { align: 'center' });
+                }
+
                 // Event details
+                const eventNameY = options.isCompanyFiltered ? 125 : 110;
                 doc.fontSize(18)
                    .font('Helvetica-Bold')
                    .fillColor('#333333')
-                   .text(event.name, 0, 110, { align: 'center' });
+                   .text(event.name, 0, eventNameY, { align: 'center' });
 
                 // Event location and dates
                 let eventDetailsText = '';
@@ -589,10 +600,11 @@ class PDFGenerator {
                 }
 
                 if (eventDetailsText) {
+                    const eventDetailsY = options.isCompanyFiltered ? 150 : 135;
                     doc.fontSize(12)
                        .font('Helvetica')
                        .fillColor('#666666')
-                       .text(eventDetailsText, 0, 135, { align: 'center' });
+                       .text(eventDetailsText, 0, eventDetailsY, { align: 'center' });
                 }
 
                 // Statistics
@@ -601,13 +613,14 @@ class PDFGenerator {
                 const pendingCrew = crewMembers.filter(m => m.status === 'pending_approval').length;
                 const rejectedCrew = crewMembers.filter(m => m.status === 'rejected').length;
 
+                const statisticsY = options.isCompanyFiltered ? 175 : 160;
                 doc.fontSize(11)
                    .font('Helvetica')
                    .fillColor('#666666')
-                   .text(`Total: ${totalCrew} | Approved: ${approvedCrew} | Pending: ${pendingCrew} | Rejected: ${rejectedCrew}`, 0, 160, { align: 'center' });
+                   .text(`Total: ${totalCrew} | Approved: ${approvedCrew} | Pending: ${pendingCrew} | Rejected: ${rejectedCrew}`, 0, statisticsY, { align: 'center' });
 
                 // Table header
-                const startY = 200;
+                const startY = options.isCompanyFiltered ? 215 : 200;
                 const colWidths = [70, 120, 100, 80, 80, 80];
                 const headers = ['Badge #', 'Name', 'Role', 'Access Level', 'Status', 'Company'];
 

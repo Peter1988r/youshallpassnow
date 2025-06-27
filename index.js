@@ -785,29 +785,75 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         }
         const event = events[0];
 
-        // Get crew members with company information
-        const crewMembers = await query(`
-            SELECT 
-                cm.id, 
-                cm.first_name, 
-                cm.last_name, 
-                cm.role, 
-                cm.access_level, 
-                cm.badge_number, 
-                cm.status,
-                c.name as company_name
-            FROM crew_members cm
-            LEFT JOIN companies c ON cm.company_id = c.id
-            WHERE cm.event_id = $1 
-            ORDER BY cm.status DESC, cm.created_at DESC
-        `, [eventId]);
+        // Get crew members with company information (filter by company for company admins)
+        let crewQuery, crewParams;
+        
+        if (req.user.is_super_admin) {
+            // Super admin sees all crew members for the event
+            crewQuery = `
+                SELECT 
+                    cm.id, 
+                    cm.first_name, 
+                    cm.last_name, 
+                    cm.role, 
+                    cm.access_level, 
+                    cm.badge_number, 
+                    cm.status,
+                    c.name as company_name
+                FROM crew_members cm
+                LEFT JOIN companies c ON cm.company_id = c.id
+                WHERE cm.event_id = $1 
+                ORDER BY cm.status DESC, cm.created_at DESC
+            `;
+            crewParams = [eventId];
+        } else {
+            // Company admin only sees their own company's crew members
+            crewQuery = `
+                SELECT 
+                    cm.id, 
+                    cm.first_name, 
+                    cm.last_name, 
+                    cm.role, 
+                    cm.access_level, 
+                    cm.badge_number, 
+                    cm.status,
+                    c.name as company_name
+                FROM crew_members cm
+                LEFT JOIN companies c ON cm.company_id = c.id
+                WHERE cm.event_id = $1 AND cm.company_id = $2
+                ORDER BY cm.status DESC, cm.created_at DESC
+            `;
+            crewParams = [eventId, companyId];
+        }
+        
+        const crewMembers = await query(crewQuery, crewParams);
 
         // Generate PDF directly in memory
-        console.log(`Generating crew list PDF for event ${eventId} with ${crewMembers.length} crew members`);
-        const pdfBuffer = await pdfGenerator.generateCrewListDirect(crewMembers, event);
+        console.log(`Generating crew list PDF for event ${eventId} with ${crewMembers.length} crew members (User: ${req.user.is_super_admin ? 'Super Admin' : 'Company Admin'})`);
+        
+        // Add company filter info for company admins
+        const pdfOptions = {
+            isCompanyFiltered: !req.user.is_super_admin,
+            companyName: null
+        };
+        
+        if (!req.user.is_super_admin) {
+            const companyResult = await query('SELECT name FROM companies WHERE id = $1', [companyId]);
+            pdfOptions.companyName = companyResult.length > 0 ? companyResult[0].name : 'Your Company';
+        }
+        
+        const pdfBuffer = await pdfGenerator.generateCrewListDirect(crewMembers, event, pdfOptions);
 
-        // Set headers for PDF response
-        const filename = `crew_list_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        // Set headers for PDF response (include company name for company admins)
+        let filename;
+        if (req.user.is_super_admin) {
+            filename = `crew_list_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        } else {
+            // Get company name for filename
+            const companyResult = await query('SELECT name FROM companies WHERE id = $1', [companyId]);
+            const companyName = companyResult.length > 0 ? companyResult[0].name.replace(/[^a-zA-Z0-9]/g, '_') : 'Company';
+            filename = `crew_list_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${companyName}_${new Date().toISOString().split('T')[0]}.pdf`;
+        }
         
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
