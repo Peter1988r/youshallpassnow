@@ -544,6 +544,11 @@ class PDFGenerator {
     generateCrewListDirect(crewMembers, event) {
         return new Promise((resolve, reject) => {
             try {
+                console.log('Starting PDF generation for crew list:', {
+                    eventName: event.name,
+                    crewCount: crewMembers.length,
+                    hasEvent: !!event
+                });
                 // Generate PDF in memory without Supabase
                 const doc = new PDFDocument({ size: 'A4', margins: 50 });
                 const buffers = [];
@@ -698,8 +703,10 @@ class PDFGenerator {
                    .fillColor('#999999')
                    .text(`Generated on ${new Date().toLocaleString()} by YouShallPass`, 0, footerY, { align: 'center' });
 
+                console.log('PDF generation completed successfully');
                 doc.end();
             } catch (error) {
+                console.error('Error in generateCrewListDirect:', error);
                 reject(error);
             }
         });

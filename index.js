@@ -802,6 +802,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         `, [eventId]);
 
         // Generate PDF directly in memory
+        console.log(`Generating crew list PDF for event ${eventId} with ${crewMembers.length} crew members`);
         const pdfBuffer = await pdfGenerator.generateCrewListDirect(crewMembers, event);
 
         // Set headers for PDF response
@@ -814,7 +815,12 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         res.send(pdfBuffer);
     } catch (error) {
         console.error('Generate crew list error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ 
+            error: 'Internal server error', 
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
