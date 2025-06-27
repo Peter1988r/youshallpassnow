@@ -1,6 +1,12 @@
-# Deployment Trigger
+# Deployment Triggers
 
-This file was created to force Vercel to redeploy the application.
+This file is used to trigger deployments when needed.
+
+## Latest Deployment
+- Badge PDF and Print functionality deployed
+- A5 format crew badges with professional layout
+- PDF download and print buttons added to accredited crew table
+- Deployment timestamp: 2024-12-20 (Manual trigger)
 
 ## Changes Made:
 - Fixed database connection to use Supabase pooler
