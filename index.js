@@ -35,6 +35,7 @@ require('dotenv').config();
 // Import our modules
 const { initDatabase, query, run } = require('./database/schema');
 const { generatePDF } = require('./services/pdfGenerator');
+const pdfGenerator = require('./services/pdfGenerator');
 
 const app = express();
 const port = process.env.PORT || 3000;
