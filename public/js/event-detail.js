@@ -87,6 +87,29 @@ function formatDateForInput(dateString) {
     return `${year}-${month}-${day}`;
 }
 
+// Format event dates for display
+function formatEventDates(startDate, endDate) {
+    if (!startDate) return 'TBD';
+    
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : null;
+    
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    };
+    
+    const startFormatted = start.toLocaleDateString('en-US', options);
+    
+    if (!end || start.toDateString() === end.toDateString()) {
+        return startFormatted;
+    }
+    
+    const endFormatted = end.toLocaleDateString('en-US', options);
+    return `${startFormatted} - ${endFormatted}`;
+}
+
 // Update status badge
 function updateStatusBadge(status) {
     const badge = document.getElementById('statusBadge');
@@ -845,6 +868,18 @@ function showCrewDetailsModal(details) {
                         ${details.company_name ? `
                         <div class="badge-field">
                             <strong>Company:</strong> ${details.company_name}
+                        </div>` : ''}
+                        ${details.event_name ? `
+                        <div class="badge-field">
+                            <strong>Event:</strong> ${details.event_name}
+                        </div>` : ''}
+                        ${details.event_location ? `
+                        <div class="badge-field">
+                            <strong>Location:</strong> ${details.event_location}
+                        </div>` : ''}
+                        ${details.event_start_date ? `
+                        <div class="badge-field">
+                            <strong>Event Dates:</strong> ${formatEventDates(details.event_start_date, details.event_end_date)}
                         </div>` : ''}
                     </div>
                 </div>

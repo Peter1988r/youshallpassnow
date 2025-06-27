@@ -2111,6 +2111,8 @@ app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin,
                 cm.*,
                 e.name as event_name,
                 e.location as event_location,
+                e.start_date as event_start_date,
+                e.end_date as event_end_date,
                 c.name as company_name
             FROM crew_members cm
             JOIN events e ON cm.event_id = e.id
