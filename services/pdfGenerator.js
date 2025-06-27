@@ -540,6 +540,170 @@ class PDFGenerator {
             }
         });
     }
+
+    generateCrewListDirect(crewMembers, event) {
+        return new Promise((resolve, reject) => {
+            try {
+                // Generate PDF in memory without Supabase
+                const doc = new PDFDocument({ size: 'A4', margins: 50 });
+                const buffers = [];
+                doc.on('data', buffers.push.bind(buffers));
+                doc.on('end', () => {
+                    const pdfBuffer = Buffer.concat(buffers);
+                    resolve(pdfBuffer);
+                });
+
+                // Header
+                doc.fontSize(24)
+                   .font('Helvetica-Bold')
+                   .fillColor('#333333')
+                   .text('CREW ACCREDITATION LIST', 0, 50, { align: 'center' });
+
+                // Company/System name
+                doc.fontSize(14)
+                   .font('Helvetica')
+                   .fillColor('#666666')
+                   .text('YouShallPass Event Accreditation System', 0, 80, { align: 'center' });
+
+                // Event details
+                doc.fontSize(18)
+                   .font('Helvetica-Bold')
+                   .fillColor('#333333')
+                   .text(event.name, 0, 110, { align: 'center' });
+
+                // Event location and dates
+                let eventDetailsText = '';
+                if (event.location) {
+                    eventDetailsText += event.location;
+                }
+                if (event.start_date) {
+                    const startDate = new Date(event.start_date).toLocaleDateString();
+                    const endDate = event.end_date ? new Date(event.end_date).toLocaleDateString() : startDate;
+                    const dateText = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+                    eventDetailsText += eventDetailsText ? ` | ${dateText}` : dateText;
+                }
+
+                if (eventDetailsText) {
+                    doc.fontSize(12)
+                       .font('Helvetica')
+                       .fillColor('#666666')
+                       .text(eventDetailsText, 0, 135, { align: 'center' });
+                }
+
+                // Statistics
+                const totalCrew = crewMembers.length;
+                const approvedCrew = crewMembers.filter(m => m.status === 'approved').length;
+                const pendingCrew = crewMembers.filter(m => m.status === 'pending_approval').length;
+                const rejectedCrew = crewMembers.filter(m => m.status === 'rejected').length;
+
+                doc.fontSize(11)
+                   .font('Helvetica')
+                   .fillColor('#666666')
+                   .text(`Total: ${totalCrew} | Approved: ${approvedCrew} | Pending: ${pendingCrew} | Rejected: ${rejectedCrew}`, 0, 160, { align: 'center' });
+
+                // Table header
+                const startY = 200;
+                const colWidths = [70, 120, 100, 80, 80, 80];
+                const headers = ['Badge #', 'Name', 'Role', 'Access Level', 'Status', 'Company'];
+
+                doc.fontSize(10)
+                   .font('Helvetica-Bold')
+                   .fillColor('#333333');
+
+                let x = 50;
+                headers.forEach((header, i) => {
+                    doc.text(header, x, startY);
+                    x += colWidths[i];
+                });
+
+                // Underline header
+                doc.moveTo(50, startY + 15)
+                   .lineTo(530, startY + 15)
+                   .strokeColor('#CCCCCC')
+                   .stroke();
+
+                // Table content
+                doc.fontSize(9)
+                   .font('Helvetica')
+                   .fillColor('#333333');
+
+                let currentY = startY + 25;
+                crewMembers.forEach((member, index) => {
+                    // Check if we need a new page
+                    if (currentY > 720) {
+                        doc.addPage();
+                        currentY = 80;
+                        
+                        // Repeat header on new page
+                        doc.fontSize(10)
+                           .font('Helvetica-Bold')
+                           .fillColor('#333333');
+                        x = 50;
+                        headers.forEach((header, i) => {
+                            doc.text(header, x, currentY);
+                            x += colWidths[i];
+                        });
+                        doc.moveTo(50, currentY + 15)
+                           .lineTo(530, currentY + 15)
+                           .strokeColor('#CCCCCC')
+                           .stroke();
+                        currentY += 25;
+                        
+                        doc.fontSize(9)
+                           .font('Helvetica')
+                           .fillColor('#333333');
+                    }
+
+                    x = 50;
+                    
+                    // Badge number
+                    doc.text(member.badge_number || 'N/A', x, currentY);
+                    x += colWidths[0];
+                    
+                    // Name
+                    doc.text(`${member.first_name} ${member.last_name}`, x, currentY);
+                    x += colWidths[1];
+                    
+                    // Role
+                    const roleName = member.role ? member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A';
+                    doc.text(roleName, x, currentY);
+                    x += colWidths[2];
+                    
+                    // Access level
+                    doc.text(member.access_level || 'RESTRICTED', x, currentY);
+                    x += colWidths[3];
+                    
+                    // Status with color
+                    let statusColor = '#333333';
+                    if (member.status === 'approved') statusColor = '#059669';
+                    else if (member.status === 'rejected') statusColor = '#DC2626';
+                    else if (member.status === 'pending_approval') statusColor = '#D97706';
+                    
+                    doc.fillColor(statusColor)
+                       .text(member.status ? member.status.toUpperCase() : 'PENDING', x, currentY);
+                    x += colWidths[4];
+                    
+                    // Company
+                    doc.fillColor('#333333')
+                       .text(member.company_name || 'N/A', x, currentY);
+
+                    currentY += 18;
+                });
+
+                // Footer
+                const footerY = currentY > 700 ? (doc.addPage(), 100) : currentY + 30;
+                
+                doc.fontSize(8)
+                   .font('Helvetica')
+                   .fillColor('#999999')
+                   .text(`Generated on ${new Date().toLocaleString()} by YouShallPass`, 0, footerY, { align: 'center' });
+
+                doc.end();
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
 }
 
 module.exports = new PDFGenerator(); 

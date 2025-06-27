@@ -784,21 +784,34 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
         }
         const event = events[0];
 
-        // Get crew members
+        // Get crew members with company information
         const crewMembers = await query(`
-            SELECT id, first_name, last_name, role, access_level, badge_number, status
-            FROM crew_members 
-            WHERE event_id = $1 
-            ORDER BY created_at DESC
+            SELECT 
+                cm.id, 
+                cm.first_name, 
+                cm.last_name, 
+                cm.role, 
+                cm.access_level, 
+                cm.badge_number, 
+                cm.status,
+                c.name as company_name
+            FROM crew_members cm
+            LEFT JOIN companies c ON cm.company_id = c.id
+            WHERE cm.event_id = $1 
+            ORDER BY cm.status DESC, cm.created_at DESC
         `, [eventId]);
 
-        // Generate PDF
-        const pdfResult = await pdfGenerator.generateCrewList(crewMembers, event);
+        // Generate PDF directly in memory
+        const pdfBuffer = await pdfGenerator.generateCrewListDirect(crewMembers, event);
 
-        res.json({
-            url: pdfResult.url,
-            filename: pdfResult.filename
-        });
+        // Set headers for PDF response
+        const filename = `crew_list_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        
+        res.send(pdfBuffer);
     } catch (error) {
         console.error('Generate crew list error:', error);
         res.status(500).json({ error: 'Internal server error' });

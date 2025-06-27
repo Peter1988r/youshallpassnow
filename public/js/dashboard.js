@@ -428,31 +428,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             try {
+                generateCrewListBtn.disabled = true;
+                generateCrewListBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                
                 const response = await fetch(`/api/events/${currentEventId}/crew/pdf`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 
-                if (!response.ok) throw new Error('Failed to generate crew list');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to generate crew list');
+                }
                 
-                const result = await response.json();
+                // Get the PDF blob
+                const blob = await response.blob();
                 
+                // Extract filename from Content-Disposition header
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = 'crew-list.pdf';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+                
+                // Create download link
                 const downloadLink = document.createElement('a');
-                downloadLink.href = result.url;
-                downloadLink.download = result.filename || 'crew-list.pdf';
-                downloadLink.target = '_blank';
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.download = filename;
                 downloadLink.style.display = 'none';
                 
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
                 
-                showMessage('Crew list PDF generated successfully!', 'success');
+                // Clean up the blob URL
+                URL.revokeObjectURL(downloadLink.href);
+                
+                showMessage('Crew list PDF downloaded successfully!', 'success');
                 
             } catch (error) {
                 console.error('Error generating crew list:', error);
-                showMessage('Failed to generate crew list', 'error');
+                showMessage('Failed to generate crew list: ' + error.message, 'error');
+            } finally {
+                generateCrewListBtn.disabled = false;
+                generateCrewListBtn.innerHTML = '<i class="fas fa-download"></i> Generate Crew List PDF';
             }
         });
     }
