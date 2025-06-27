@@ -255,6 +255,240 @@ class PDFGenerator {
             }
         });
     }
+
+    generateA5Badge(crewMember) {
+        return new Promise((resolve, reject) => {
+            try {
+                // A5 size: 420 x 595 points (148.5 x 210 mm)
+                const doc = new PDFDocument({
+                    size: [420, 595], // A5 portrait
+                    margins: 20
+                });
+
+                const buffers = [];
+                doc.on('data', buffers.push.bind(buffers));
+                doc.on('end', () => {
+                    const pdfBuffer = Buffer.concat(buffers);
+                    resolve(pdfBuffer);
+                });
+
+                // Card background with rounded corners effect
+                doc.roundedRect(20, 20, 380, 555, 15)
+                   .lineWidth(2)
+                   .strokeColor('#E5E7EB')
+                   .fillColor('#FFFFFF')
+                   .fillAndStroke();
+
+                // Header section with gradient-like effect
+                doc.rect(20, 20, 380, 80)
+                   .fillColor('#F8FAFC')
+                   .fill();
+
+                // Company logo area (placeholder)
+                doc.circle(60, 60, 25)
+                   .fillColor('#4F46E5')
+                   .fill();
+
+                doc.fontSize(12)
+                   .font('Helvetica-Bold')
+                   .fillColor('#FFFFFF')
+                   .text('YSP', 50, 55);
+
+                // Main title
+                doc.fontSize(24)
+                   .font('Helvetica-Bold')
+                   .fillColor('#1F2937')
+                   .text('EVENT ACCREDITATION', 100, 45);
+
+                doc.fontSize(12)
+                   .font('Helvetica')
+                   .fillColor('#6B7280')
+                   .text('YouShallPass Security System', 100, 70);
+
+                // Photo section
+                const photoSize = 120;
+                const photoX = 50;
+                const photoY = 130;
+
+                // Photo border
+                doc.roundedRect(photoX - 5, photoY - 5, photoSize + 10, photoSize + 10, 8)
+                   .lineWidth(3)
+                   .strokeColor('#E5E7EB')
+                   .stroke();
+
+                // Photo placeholder
+                if (crewMember.photo_path) {
+                    // For now, use a placeholder until we implement image handling
+                    doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
+                       .fillColor('#F3F4F6')
+                       .fill();
+                    
+                    doc.fontSize(10)
+                       .font('Helvetica')
+                       .fillColor('#9CA3AF')
+                       .text('CREW PHOTO', photoX + photoSize/2 - 30, photoY + photoSize/2 - 5);
+                } else {
+                    doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
+                       .fillColor('#F9FAFB')
+                       .fill();
+                    
+                    doc.fontSize(10)
+                       .font('Helvetica')
+                       .fillColor('#D1D5DB')
+                       .text('NO PHOTO', photoX + photoSize/2 - 25, photoY + photoSize/2 - 5);
+                }
+
+                // Crew member details section
+                const detailsX = 200;
+                const detailsY = 130;
+
+                // Name (large)
+                doc.fontSize(22)
+                   .font('Helvetica-Bold')
+                   .fillColor('#111827')
+                   .text(`${crewMember.first_name}`, detailsX, detailsY);
+
+                doc.fontSize(22)
+                   .font('Helvetica-Bold')
+                   .fillColor('#111827')
+                   .text(`${crewMember.last_name}`, detailsX, detailsY + 30);
+
+                // Role
+                doc.fontSize(14)
+                   .font('Helvetica-Bold')
+                   .fillColor('#4F46E5')
+                   .text(crewMember.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), detailsX, detailsY + 70);
+
+                // Company
+                if (crewMember.company_name) {
+                    doc.fontSize(12)
+                       .font('Helvetica')
+                       .fillColor('#6B7280')
+                       .text(crewMember.company_name, detailsX, detailsY + 95);
+                }
+
+                // Badge details section
+                const badgeY = 280;
+                
+                // Badge number (prominent)
+                doc.fontSize(18)
+                   .font('Helvetica-Bold')
+                   .fillColor('#DC2626')
+                   .text(`BADGE #${crewMember.badge_number}`, 50, badgeY);
+
+                // Access level with background
+                doc.roundedRect(240, badgeY - 5, 130, 30, 5)
+                   .fillColor('#FEF3C7')
+                   .fill();
+
+                doc.fontSize(12)
+                   .font('Helvetica-Bold')
+                   .fillColor('#92400E')
+                   .text(`${crewMember.access_level} ACCESS`, 250, badgeY + 5);
+
+                // Event information section
+                const eventY = 340;
+                
+                doc.fontSize(16)
+                   .font('Helvetica-Bold')
+                   .fillColor('#374151')
+                   .text('EVENT DETAILS', 50, eventY);
+
+                // Event name
+                doc.fontSize(14)
+                   .font('Helvetica-Bold')
+                   .fillColor('#1F2937')
+                   .text(crewMember.event_name, 50, eventY + 30);
+
+                // Location
+                if (crewMember.event_location) {
+                    doc.fontSize(12)
+                       .font('Helvetica')
+                       .fillColor('#6B7280')
+                       .text(`📍 ${crewMember.event_location}`, 50, eventY + 55);
+                }
+
+                // Dates
+                if (crewMember.event_start_date) {
+                    const startDate = new Date(crewMember.event_start_date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                    const endDate = crewMember.event_end_date ? 
+                        new Date(crewMember.event_end_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        }) : startDate;
+                    
+                    const dateText = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+                    
+                    doc.fontSize(12)
+                       .font('Helvetica')
+                       .fillColor('#6B7280')
+                       .text(`🗓️ ${dateText}`, 50, eventY + 75);
+                }
+
+                // Status section
+                const statusY = 450;
+                
+                // Status with colored background
+                let statusColor = '#10B981'; // Green for approved
+                let statusBg = '#D1FAE5';
+                if (crewMember.status === 'pending_approval') {
+                    statusColor = '#F59E0B';
+                    statusBg = '#FEF3C7';
+                } else if (crewMember.status === 'rejected') {
+                    statusColor = '#EF4444';
+                    statusBg = '#FEE2E2';
+                }
+
+                doc.roundedRect(50, statusY - 5, 100, 25, 5)
+                   .fillColor(statusBg)
+                   .fill();
+
+                doc.fontSize(11)
+                   .font('Helvetica-Bold')
+                   .fillColor(statusColor)
+                   .text(crewMember.status.toUpperCase(), 55, statusY + 2);
+
+                // Approved date
+                if (crewMember.approved_at) {
+                    const approvedDate = new Date(crewMember.approved_at).toLocaleDateString();
+                    doc.fontSize(10)
+                       .font('Helvetica')
+                       .fillColor('#6B7280')
+                       .text(`Approved: ${approvedDate}`, 170, statusY + 2);
+                }
+
+                // Footer section
+                const footerY = 520;
+                
+                // Security notice
+                doc.fontSize(10)
+                   .font('Helvetica-Bold')
+                   .fillColor('#991B1B')
+                   .text('⚠️ THIS BADGE MUST BE VISIBLE AT ALL TIMES', 50, footerY, { align: 'center', width: 320 });
+
+                doc.fontSize(8)
+                   .font('Helvetica')
+                   .fillColor('#6B7280')
+                   .text('Present this badge at all security checkpoints and event entrances', 50, footerY + 20, { align: 'center', width: 320 });
+
+                // Generated timestamp
+                doc.fontSize(7)
+                   .font('Helvetica')
+                   .fillColor('#9CA3AF')
+                   .text(`Generated: ${new Date().toLocaleString()}`, 50, footerY + 40, { align: 'center', width: 320 });
+
+                doc.end();
+
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
 }
 
 module.exports = new PDFGenerator(); 

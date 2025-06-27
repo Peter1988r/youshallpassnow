@@ -1039,7 +1039,11 @@ function displayApprovedCrew(approvedCrew) {
                 <td>${accessLevel}</td>
                 <td>${approvedDate}</td>
                 <td>
-                    <button class="btn-view" data-crew-id="${crew.id}" data-action="view">View</button>
+                    <div class="crew-actions">
+                        <button class="btn-view" data-crew-id="${crew.id}" data-action="view">View</button>
+                        <button class="btn-download" data-crew-id="${crew.id}" data-action="download-pdf" title="Download A5 Badge PDF">📄 PDF</button>
+                        <button class="btn-print" data-crew-id="${crew.id}" data-action="print-badge" title="Print A5 Badge">🖨️ Print</button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -1047,7 +1051,7 @@ function displayApprovedCrew(approvedCrew) {
     
     tbody.innerHTML = html;
     
-    // Add event listeners for view buttons in approved crew table
+    // Add event listeners for action buttons in approved crew table
     tbody.addEventListener('click', (e) => {
         const button = e.target.closest('[data-action]');
         if (!button) return;
@@ -1055,8 +1059,115 @@ function displayApprovedCrew(approvedCrew) {
         const crewId = button.dataset.crewId;
         const action = button.dataset.action;
         
-        if (action === 'view') {
-            viewCrewDetails(crewId);
+        switch (action) {
+            case 'view':
+                viewCrewDetails(crewId);
+                break;
+            case 'download-pdf':
+                downloadBadgePDF(crewId);
+                break;
+            case 'print-badge':
+                printBadge(crewId);
+                break;
         }
     });
+}
+
+// Download badge PDF
+async function downloadBadgePDF(crewId) {
+    try {
+        const token = localStorage.getItem('token');
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        
+        showMessage('Generating badge PDF...', 'info');
+        
+        const response = await fetch(`/api/admin/crew/${crewId}/badge/pdf?eventId=${eventId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate badge PDF');
+        }
+        
+        // Get the PDF blob and download it
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Get crew member name for filename
+        const detailsResponse = await fetch(`/api/admin/crew/${crewId}/details`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const details = await detailsResponse.json();
+        const filename = `badge_${details.first_name}_${details.last_name}_${details.badge_number}.pdf`;
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showMessage('Badge PDF downloaded successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error downloading badge PDF:', error);
+        showMessage('Failed to download badge PDF: ' + error.message, 'error');
+    }
+}
+
+// Print badge
+async function printBadge(crewId) {
+    try {
+        const token = localStorage.getItem('token');
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        
+        showMessage('Preparing badge for printing...', 'info');
+        
+        const response = await fetch(`/api/admin/crew/${crewId}/badge/pdf?eventId=${eventId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate badge for printing');
+        }
+        
+        // Get the PDF blob and create object URL
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Open in new window for printing
+        const printWindow = window.open(url, '_blank');
+        
+        if (printWindow) {
+            printWindow.onload = () => {
+                // Auto-trigger print dialog after a short delay
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+            };
+            
+            showMessage('Badge opened for printing', 'success');
+        } else {
+            showMessage('Please allow pop-ups to print badges', 'error');
+        }
+        
+        // Cleanup after some time
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 30000); // 30 seconds
+        
+    } catch (error) {
+        console.error('Error printing badge:', error);
+        showMessage('Failed to prepare badge for printing: ' + error.message, 'error');
+    }
 } 

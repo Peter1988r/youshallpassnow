@@ -2131,6 +2131,52 @@ app.get('/api/admin/crew/:crewId/details', authenticateToken, requireSuperAdmin,
     }
 });
 
+// Generate individual badge PDF (A5 format)
+app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { crewId } = req.params;
+        const { eventId } = req.query;
+        
+        // Get crew member details
+        const crewDetails = await query(`
+            SELECT 
+                cm.*,
+                e.name as event_name,
+                e.location as event_location,
+                e.start_date as event_start_date,
+                e.end_date as event_end_date,
+                c.name as company_name
+            FROM crew_members cm
+            JOIN events e ON cm.event_id = e.id
+            LEFT JOIN companies c ON cm.company_id = c.id
+            WHERE cm.id = $1 AND cm.status = 'approved'
+        `, [crewId]);
+        
+        if (crewDetails.length === 0) {
+            return res.status(404).json({ error: 'Approved crew member not found' });
+        }
+        
+        const crewMember = crewDetails[0];
+        const PDFGenerator = require('./services/pdfGenerator');
+        const pdfGenerator = new PDFGenerator();
+        
+        // Generate A5 badge PDF
+        const pdfBuffer = await pdfGenerator.generateA5Badge(crewMember);
+        
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="badge_${crewMember.first_name}_${crewMember.last_name}_${crewMember.badge_number}.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        
+        // Send the PDF buffer
+        res.send(pdfBuffer);
+        
+    } catch (error) {
+        console.error('Generate badge PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate badge PDF' });
+    }
+});
+
 // Cleanup events endpoint - delete ALL events
 app.post('/api/admin/cleanup-events', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
