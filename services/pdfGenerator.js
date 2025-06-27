@@ -572,12 +572,12 @@ class PDFGenerator {
                    .fillColor('#666666')
                    .text('YouShallPass Event Accreditation System', 0, 80, { align: 'center' });
 
-                // Show company filter if applicable
+                // Show company name if filtered
                 if (options.isCompanyFiltered && options.companyName) {
                     doc.fontSize(12)
                        .font('Helvetica-Bold')
                        .fillColor('#4F46E5')
-                       .text(`Filtered for: ${options.companyName}`, 0, 100, { align: 'center' });
+                       .text(options.companyName, 0, 100, { align: 'center' });
                 }
 
                 // Event details
