@@ -269,7 +269,7 @@ class PDFGenerator {
     }
 
     generateA5Badge(crewMember) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             try {
                 // A5 size: 420 x 595 points (148.5 x 210 mm)
                 const doc = new PDFDocument({
@@ -328,18 +328,57 @@ class PDFGenerator {
                    .strokeColor('#E5E7EB')
                    .stroke();
 
-                // Photo placeholder
+                // Photo handling
                 if (crewMember.photo_path) {
-                    // For now, use a placeholder until we implement image handling
-                    doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
-                       .fillColor('#F3F4F6')
-                       .fill();
-                    
-                    doc.fontSize(10)
-                       .font('Helvetica')
-                       .fillColor('#9CA3AF')
-                       .text('CREW PHOTO', photoX + photoSize/2 - 30, photoY + photoSize/2 - 5);
+                    try {
+                        // Try to load the image from Supabase URL
+                        const https = require('https');
+                        const imagePromise = new Promise((resolve, reject) => {
+                            https.get(crewMember.photo_path, (response) => {
+                                if (response.statusCode === 200) {
+                                    const chunks = [];
+                                    response.on('data', (chunk) => chunks.push(chunk));
+                                    response.on('end', () => {
+                                        const buffer = Buffer.concat(chunks);
+                                        resolve(buffer);
+                                    });
+                                } else {
+                                    reject(new Error('Failed to fetch image'));
+                                }
+                            }).on('error', reject);
+                        });
+                        
+                        const imageBuffer = await imagePromise;
+                        
+                        // Add the actual photo
+                        doc.image(imageBuffer, photoX, photoY, {
+                            width: photoSize,
+                            height: photoSize,
+                            fit: [photoSize, photoSize],
+                            align: 'center',
+                            valign: 'center'
+                        });
+                        
+                        // Add border around photo
+                        doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
+                           .lineWidth(2)
+                           .strokeColor('#E5E7EB')
+                           .stroke();
+                           
+                    } catch (error) {
+                        console.warn('Failed to load crew photo:', error.message);
+                        // Fallback to placeholder
+                        doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
+                           .fillColor('#F3F4F6')
+                           .fill();
+                        
+                        doc.fontSize(9)
+                           .font('Helvetica')
+                           .fillColor('#9CA3AF')
+                           .text('PHOTO\nNOT LOADED', photoX + photoSize/2 - 25, photoY + photoSize/2 - 10);
+                    }
                 } else {
+                    // No photo provided
                     doc.roundedRect(photoX, photoY, photoSize, photoSize, 5)
                        .fillColor('#F9FAFB')
                        .fill();
