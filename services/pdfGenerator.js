@@ -22,18 +22,30 @@ class PDFGenerator {
         this.outputDir = path.join(__dirname, '../public/badges');
         this.templatesDir = path.join(__dirname, '../public/badge-templates');
         this.ensureOutputDirectory();
-        this.ensureTemplatesDirectory();
+        // Don't create templates directory in serverless environment
+        // this.ensureTemplatesDirectory();
     }
 
     ensureOutputDirectory() {
-        if (!fs.existsSync(this.outputDir)) {
-            fs.mkdirSync(this.outputDir, { recursive: true });
+        try {
+            if (!fs.existsSync(this.outputDir)) {
+                fs.mkdirSync(this.outputDir, { recursive: true });
+            }
+        } catch (error) {
+            // In serverless environments, we can't create directories
+            // This is fine since we're generating PDFs in memory
+            console.warn('Cannot create output directory in serverless environment:', error.message);
         }
     }
 
     ensureTemplatesDirectory() {
-        if (!fs.existsSync(this.templatesDir)) {
-            fs.mkdirSync(this.templatesDir, { recursive: true });
+        try {
+            if (!fs.existsSync(this.templatesDir)) {
+                fs.mkdirSync(this.templatesDir, { recursive: true });
+            }
+        } catch (error) {
+            // In serverless environments, we can't create directories
+            console.warn('Cannot create templates directory in serverless environment:', error.message);
         }
     }
 
