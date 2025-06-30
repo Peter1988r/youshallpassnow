@@ -22,6 +22,9 @@
     --navbar-bg: #FFFFFF;
     --input-bg: #FFFFFF;
     --input-border: #E5E7EB;
+    --table-header-bg: #F8FAFC;
+    --table-hover-bg: #F8FAFC;
+    --border-light: #F1F5F9;
 }
 
 /* Dark mode colors */
@@ -46,6 +49,9 @@
     --navbar-bg: #1F2937;
     --input-bg: #374151;
     --input-border: #4B5563;
+    --table-header-bg: #374151;
+    --table-hover-bg: #374151;
+    --border-light: #4B5563;
 }
 
 * {

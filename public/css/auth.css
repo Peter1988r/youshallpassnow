@@ -5,16 +5,19 @@
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    background-color: var(--light-gray);
+    background-color: var(--bg-secondary);
+    transition: background-color 0.3s ease;
 }
 
 .auth-box {
-    background: var(--white);
+    background: var(--card-bg);
     border-radius: var(--border-radius);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--shadow);
+    border: 1px solid var(--border-color);
     padding: 2rem;
     width: 100%;
     max-width: 400px;
+    transition: all 0.3s ease;
 }
 
 .auth-header {
@@ -51,10 +54,12 @@
 
 .form-group input {
     padding: 0.75rem 1rem;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--input-border);
     border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
     font-size: 1rem;
-    transition: border-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .form-group input:focus {
@@ -122,7 +127,7 @@
     top: 50%;
     width: calc(50% - 1rem);
     height: 1px;
-    background-color: #e5e7eb;
+    background-color: var(--border-color);
 }
 
 .auth-divider::before {
@@ -134,9 +139,9 @@
 }
 
 .auth-divider span {
-    background: var(--white);
+    background: var(--card-bg);
     padding: 0 1rem;
-    color: var(--text-color);
+    color: var(--text-secondary);
     font-size: 0.875rem;
 }
 
@@ -152,15 +157,16 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 0.75rem;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    background: var(--white);
+    background: var(--card-bg);
+    color: var(--text-primary);
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .btn-social:hover {
-    background-color: var(--light-gray);
+    background-color: var(--bg-tertiary);
 }
 
 .btn-social img {
