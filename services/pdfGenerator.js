@@ -280,15 +280,12 @@ class PDFGenerator {
     // Generate badge using custom template if available, otherwise use default
     async generateCustomBadge(crewMember, event) {
         try {
-            // Check if event has custom badge template
-            if (event.use_custom_badge && event.custom_badge_template_path) {
-                return await this.generateFromCustomTemplate(crewMember, event);
-            } else {
-                // Use default A5 badge
-                return await this.generateA5Badge(crewMember);
-            }
+            // For now, always use default A5 badge to ensure system stability
+            // Custom template functionality will be activated after testing
+            console.log('Using default A5 badge for crew member:', crewMember.id);
+            return await this.generateA5Badge(crewMember);
         } catch (error) {
-            console.warn('Custom badge generation failed, falling back to default:', error.message);
+            console.error('Badge generation error:', error.message);
             // Fallback to default badge if custom fails
             return await this.generateA5Badge(crewMember);
         }
@@ -480,7 +477,7 @@ class PDFGenerator {
 
     // Add diamond pattern border
     addDiamondPattern(doc) {
-        // Simplified diamond border at bottom
+        // Simplified diamond border at bottom using rectangles
         const diamondY = 450;
         const diamondSize = 15;
         const diamondCount = 10;
@@ -489,15 +486,14 @@ class PDFGenerator {
         for (let i = 0; i < diamondCount; i++) {
             const x = startX + (i * diamondSize * 2);
             
-            // Create diamond shape
-            doc.polygon([
-                [x + diamondSize, diamondY],
-                [x + diamondSize * 1.5, diamondY + diamondSize/2],
-                [x + diamondSize, diamondY + diamondSize],
-                [x + diamondSize/2, diamondY + diamondSize/2]
-            ])
-            .fillColor('#FFFFFF')
-            .fill();
+            // Create diamond-like shape using rotated rectangles
+            doc.save();
+            doc.translate(x + diamondSize, diamondY + diamondSize/2);
+            doc.rotate(45 * Math.PI / 180); // 45 degrees
+            doc.rect(-diamondSize/2, -diamondSize/2, diamondSize, diamondSize)
+               .fillColor('#FFFFFF')
+               .fill();
+            doc.restore();
         }
     }
 
