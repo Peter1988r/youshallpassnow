@@ -1766,3 +1766,114 @@ select[multiple] option:disabled {
         min-width: auto;
     }
 }
+
+/* Badge Template Styles */
+.badge-template-section {
+    margin-top: 20px;
+}
+
+.badge-field-config {
+    margin-bottom: 30px;
+}
+
+.badge-field-config h4 {
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.checkbox-grid label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.checkbox-grid input[type="checkbox"] {
+    margin: 0;
+}
+
+.color-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+}
+
+.color-config .form-group {
+    margin-bottom: 0;
+}
+
+.color-config input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.template-preview {
+    background: var(--card-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+}
+
+.preview-placeholder {
+    color: var(--text-secondary);
+}
+
+.preview-placeholder p {
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+#templateNameGroup,
+#templateUploadGroup,
+#fieldMappingCard {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#useCustomBadge:checked ~ #templateNameGroup,
+#useCustomBadge:checked ~ #templateUploadGroup,
+#useCustomBadge:checked ~ #fieldMappingCard {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Badge Template Action Buttons */
+.badge-template-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.badge-template-actions .btn-custom {
+    background: linear-gradient(135deg, #1B5E20, #2E7D32);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.badge-template-actions .btn-custom:hover {
+    background: linear-gradient(135deg, #2E7D32, #388E3C);
+    transform: translateY(-1px);
+}

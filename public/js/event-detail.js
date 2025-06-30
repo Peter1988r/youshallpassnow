@@ -299,6 +299,9 @@ function switchTab(tabName) {
         const companyFilter = document.getElementById('companyFilter');
         const filterValue = companyFilter ? companyFilter.value : '';
         loadApprovedCrew(eventId, filterValue || null);
+    } else if (tabName === 'badge-template') {
+        loadBadgeTemplate(eventId);
+        setupBadgeTemplateListeners();
     }
     
     // Smooth scroll to the section
@@ -1170,4 +1173,324 @@ async function printBadge(crewId) {
         console.error('Error printing badge:', error);
         showMessage('Failed to prepare badge for printing: ' + error.message, 'error');
     }
-} 
+}
+
+// Badge Template Management Functions
+
+// Load badge template configuration for the event
+async function loadBadgeTemplate(eventId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load badge template configuration');
+        }
+        
+        const template = await response.json();
+        populateBadgeTemplateForm(template);
+        
+    } catch (error) {
+        console.error('Error loading badge template:', error);
+        showMessage('Failed to load badge template configuration', 'error');
+    }
+}
+
+// Populate badge template form with existing data
+function populateBadgeTemplateForm(template) {
+    // Set checkbox for custom badge usage
+    document.getElementById('useCustomBadge').checked = template.useCustomBadge || false;
+    
+    // Set template name
+    document.getElementById('templateName').value = template.templateName || '';
+    
+    // Populate field mapping if available
+    const fieldMapping = template.fieldMapping || {};
+    
+    // Set display options
+    document.getElementById('showPhoto').checked = fieldMapping.show_photo !== false;
+    document.getElementById('showName').checked = fieldMapping.show_name !== false;
+    document.getElementById('showRole').checked = fieldMapping.show_role !== false;
+    document.getElementById('showCompany').checked = fieldMapping.show_company !== false;
+    document.getElementById('showBadgeNumber').checked = fieldMapping.show_badge_number !== false;
+    document.getElementById('showAccessLevel').checked = fieldMapping.show_access_level !== false;
+    document.getElementById('showEventDetails').checked = fieldMapping.show_event_details !== false;
+    document.getElementById('showAccessZones').checked = fieldMapping.show_access_zones || false;
+    document.getElementById('showQRCode').checked = fieldMapping.show_qr_code !== false;
+    
+    // Set color scheme
+    document.getElementById('backgroundColor').value = fieldMapping.background_color || '#1B5E20';
+    document.getElementById('textColor').value = fieldMapping.text_color || '#FFFFFF';
+    document.getElementById('accentColor').value = fieldMapping.accent_color || '#FFD700';
+    
+    // Update form visibility based on custom badge setting
+    updateBadgeTemplateFormVisibility();
+}
+
+// Update form visibility based on custom badge checkbox
+function updateBadgeTemplateFormVisibility() {
+    const useCustomBadge = document.getElementById('useCustomBadge').checked;
+    const templateNameGroup = document.getElementById('templateNameGroup');
+    const templateUploadGroup = document.getElementById('templateUploadGroup');
+    const fieldMappingCard = document.getElementById('fieldMappingCard');
+    
+    if (useCustomBadge) {
+        templateNameGroup.style.opacity = '1';
+        templateNameGroup.style.pointerEvents = 'auto';
+        templateUploadGroup.style.opacity = '1';
+        templateUploadGroup.style.pointerEvents = 'auto';
+        fieldMappingCard.style.opacity = '1';
+        fieldMappingCard.style.pointerEvents = 'auto';
+    } else {
+        templateNameGroup.style.opacity = '0.5';
+        templateNameGroup.style.pointerEvents = 'none';
+        templateUploadGroup.style.opacity = '0.5';
+        templateUploadGroup.style.pointerEvents = 'none';
+        fieldMappingCard.style.opacity = '0.5';
+        fieldMappingCard.style.pointerEvents = 'none';
+    }
+}
+
+// Save badge template configuration
+async function saveBadgeTemplate() {
+    try {
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        const token = localStorage.getItem('token');
+        
+        // Collect form data
+        const templateConfig = {
+            templateName: document.getElementById('templateName').value,
+            useCustomBadge: document.getElementById('useCustomBadge').checked,
+            fieldMapping: {
+                show_photo: document.getElementById('showPhoto').checked,
+                show_name: document.getElementById('showName').checked,
+                show_role: document.getElementById('showRole').checked,
+                show_company: document.getElementById('showCompany').checked,
+                show_badge_number: document.getElementById('showBadgeNumber').checked,
+                show_access_level: document.getElementById('showAccessLevel').checked,
+                show_event_details: document.getElementById('showEventDetails').checked,
+                show_access_zones: document.getElementById('showAccessZones').checked,
+                show_qr_code: document.getElementById('showQRCode').checked,
+                background_color: document.getElementById('backgroundColor').value,
+                text_color: document.getElementById('textColor').value,
+                accent_color: document.getElementById('accentColor').value
+            }
+        };
+        
+        showMessage('Saving badge template configuration...', 'info');
+        
+        const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(templateConfig)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save badge template configuration');
+        }
+        
+        const result = await response.json();
+        showMessage('Badge template configuration saved successfully', 'success');
+        
+        // Update approved crew table buttons to use custom badge
+        updateCrewActionButtons();
+        
+    } catch (error) {
+        console.error('Error saving badge template:', error);
+        showMessage('Failed to save badge template configuration: ' + error.message, 'error');
+    }
+}
+
+// Update crew action buttons to include custom badge options
+function updateCrewActionButtons() {
+    const approvedCrewRows = document.querySelectorAll('#approvedCrewTableBody tr');
+    
+    approvedCrewRows.forEach(row => {
+        const actionsCell = row.querySelector('.crew-actions');
+        if (actionsCell && !actionsCell.querySelector('[data-action="download-custom-pdf"]')) {
+            const crewId = actionsCell.querySelector('[data-crew-id]')?.dataset.crewId;
+            if (crewId) {
+                // Add custom badge buttons
+                const customPdfBtn = document.createElement('button');
+                customPdfBtn.className = 'btn-custom';
+                customPdfBtn.dataset.crewId = crewId;
+                customPdfBtn.dataset.action = 'download-custom-pdf';
+                customPdfBtn.title = 'Download Custom Badge PDF';
+                customPdfBtn.innerHTML = '🎨 Custom';
+                
+                const customPrintBtn = document.createElement('button');
+                customPrintBtn.className = 'btn-custom';
+                customPrintBtn.dataset.crewId = crewId;
+                customPrintBtn.dataset.action = 'print-custom-badge';
+                customPrintBtn.title = 'Print Custom Badge';
+                customPrintBtn.innerHTML = '🖨️ Custom';
+                
+                actionsCell.appendChild(customPdfBtn);
+                actionsCell.appendChild(customPrintBtn);
+            }
+        }
+    });
+    
+    // Add event listeners for custom badge actions
+    document.getElementById('approvedCrewTableBody').addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const crewId = button.dataset.crewId;
+        const action = button.dataset.action;
+        
+        if (action === 'download-custom-pdf') {
+            downloadCustomBadgePDF(crewId);
+        } else if (action === 'print-custom-badge') {
+            printCustomBadge(crewId);
+        }
+    });
+}
+
+// Download custom badge PDF
+async function downloadCustomBadgePDF(crewId) {
+    try {
+        const token = localStorage.getItem('token');
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        
+        showMessage('Generating custom badge PDF...', 'info');
+        
+        const response = await fetch(`/api/admin/crew/${crewId}/badge/custom-pdf?eventId=${eventId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate custom badge PDF');
+        }
+        
+        // Get the PDF blob and download it
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Get crew member name for filename
+        const detailsResponse = await fetch(`/api/admin/crew/${crewId}/details`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const details = await detailsResponse.json();
+        const filename = `badge_${details.first_name}_${details.last_name}_${details.badge_number}_custom.pdf`;
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showMessage('Custom badge PDF downloaded successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error downloading custom badge PDF:', error);
+        showMessage('Failed to download custom badge PDF: ' + error.message, 'error');
+    }
+}
+
+// Print custom badge
+async function printCustomBadge(crewId) {
+    try {
+        const token = localStorage.getItem('token');
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        
+        showMessage('Preparing custom badge for printing...', 'info');
+        
+        const response = await fetch(`/api/admin/crew/${crewId}/badge/custom-pdf?eventId=${eventId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate custom badge for printing');
+        }
+        
+        // Get the PDF blob and create object URL
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Open in new window for printing
+        const printWindow = window.open(url, '_blank');
+        
+        if (printWindow) {
+            printWindow.onload = () => {
+                // Auto-trigger print dialog after a short delay
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+            };
+            
+            showMessage('Custom badge opened for printing', 'success');
+        } else {
+            showMessage('Please allow pop-ups to print badges', 'error');
+        }
+        
+        // Cleanup after some time
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 30000); // 30 seconds
+        
+    } catch (error) {
+        console.error('Error printing custom badge:', error);
+        showMessage('Failed to prepare custom badge for printing: ' + error.message, 'error');
+    }
+}
+
+// Preview badge template
+async function previewBadgeTemplate() {
+    try {
+        showMessage('Generating template preview...', 'info');
+        
+        // For now, show a simple preview message
+        // In a full implementation, you would generate a sample badge
+        const previewContainer = document.querySelector('.template-preview');
+        
+        previewContainer.innerHTML = `
+            <div class="preview-content">
+                <h4>Template Preview</h4>
+                <p>Custom badge template is configured and ready to use.</p>
+                <p><strong>Template Name:</strong> ${document.getElementById('templateName').value || 'Unnamed Template'}</p>
+                <p><strong>Background Color:</strong> ${document.getElementById('backgroundColor').value}</p>
+                <p><strong>Text Color:</strong> ${document.getElementById('textColor').value}</p>
+                <p><strong>Accent Color:</strong> ${document.getElementById('accentColor').value}</p>
+                <p><em>Custom badges will be generated with the World Pool Championship style as shown in your reference image.</em></p>
+            </div>
+        `;
+        
+        showMessage('Template preview updated', 'success');
+        
+    } catch (error) {
+        console.error('Error generating template preview:', error);
+        showMessage('Failed to generate template preview', 'error');
+    }
+}
+
+// Setup badge template event listeners
+function setupBadgeTemplateListeners() {
+    // Use custom badge checkbox
+    document.getElementById('useCustomBadge').addEventListener('change', updateBadgeTemplateFormVisibility);
+    
+    // Save template button
+    document.getElementById('saveBadgeTemplate').addEventListener('click', saveBadgeTemplate);
+    
+    // Preview template buttons
+    document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
+    document.getElementById('generatePreview').addEventListener('click', previewBadgeTemplate);
+}

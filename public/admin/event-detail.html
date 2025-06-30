@@ -32,6 +32,7 @@
                 <a href="/admin/companies">Companies</a>
                 <a href="/admin/events" class="active">Events</a>
                 <a href="/admin/users">Users</a>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
                 <button class="btn-primary" id="signOutBtn">Sign Out</button>
             </div>
         </div>
@@ -72,6 +73,10 @@
                 <button class="tab-btn" data-tab="accredited">
                     <span class="tab-icon">✅</span>
                     Accredited Crew
+                </button>
+                <button class="tab-btn" data-tab="badge-template">
+                    <span class="tab-icon">🎨</span>
+                    Badge Template
                 </button>
             </div>
         </div>
@@ -221,6 +226,97 @@
                                 <!-- Approved crew rows will be loaded here -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Badge Template -->
+            <section class="event-section badge-template-section tab-panel" data-tab="badge-template">
+                <div class="section-header">
+                    <h2>Badge Template</h2>
+                    <div class="section-actions">
+                        <button type="button" class="btn-secondary" id="previewCustomBadge">Preview Template</button>
+                        <button type="button" class="btn-primary" id="saveBadgeTemplate">Save Template</button>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="badge-template-description">
+                        <p>Configure custom badge design and field mapping for this event:</p>
+                    </div>
+                    
+                    <!-- Template Configuration -->
+                    <div class="overview-card">
+                        <h3>Template Configuration</h3>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="useCustomBadge"> 
+                                Use Custom Badge Template
+                            </label>
+                            <small class="form-help">Enable custom badge design instead of the default template</small>
+                        </div>
+                        
+                        <div class="form-group" id="templateNameGroup">
+                            <label for="templateName">Template Name</label>
+                            <input type="text" id="templateName" placeholder="e.g., World Pool Championship 2024">
+                            <small class="form-help">Enter a descriptive name for this badge template</small>
+                        </div>
+                        
+                        <div class="form-group" id="templateUploadGroup">
+                            <label for="templateFile">Adobe Illustrator Template</label>
+                            <input type="file" id="templateFile" accept=".ai,.pdf,.png,.jpg,.jpeg">
+                            <small class="form-help">Upload your Adobe Illustrator file or converted image template</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Field Mapping -->
+                    <div class="overview-card" id="fieldMappingCard">
+                        <h3>Field Mapping & Configuration</h3>
+                        
+                        <div class="badge-field-config">
+                            <h4>Display Options</h4>
+                            <div class="checkbox-grid">
+                                <label><input type="checkbox" id="showPhoto" checked> Crew Photo</label>
+                                <label><input type="checkbox" id="showName" checked> Full Name</label>
+                                <label><input type="checkbox" id="showRole" checked> Role/Title</label>
+                                <label><input type="checkbox" id="showCompany" checked> Company Name</label>
+                                <label><input type="checkbox" id="showBadgeNumber" checked> Badge Number</label>
+                                <label><input type="checkbox" id="showAccessLevel" checked> Access Level</label>
+                                <label><input type="checkbox" id="showEventDetails" checked> Event Details</label>
+                                <label><input type="checkbox" id="showAccessZones"> Access Zones</label>
+                                <label><input type="checkbox" id="showQRCode" checked> QR Code</label>
+                            </div>
+                        </div>
+                        
+                        <div class="badge-field-config">
+                            <h4>Color Scheme</h4>
+                            <div class="color-config">
+                                <div class="form-group">
+                                    <label for="backgroundColor">Background Color</label>
+                                    <input type="color" id="backgroundColor" value="#1B5E20">
+                                </div>
+                                <div class="form-group">
+                                    <label for="textColor">Text Color</label>
+                                    <input type="color" id="textColor" value="#FFFFFF">
+                                </div>
+                                <div class="form-group">
+                                    <label for="accentColor">Accent Color</label>
+                                    <input type="color" id="accentColor" value="#FFD700">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Template Preview -->
+                    <div class="overview-card" id="templatePreviewCard">
+                        <h3>Template Preview</h3>
+                        <div class="template-preview">
+                            <div class="preview-placeholder">
+                                <p>Click "Preview Template" to see how badges will look with current settings</p>
+                                <button type="button" class="btn-secondary" id="generatePreview">Generate Preview</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

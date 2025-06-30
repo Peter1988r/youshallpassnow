@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const https = require('https');
 
 // Initialize Supabase only if credentials are available
 let supabase = null;
@@ -19,12 +20,20 @@ try {
 class PDFGenerator {
     constructor() {
         this.outputDir = path.join(__dirname, '../public/badges');
+        this.templatesDir = path.join(__dirname, '../public/badge-templates');
         this.ensureOutputDirectory();
+        this.ensureTemplatesDirectory();
     }
 
     ensureOutputDirectory() {
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
+        }
+    }
+
+    ensureTemplatesDirectory() {
+        if (!fs.existsSync(this.templatesDir)) {
+            fs.mkdirSync(this.templatesDir, { recursive: true });
         }
     }
 
@@ -266,6 +275,345 @@ class PDFGenerator {
                 reject(error);
             }
         });
+    }
+
+    // Generate badge using custom template if available, otherwise use default
+    async generateCustomBadge(crewMember, event) {
+        try {
+            // Check if event has custom badge template
+            if (event.use_custom_badge && event.custom_badge_template_path) {
+                return await this.generateFromCustomTemplate(crewMember, event);
+            } else {
+                // Use default A5 badge
+                return await this.generateA5Badge(crewMember);
+            }
+        } catch (error) {
+            console.warn('Custom badge generation failed, falling back to default:', error.message);
+            // Fallback to default badge if custom fails
+            return await this.generateA5Badge(crewMember);
+        }
+    }
+
+    // Generate badge from custom Adobe Illustrator template
+    async generateFromCustomTemplate(crewMember, event) {
+        return new Promise((resolve, reject) => {
+            try {
+                // A5 size: 420 x 595 points (148.5 x 210 mm)
+                const doc = new PDFDocument({
+                    size: [420, 595], // A5 portrait
+                    margins: 0 // No margins for custom template
+                });
+
+                const buffers = [];
+                doc.on('data', buffers.push.bind(buffers));
+                doc.on('end', () => {
+                    const pdfBuffer = Buffer.concat(buffers);
+                    resolve(pdfBuffer);
+                });
+
+                // Load custom template background if available
+                this.loadCustomTemplate(doc, event, crewMember)
+                    .then(() => {
+                        doc.end();
+                    })
+                    .catch((error) => {
+                        console.error('Error loading custom template:', error);
+                        // If template loading fails, create a basic badge with custom styling
+                        this.createBasicCustomBadge(doc, crewMember, event);
+                        doc.end();
+                    });
+
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    // Load and apply custom template with field mapping
+    async loadCustomTemplate(doc, event, crewMember) {
+        // For now, we'll create a custom-styled badge based on the example
+        // In a full implementation, you would parse the AI file or use a converted template
+        
+        // Parse field mapping from event configuration
+        const fieldMapping = event.custom_badge_field_mapping || this.getDefaultFieldMapping();
+        
+        // Create custom badge based on the example design
+        await this.createWorldPoolChampionshipBadge(doc, crewMember, event, fieldMapping);
+    }
+
+    // Create a badge styled like the World Pool Championship example
+    async createWorldPoolChampionshipBadge(doc, crewMember, event, fieldMapping) {
+        // Background with green gradient effect
+        doc.rect(0, 0, 420, 595)
+           .fillColor('#1B5E20') // Dark green base
+           .fill();
+
+        // Add sparkle/star pattern (simplified)
+        this.addStarPattern(doc);
+
+        // Event title section
+        doc.fontSize(24)
+           .font('Helvetica-Bold')
+           .fillColor('#FFD700') // Gold color
+           .text(event.name.toUpperCase() || 'EVENT NAME', 40, 50, { 
+               align: 'center', 
+               width: 340 
+           });
+
+        doc.fontSize(16)
+           .font('Helvetica-Bold')
+           .fillColor('#FFFFFF')
+           .text('CHAMPIONSHIP', 40, 85, { 
+               align: 'center', 
+               width: 340 
+           });
+
+        // Location
+        doc.fontSize(14)
+           .font('Helvetica')
+           .fillColor('#FFFFFF')
+           .text(event.location?.toUpperCase() || 'EVENT LOCATION', 40, 110, { 
+               align: 'center', 
+               width: 340 
+           });
+
+        // Photo section
+        const photoSize = 120;
+        const photoX = 150;
+        const photoY = 160;
+        
+        // Photo background
+        doc.rect(photoX, photoY, photoSize, photoSize)
+           .fillColor('#FFFFFF')
+           .fill();
+
+        // Load crew photo if available
+        if (crewMember.photo_path) {
+            try {
+                await this.loadCrewPhotoForCustomTemplate(doc, crewMember.photo_path, photoX + 10, photoY + 10, photoSize - 20);
+            } catch (error) {
+                console.warn('Failed to load crew photo for custom template:', error.message);
+                // Photo placeholder
+                doc.fontSize(10)
+                   .font('Helvetica')
+                   .fillColor('#999999')
+                   .text('PHOTO', photoX + photoSize/2 - 15, photoY + photoSize/2 - 5);
+            }
+        } else {
+            // Photo placeholder
+            doc.fontSize(10)
+               .font('Helvetica')
+               .fillColor('#999999')
+               .text('PHOTO', photoX + photoSize/2 - 15, photoY + photoSize/2 - 5);
+        }
+
+        // Crew member name
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .fillColor('#FFFFFF')
+           .text(`${crewMember.first_name} ${crewMember.last_name}`.toUpperCase(), 40, 300, { 
+               align: 'center', 
+               width: 340 
+           });
+
+        // Company name
+        if (crewMember.company_name) {
+            doc.fontSize(12)
+               .font('Helvetica-Bold')
+               .fillColor('#FFD700')
+               .text(crewMember.company_name.toUpperCase(), 40, 330, { 
+                   align: 'center', 
+                   width: 340 
+               });
+        }
+
+        // Role/Title
+        doc.fontSize(14)
+           .font('Helvetica')
+           .fillColor('#FFFFFF')
+           .text(crewMember.role?.replace(/_/g, ' ').toUpperCase() || 'CREW MEMBER', 40, 355, { 
+               align: 'center', 
+               width: 340 
+           });
+
+        // Diamond pattern border (simplified)
+        this.addDiamondPattern(doc);
+
+        // Access zones section
+        if (event.custom_badge_field_mapping?.show_access_zones) {
+            this.addAccessZonesSection(doc, crewMember);
+        }
+
+        // QR Code section (placeholder)
+        this.addQRCodeSection(doc, crewMember);
+
+        // Footer branding
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor('#FFFFFF')
+           .text('Powered by YouShallPass', 40, 570, { 
+               align: 'center', 
+               width: 340 
+           });
+    }
+
+    // Add decorative star pattern
+    addStarPattern(doc) {
+        // Add simplified sparkle effects
+        const stars = [
+            { x: 60, y: 40, size: 2 },
+            { x: 350, y: 35, size: 1.5 },
+            { x: 80, y: 120, size: 1 },
+            { x: 320, y: 115, size: 2 },
+            { x: 50, y: 200, size: 1.5 },
+            { x: 370, y: 180, size: 1 },
+            { x: 90, y: 400, size: 2 },
+            { x: 340, y: 420, size: 1.5 }
+        ];
+
+        stars.forEach(star => {
+            doc.circle(star.x, star.y, star.size)
+               .fillColor('#FFD700')
+               .fill();
+        });
+    }
+
+    // Add diamond pattern border
+    addDiamondPattern(doc) {
+        // Simplified diamond border at bottom
+        const diamondY = 450;
+        const diamondSize = 15;
+        const diamondCount = 10;
+        const startX = (420 - (diamondCount * diamondSize * 2)) / 2;
+
+        for (let i = 0; i < diamondCount; i++) {
+            const x = startX + (i * diamondSize * 2);
+            
+            // Create diamond shape
+            doc.polygon([
+                [x + diamondSize, diamondY],
+                [x + diamondSize * 1.5, diamondY + diamondSize/2],
+                [x + diamondSize, diamondY + diamondSize],
+                [x + diamondSize/2, diamondY + diamondSize/2]
+            ])
+            .fillColor('#FFFFFF')
+            .fill();
+        }
+    }
+
+    // Add access zones section
+    addAccessZonesSection(doc, crewMember) {
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .fillColor('#FFD700')
+           .text('ACCESS ZONES:', 40, 380);
+
+        // Sample access zones based on access level
+        const accessZones = this.getAccessZonesForLevel(crewMember.access_level);
+        
+        doc.fontSize(10)
+           .font('Helvetica')
+           .fillColor('#FFFFFF');
+           
+        accessZones.forEach((zone, index) => {
+            doc.text(`Zone ${index + 1}: ${zone}`, 40, 400 + (index * 15));
+        });
+    }
+
+    // Add QR code section (placeholder)
+    addQRCodeSection(doc, crewMember) {
+        // QR code placeholder
+        doc.rect(350, 480, 60, 60)
+           .fillColor('#FFFFFF')
+           .fill();
+           
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor('#000000')
+           .text('QR CODE', 365, 505);
+           
+        doc.fontSize(6)
+           .font('Helvetica')
+           .fillColor('#666666')
+           .text(`Badge: ${crewMember.badge_number}`, 350, 545, { width: 60, align: 'center' });
+    }
+
+    // Get access zones based on access level
+    getAccessZonesForLevel(accessLevel) {
+        const zones = {
+            'VIP': ['VIP Lounge', 'Field of Play', 'Media Center', 'All Areas'],
+            'MEDIA': ['Media Center', 'Press Areas', 'Photo Zones'],
+            'CREW': ['Technical Areas', 'Backstage', 'Service Areas'],
+            'RESTRICTED': ['General Areas', 'Spectator Zones'],
+            'ALL_ACCESS': ['All Areas', 'VIP Lounge', 'Technical', 'Media']
+        };
+        
+        return zones[accessLevel] || ['General Access'];
+    }
+
+    // Load crew photo for custom template
+    async loadCrewPhotoForCustomTemplate(doc, photoPath, x, y, size) {
+        if (photoPath.startsWith('http')) {
+            // Handle Supabase URL
+            return new Promise((resolve, reject) => {
+                https.get(photoPath, (response) => {
+                    if (response.statusCode !== 200) {
+                        reject(new Error(`HTTP ${response.statusCode}`));
+                        return;
+                    }
+
+                    const chunks = [];
+                    response.on('data', chunk => chunks.push(chunk));
+                    response.on('end', () => {
+                        try {
+                            const imageBuffer = Buffer.concat(chunks);
+                            doc.image(imageBuffer, x, y, { 
+                                fit: [size, size], 
+                                align: 'center', 
+                                valign: 'center' 
+                            });
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                }).on('error', reject);
+            });
+        } else if (fs.existsSync(photoPath)) {
+            // Handle local file
+            doc.image(photoPath, x, y, { 
+                fit: [size, size], 
+                align: 'center', 
+                valign: 'center' 
+            });
+        } else {
+            throw new Error('Photo not found');
+        }
+    }
+
+    // Create basic custom badge when template loading fails
+    createBasicCustomBadge(doc, crewMember, event) {
+        // Fallback to enhanced A5 badge with custom styling
+        // This is essentially the A5 badge but with custom colors/styling
+        this.createWorldPoolChampionshipBadge(doc, crewMember, event, {});
+    }
+
+    // Get default field mapping for custom badges
+    getDefaultFieldMapping() {
+        return {
+            show_photo: true,
+            show_name: true,
+            show_role: true,
+            show_company: true,
+            show_badge_number: true,
+            show_access_level: true,
+            show_event_details: true,
+            show_access_zones: false,
+            show_qr_code: true,
+            background_color: '#1B5E20',
+            text_color: '#FFFFFF',
+            accent_color: '#FFD700'
+        };
     }
 
     generateA5Badge(crewMember) {

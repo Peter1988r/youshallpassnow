@@ -63,6 +63,39 @@ const initDatabase = async () => {
             )
         `);
 
+        // Add custom badge template columns to events table
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='custom_badge_template_path') THEN
+                    ALTER TABLE events ADD COLUMN custom_badge_template_path TEXT;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='custom_badge_field_mapping') THEN
+                    ALTER TABLE events ADD COLUMN custom_badge_field_mapping JSONB;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='use_custom_badge') THEN
+                    ALTER TABLE events ADD COLUMN use_custom_badge BOOLEAN DEFAULT FALSE;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='badge_template_name') THEN
+                    ALTER TABLE events ADD COLUMN badge_template_name TEXT;
+                END IF;
+            END $$;
+        `);
+
         // Crew members table
         await client.query(`
             CREATE TABLE IF NOT EXISTS crew_members (
