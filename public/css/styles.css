@@ -1,42 +1,15 @@
-/* Reset and Base Styles */
+/* Reset and Base Styles - Dark Mode Only */
 :root {
-    --primary-color: #4F46E5;
-    --primary-hover: #4338CA;
-    --secondary-color: #1F2937;
-    --text-color: #374151;
-    --light-gray: #F3F4F6;
-    --white: #FFFFFF;
-    --max-width: 1200px;
-    --border-radius: 8px;
-    
-    /* Light mode colors */
-    --bg-primary: #FFFFFF;
-    --bg-secondary: #F9FAFB;
-    --bg-tertiary: #F3F4F6;
-    --text-primary: #111827;
-    --text-secondary: #374151;
-    --text-muted: #6B7280;
-    --border-color: #E5E7EB;
-    --shadow: rgba(0, 0, 0, 0.1);
-    --card-bg: #FFFFFF;
-    --navbar-bg: #FFFFFF;
-    --input-bg: #FFFFFF;
-    --input-border: #E5E7EB;
-    --table-header-bg: #F8FAFC;
-    --table-hover-bg: #F8FAFC;
-    --border-light: #F1F5F9;
-}
-
-/* Dark mode colors */
-[data-theme="dark"] {
     --primary-color: #6366F1;
     --primary-hover: #5B21B6;
     --secondary-color: #F9FAFB;
     --text-color: #D1D5DB;
     --light-gray: #374151;
     --white: #1F2937;
+    --max-width: 1200px;
+    --border-radius: 8px;
     
-    /* Dark mode specific colors */
+    /* Dark mode colors */
     --bg-primary: #111827;
     --bg-secondary: #1F2937;
     --bg-tertiary: #374151;
@@ -52,12 +25,20 @@
     --table-header-bg: #374151;
     --table-hover-bg: #374151;
     --border-light: #4B5563;
+    --secondary-bg: #374151;
+    --hover-bg: #4B5563;
+    --info-bg: #1E40AF;
+    --info-color: #DBEAFE;
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    background-color: var(--bg-primary);
 }
 
 body {
@@ -149,31 +130,7 @@ body {
     transition: color 0.3s ease;
 }
 
-/* Dark Mode Toggle */
-.theme-toggle {
-    background: none;
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    color: var(--text-primary);
-    transition: all 0.3s ease;
-    margin-left: 1rem;
-}
-
-.theme-toggle:hover {
-    background-color: var(--bg-tertiary);
-    transform: scale(1.05);
-}
-
-.theme-toggle:active {
-    transform: scale(0.95);
-}
+/* Theme toggle removed - dark mode only */
 
 /* Main Content */
 main {

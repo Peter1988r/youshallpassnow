@@ -157,18 +157,18 @@
 }
 
 .status-badge.complete {
-    background-color: #D1FAE5;
-    color: #059669;
+    background-color: #059669;
+    color: #D1FAE5;
 }
 
 .status-badge.pending {
-    background-color: #FEF3C7;
-    color: #D97706;
+    background-color: #D97706;
+    color: #FEF3C7;
 }
 
 .status-badge.rejected {
-    background-color: #FEE2E2;
-    color: #DC2626;
+    background-color: #DC2626;
+    color: #FEE2E2;
 }
 
 /* Modal */
@@ -318,14 +318,14 @@
 
 .form-group input[type="file"] {
     padding: 0.5rem;
-    border: 2px dashed #e5e7eb;
-    background-color: #f9fafb;
+    border: 2px dashed var(--border-color);
+    background-color: var(--bg-tertiary);
     cursor: pointer;
 }
 
 .form-group input[type="file"]:hover {
     border-color: var(--primary-color);
-    background-color: #f3f4f6;
+    background-color: var(--hover-bg);
 }
 
 /* Access zones styling */

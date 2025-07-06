@@ -1,3 +1,7 @@
+// Force dark mode permanently
+document.documentElement.setAttribute('data-theme', 'dark');
+localStorage.removeItem('theme'); // Clear any stored theme preference
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Event detail page loaded, initializing...');
     

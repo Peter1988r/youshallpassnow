@@ -52,7 +52,7 @@
 }
 
 .close-modal:hover {
-    background-color: #f3f4f6;
+    background-color: var(--bg-tertiary);
 }
 
 /* Form Styles */
@@ -183,7 +183,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 12px;
     color: white;
 }
@@ -260,7 +260,7 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: #f9fafb;
+    background: var(--bg-tertiary);
     border-radius: 8px;
     border-left: 4px solid var(--primary-color);
 }
@@ -580,18 +580,18 @@
 }
 
 .status-badge.pending {
-    background: #fef3c7;
-    color: #92400e;
+    background: #d97706;
+    color: #fef3c7;
 }
 
 .status-badge.approved {
-    background: #d1fae5;
-    color: #065f46;
+    background: #059669;
+    color: #d1fae5;
 }
 
 .status-badge.rejected {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #dc2626;
+    color: #fee2e2;
 }
 
 /* Empty States */
@@ -670,18 +670,18 @@
 }
 
 .tab-btn {
-    background: #f3f4f6;
+    background: var(--bg-tertiary);
     border: none;
     padding: 0.75rem 2rem;
     border-radius: 8px 8px 0 0;
     font-weight: 600;
-    color: #333;
+    color: var(--text-secondary);
     cursor: pointer;
     transition: background 0.2s;
 }
 
 .tab-btn.active {
-    background: #fff;
+    background: var(--card-bg);
     color: var(--primary-color);
     border-bottom: 2px solid var(--primary-color);
 }
@@ -1297,7 +1297,7 @@ select[multiple] option:disabled {
 }
 
 .btn-icon:hover {
-    background-color: #f3f4f6;
+    background-color: var(--bg-tertiary);
     transform: scale(1.1);
 }
 
@@ -2041,7 +2041,7 @@ select[multiple] option:disabled {
     max-height: 595px;
     margin: 20px auto;
     position: relative;
-    background: #f8f9fa;
+    background: var(--bg-tertiary);
     background-image: 
         linear-gradient(45deg, #e9ecef 25%, transparent 25%),
         linear-gradient(-45deg, #e9ecef 25%, transparent 25%),

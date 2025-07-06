@@ -1,3 +1,7 @@
+// Force dark mode permanently
+document.documentElement.setAttribute('data-theme', 'dark');
+localStorage.removeItem('theme'); // Clear any stored theme preference
+
 // DOM Elements
 const navbar = document.querySelector('.navbar');
 const navLinks = document.querySelector('.nav-links');
