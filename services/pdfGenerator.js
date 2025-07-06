@@ -480,12 +480,18 @@ class PDFGenerator {
             // Convert relative position to absolute position
             const x = position.relativeX * badgeWidth;
             const y = position.relativeY * badgeHeight;
+            
+            // Get field dimensions (use custom size if available)
+            const fieldWidth = position.relativeWidth ? position.relativeWidth * badgeWidth : 80;
+            const fieldHeight = position.relativeHeight ? position.relativeHeight * badgeHeight : 35;
 
             console.log(`Rendering field ${fieldType} at position:`, {
                 relativeX: position.relativeX,
                 relativeY: position.relativeY,
                 absoluteX: x,
                 absoluteY: y,
+                fieldWidth,
+                fieldHeight,
                 badgeWidth,
                 badgeHeight
             });
@@ -500,32 +506,35 @@ class PDFGenerator {
 
             switch (fieldType) {
                 case 'photo':
-                    await this.renderPhotoField(doc, crewMember, x, y);
+                    await this.renderPhotoField(doc, crewMember, x, y, fieldWidth, fieldHeight);
                     break;
                 
                 case 'name':
                     this.renderTextField(doc, `${crewMember.first_name} ${crewMember.last_name}`, x, y, {
-                        fontSize: 16,
+                        fontSize: Math.min(16, fieldHeight * 0.5),
                         font: 'Helvetica-Bold',
-                        color: textColor
+                        color: textColor,
+                        maxWidth: fieldWidth
                     });
                     break;
                 
                 case 'role':
                     const roleName = crewMember.role ? crewMember.role.replace(/_/g, ' ') : 'Crew Member';
                     this.renderTextField(doc, roleName, x, y, {
-                        fontSize: 12,
+                        fontSize: Math.min(12, fieldHeight * 0.4),
                         font: 'Helvetica',
-                        color: textColor
+                        color: textColor,
+                        maxWidth: fieldWidth
                     });
                     break;
                 
                 case 'company':
                     if (crewMember.company_name) {
                         this.renderTextField(doc, crewMember.company_name, x, y, {
-                            fontSize: 12,
+                            fontSize: Math.min(12, fieldHeight * 0.4),
                             font: 'Helvetica-Bold',
-                            color: accentColor
+                            color: accentColor,
+                            maxWidth: fieldWidth
                         });
                     }
                     break;
@@ -533,23 +542,16 @@ class PDFGenerator {
                 case 'badge_number':
                     if (crewMember.badge_number) {
                         this.renderTextField(doc, `#${crewMember.badge_number}`, x, y, {
-                            fontSize: 10,
+                            fontSize: Math.min(10, fieldHeight * 0.3),
                             font: 'Helvetica-Bold',
-                            color: textColor
+                            color: textColor,
+                            maxWidth: fieldWidth
                         });
                     }
                     break;
                 
-                case 'access_level':
-                    this.renderTextField(doc, crewMember.access_level || 'General', x, y, {
-                        fontSize: 10,
-                        font: 'Helvetica',
-                        color: textColor
-                    });
-                    break;
-                
                 case 'qr_code':
-                    this.renderQRCodeField(doc, crewMember, x, y);
+                    this.renderQRCodeField(doc, crewMember, x, y, Math.min(fieldWidth, fieldHeight));
                     break;
                 
                 default:
@@ -576,8 +578,8 @@ class PDFGenerator {
     }
 
     // Render a photo field
-    async renderPhotoField(doc, crewMember, x, y) {
-        const photoSize = 60; // Default photo size
+    async renderPhotoField(doc, crewMember, x, y, width = 60, height = 60) {
+        const photoSize = Math.min(width, height); // Use smallest dimension for square photo
         
         if (crewMember.photo_path) {
             try {
@@ -608,8 +610,8 @@ class PDFGenerator {
     }
 
     // Render QR code field (placeholder for now)
-    renderQRCodeField(doc, crewMember, x, y) {
-        const qrSize = 40;
+    renderQRCodeField(doc, crewMember, x, y, size = 40) {
+        const qrSize = size;
         
         // Draw QR code placeholder
         doc.rect(x, y, qrSize, qrSize)
@@ -617,10 +619,15 @@ class PDFGenerator {
            .fill();
 
         // Add some pattern to simulate QR code
-        for (let i = 0; i < 5; i++) {
-            for (let j = 0; j < 5; j++) {
+        const cellSize = qrSize / 8;
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j < 7; j++) {
                 if ((i + j) % 2 === 0) {
-                    doc.rect(x + i * 8 + 2, y + j * 8 + 2, 6, 6)
+                    const cellX = x + i * cellSize + cellSize * 0.1;
+                    const cellY = y + j * cellSize + cellSize * 0.1;
+                    const cellDim = cellSize * 0.8;
+                    
+                    doc.rect(cellX, cellY, cellDim, cellDim)
                        .fillColor('#FFFFFF')
                        .fill();
                 }

@@ -1217,9 +1217,7 @@ function populateBadgeTemplateForm(template) {
     document.getElementById('showRole').checked = fieldMapping.show_role !== false;
     document.getElementById('showCompany').checked = fieldMapping.show_company !== false;
     document.getElementById('showBadgeNumber').checked = fieldMapping.show_badge_number !== false;
-    document.getElementById('showAccessLevel').checked = fieldMapping.show_access_level !== false;
     document.getElementById('showEventDetails').checked = fieldMapping.show_event_details !== false;
-    document.getElementById('showAccessZones').checked = fieldMapping.show_access_zones || false;
     document.getElementById('showQRCode').checked = fieldMapping.show_qr_code !== false;
     
     // Set color scheme
@@ -1275,7 +1273,19 @@ function restoreFieldPositions(fieldPositions) {
             const x = position.x || (position.relativeX * templateEditor.backgroundImage.offsetWidth);
             const y = position.y || (position.relativeY * templateEditor.backgroundImage.offsetHeight);
             
-            createPositionedField(fieldType, x, y);
+            const fieldElement = createPositionedField(fieldType, x, y);
+            
+            // Restore field size if available
+            if (position.width && position.height) {
+                fieldElement.style.width = position.width + 'px';
+                fieldElement.style.height = position.height + 'px';
+                
+                // Update size display
+                const sizeElement = fieldElement.querySelector('.field-size');
+                if (sizeElement) {
+                    sizeElement.textContent = `${position.width}×${position.height}`;
+                }
+            }
         }
         
         // Update field positions reference
@@ -1353,9 +1363,7 @@ async function saveBadgeTemplate() {
             show_role: document.getElementById('showRole').checked,
             show_company: document.getElementById('showCompany').checked,
             show_badge_number: document.getElementById('showBadgeNumber').checked,
-            show_access_level: document.getElementById('showAccessLevel').checked,
             show_event_details: document.getElementById('showEventDetails').checked,
-            show_access_zones: document.getElementById('showAccessZones').checked,
             show_qr_code: document.getElementById('showQRCode').checked,
             background_color: document.getElementById('backgroundColor').value,
             text_color: document.getElementById('textColor').value,
@@ -1653,6 +1661,7 @@ function createPositionedField(fieldType, x, y) {
     fieldElement.innerHTML = `
         <span class="field-icon">${fieldData.icon}</span>
         <span class="field-label">${fieldData.label}</span>
+        <span class="field-size">80×35</span>
         <button class="remove-field" onclick="removePositionedField('${fieldType}')">×</button>
     `;
     
@@ -1686,6 +1695,8 @@ function createPositionedField(fieldType, x, y) {
     }, 500);
     
     showMessage(`${fieldData.label} field positioned`, 'success');
+    
+    return fieldElement;
 }
 
 // Get field data
@@ -1696,28 +1707,41 @@ function getFieldData(fieldType) {
         role: { icon: '💼', label: 'Role' },
         company: { icon: '🏢', label: 'Company' },
         badge_number: { icon: '🏷️', label: 'Badge #' },
-        access_level: { icon: '🔐', label: 'Access Level' },
         qr_code: { icon: '📱', label: 'QR Code' }
     };
     
     return fieldData[fieldType] || { icon: '❓', label: 'Unknown' };
 }
 
-// Setup field dragging for repositioning
+// Setup field dragging for repositioning and resizing
 function setupFieldDragging(fieldElement) {
     let isDragging = false;
-    let startX, startY, startLeft, startTop;
+    let isResizing = false;
+    let startX, startY, startLeft, startTop, startWidth, startHeight;
     
     fieldElement.addEventListener('mousedown', (e) => {
         if (e.target.classList.contains('remove-field')) return;
         
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startLeft = parseInt(fieldElement.style.left);
-        startTop = parseInt(fieldElement.style.top);
+        const rect = fieldElement.getBoundingClientRect();
+        const isNearBottomRight = (e.clientX > rect.right - 12) && (e.clientY > rect.bottom - 12);
         
-        fieldElement.classList.add('dragging');
+        if (isNearBottomRight) {
+            // Start resizing
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = fieldElement.offsetWidth;
+            startHeight = fieldElement.offsetHeight;
+        } else {
+            // Start dragging
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = parseInt(fieldElement.style.left);
+            startTop = parseInt(fieldElement.style.top);
+        }
+        
+        fieldElement.classList.add(isResizing ? 'resizing' : 'dragging');
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
         
@@ -1725,38 +1749,66 @@ function setupFieldDragging(fieldElement) {
     });
     
     function handleMouseMove(e) {
-        if (!isDragging) return;
-        
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        
-        const newLeft = startLeft + deltaX;
-        const newTop = startTop + deltaY;
-        
-        fieldElement.style.left = newLeft + 'px';
-        fieldElement.style.top = newTop + 'px';
+        if (isDragging) {
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            const newLeft = startLeft + deltaX;
+            const newTop = startTop + deltaY;
+            
+            fieldElement.style.left = newLeft + 'px';
+            fieldElement.style.top = newTop + 'px';
+        } else if (isResizing) {
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            const newWidth = Math.max(80, startWidth + deltaX);
+            const newHeight = Math.max(35, startHeight + deltaY);
+            
+            fieldElement.style.width = newWidth + 'px';
+            fieldElement.style.height = newHeight + 'px';
+            
+            // Update size display
+            const sizeElement = fieldElement.querySelector('.field-size');
+            if (sizeElement) {
+                sizeElement.textContent = `${newWidth}×${newHeight}`;
+            }
+        }
     }
     
     function handleMouseUp(e) {
-        if (!isDragging) return;
+        if (!isDragging && !isResizing) return;
         
+        const wasResizing = isResizing;
         isDragging = false;
-        fieldElement.classList.remove('dragging');
+        isResizing = false;
         
-        // Update position data
+        fieldElement.classList.remove('dragging', 'resizing');
+        
+        // Update field data
         const fieldType = fieldElement.dataset.field;
         const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
         const canvasRect = templateEditor.canvas.getBoundingClientRect();
         
         const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left);
         const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top);
+        const width = fieldElement.offsetWidth;
+        const height = fieldElement.offsetHeight;
         
         templateEditor.fieldPositions[fieldType] = {
             x: x,
             y: y,
+            width: width,
+            height: height,
             relativeX: x / bgRect.width,
-            relativeY: y / bgRect.height
+            relativeY: y / bgRect.height,
+            relativeWidth: width / bgRect.width,
+            relativeHeight: height / bgRect.height
         };
+        
+        if (wasResizing) {
+            showMessage(`${getFieldData(fieldType).label} resized to ${width}×${height}`, 'info');
+        }
         
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
