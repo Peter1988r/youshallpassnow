@@ -1227,8 +1227,67 @@ function populateBadgeTemplateForm(template) {
     document.getElementById('textColor').value = fieldMapping.text_color || '#FFFFFF';
     document.getElementById('accentColor').value = fieldMapping.accent_color || '#FFD700';
     
+    // Load existing template image and field positions if available
+    if (template.templatePath && fieldMapping.field_positions) {
+        loadExistingTemplate(template.templatePath, fieldMapping.field_positions);
+    }
+    
     // Update form visibility based on custom badge setting
     updateBadgeTemplateFormVisibility();
+}
+
+// Load existing template and field positions
+async function loadExistingTemplate(templatePath, fieldPositions) {
+    try {
+        // Create an image element to load the background
+        const img = new Image();
+        img.onload = function() {
+            // Display the template background
+            displayTemplateBackground(img, templatePath);
+            
+            // Wait a bit for the background to render, then restore field positions
+            setTimeout(() => {
+                restoreFieldPositions(fieldPositions);
+            }, 100);
+        };
+        img.onerror = function() {
+            console.warn('Failed to load existing template image');
+        };
+        img.src = templatePath;
+        
+    } catch (error) {
+        console.error('Error loading existing template:', error);
+    }
+}
+
+// Restore field positions from saved data
+function restoreFieldPositions(fieldPositions) {
+    try {
+        // Clear existing positioned fields
+        templateEditor.positionedFields.forEach((fieldElement) => {
+            fieldElement.remove();
+        });
+        templateEditor.positionedFields.clear();
+        
+        // Restore each positioned field
+        for (const [fieldType, position] of Object.entries(fieldPositions)) {
+            // Use absolute coordinates if available, otherwise convert from relative
+            const x = position.x || (position.relativeX * templateEditor.backgroundImage.offsetWidth);
+            const y = position.y || (position.relativeY * templateEditor.backgroundImage.offsetHeight);
+            
+            createPositionedField(fieldType, x, y);
+        }
+        
+        // Update field positions reference
+        templateEditor.fieldPositions = { ...fieldPositions };
+        
+        console.log('Field positions restored:', Object.keys(fieldPositions).length, 'fields');
+        showMessage('Template and field positions loaded successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error restoring field positions:', error);
+        showMessage('Template loaded but field positions could not be restored', 'warning');
+    }
 }
 
 // Update form visibility based on custom badge checkbox
@@ -1261,35 +1320,61 @@ async function saveBadgeTemplate() {
         const eventId = new URLSearchParams(window.location.search).get('id');
         const token = localStorage.getItem('token');
         
-        // Collect form data
-        const templateConfig = {
-            templateName: document.getElementById('templateName').value,
-            useCustomBadge: document.getElementById('useCustomBadge').checked,
-            fieldMapping: {
-                show_photo: document.getElementById('showPhoto').checked,
-                show_name: document.getElementById('showName').checked,
-                show_role: document.getElementById('showRole').checked,
-                show_company: document.getElementById('showCompany').checked,
-                show_badge_number: document.getElementById('showBadgeNumber').checked,
-                show_access_level: document.getElementById('showAccessLevel').checked,
-                show_event_details: document.getElementById('showEventDetails').checked,
-                show_access_zones: document.getElementById('showAccessZones').checked,
-                show_qr_code: document.getElementById('showQRCode').checked,
-                background_color: document.getElementById('backgroundColor').value,
-                text_color: document.getElementById('textColor').value,
-                accent_color: document.getElementById('accentColor').value
-            }
+        // Validate template configuration
+        const useCustomBadge = document.getElementById('useCustomBadge').checked;
+        
+        if (useCustomBadge && !templateEditor.backgroundImage) {
+            showMessage('Please upload a template image before saving', 'warning');
+            return;
+        }
+        
+        if (useCustomBadge && Object.keys(templateEditor.fieldPositions).length === 0) {
+            showMessage('Please position at least one field on the template before saving', 'warning');
+            return;
+        }
+        
+        // Create FormData for file upload
+        const formData = new FormData();
+        
+        // Add template file if present
+        const templateFile = document.getElementById('templateFile').files[0];
+        if (templateFile) {
+            formData.append('templateFile', templateFile);
+        }
+        
+        // Add other form data
+        formData.append('templateName', document.getElementById('templateName').value);
+        formData.append('useCustomBadge', useCustomBadge);
+        
+        // Create field mapping object
+        const fieldMapping = {
+            show_photo: document.getElementById('showPhoto').checked,
+            show_name: document.getElementById('showName').checked,
+            show_role: document.getElementById('showRole').checked,
+            show_company: document.getElementById('showCompany').checked,
+            show_badge_number: document.getElementById('showBadgeNumber').checked,
+            show_access_level: document.getElementById('showAccessLevel').checked,
+            show_event_details: document.getElementById('showEventDetails').checked,
+            show_access_zones: document.getElementById('showAccessZones').checked,
+            show_qr_code: document.getElementById('showQRCode').checked,
+            background_color: document.getElementById('backgroundColor').value,
+            text_color: document.getElementById('textColor').value,
+            accent_color: document.getElementById('accentColor').value,
+            // Add field positions
+            field_positions: templateEditor.fieldPositions
         };
+        
+        formData.append('fieldMapping', JSON.stringify(fieldMapping));
         
         showMessage('Saving badge template configuration...', 'info');
         
         const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${token}`
+                // Don't set Content-Type header - let browser set it for FormData
             },
-            body: JSON.stringify(templateConfig)
+            body: formData
         });
         
         if (!response.ok) {
@@ -1453,28 +1538,396 @@ async function printCustomBadge(crewId) {
     }
 }
 
+// Template Editor Variables
+let templateEditor = {
+    canvas: null,
+    backgroundImage: null,
+    positionedFields: new Map(),
+    draggedField: null,
+    canvasRect: null,
+    fieldPositions: {}
+};
+
+// Initialize template editor
+function initializeTemplateEditor() {
+    const canvas = document.getElementById('templateCanvas');
+    const fileInput = document.getElementById('templateFile');
+    
+    templateEditor.canvas = canvas;
+    
+    // File upload handler
+    fileInput.addEventListener('change', handleTemplateUpload);
+    
+    // Setup drag and drop
+    setupDragAndDrop();
+    
+    // Setup toolbar buttons
+    document.getElementById('resetFieldPositions').addEventListener('click', resetFieldPositions);
+    document.getElementById('previewBadge').addEventListener('click', previewBadgeTemplate);
+}
+
+// Handle template file upload
+async function handleTemplateUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+        showMessage('Please upload a PNG or JPG image', 'error');
+        return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showMessage('Image file too large. Maximum size is 10MB', 'error');
+        return;
+    }
+    
+    try {
+        showMessage('Loading template image...', 'info');
+        
+        // Create object URL for preview
+        const imageUrl = URL.createObjectURL(file);
+        
+        // Create and load image
+        const img = new Image();
+        img.onload = function() {
+            displayTemplateBackground(img, imageUrl);
+            showMessage('Template loaded successfully', 'success');
+        };
+        img.onerror = function() {
+            showMessage('Failed to load template image', 'error');
+        };
+        img.src = imageUrl;
+        
+    } catch (error) {
+        console.error('Error loading template:', error);
+        showMessage('Failed to load template image', 'error');
+    }
+}
+
+// Display template background
+function displayTemplateBackground(img, imageUrl) {
+    const canvas = templateEditor.canvas;
+    const placeholder = canvas.querySelector('.template-placeholder');
+    
+    // Remove placeholder
+    if (placeholder) {
+        placeholder.remove();
+    }
+    
+    // Remove existing background
+    const existingBg = canvas.querySelector('.template-background');
+    if (existingBg) {
+        existingBg.remove();
+    }
+    
+    // Create background image element
+    const bgImg = document.createElement('img');
+    bgImg.src = imageUrl;
+    bgImg.className = 'template-background';
+    bgImg.alt = 'Badge Template Background';
+    
+    // Calculate and set canvas size based on image aspect ratio
+    const maxWidth = canvas.offsetWidth;
+    const maxHeight = canvas.offsetHeight;
+    const aspectRatio = img.width / img.height;
+    
+    let displayWidth, displayHeight;
+    
+    if (aspectRatio > maxWidth / maxHeight) {
+        displayWidth = maxWidth;
+        displayHeight = maxWidth / aspectRatio;
+    } else {
+        displayHeight = maxHeight;
+        displayWidth = maxHeight * aspectRatio;
+    }
+    
+    bgImg.style.width = displayWidth + 'px';
+    bgImg.style.height = displayHeight + 'px';
+    bgImg.style.left = '50%';
+    bgImg.style.top = '50%';
+    bgImg.style.transform = 'translate(-50%, -50%)';
+    
+    canvas.appendChild(bgImg);
+    templateEditor.backgroundImage = bgImg;
+    
+    // Update canvas rect for positioning
+    updateCanvasRect();
+}
+
+// Setup drag and drop functionality
+function setupDragAndDrop() {
+    const canvas = templateEditor.canvas;
+    const fieldItems = document.querySelectorAll('.field-item');
+    
+    // Setup draggable field items
+    fieldItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+    
+    // Setup canvas drop zone
+    canvas.addEventListener('dragover', handleDragOver);
+    canvas.addEventListener('drop', handleDrop);
+    canvas.addEventListener('dragenter', handleDragEnter);
+    canvas.addEventListener('dragleave', handleDragLeave);
+}
+
+// Drag start handler
+function handleDragStart(event) {
+    const fieldType = event.target.dataset.field;
+    templateEditor.draggedField = fieldType;
+    event.target.classList.add('dragging');
+    
+    // Set drag data
+    event.dataTransfer.setData('text/plain', fieldType);
+    event.dataTransfer.effectAllowed = 'copy';
+}
+
+// Drag end handler
+function handleDragEnd(event) {
+    event.target.classList.remove('dragging');
+    templateEditor.draggedField = null;
+}
+
+// Drag over handler
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+}
+
+// Drag enter handler
+function handleDragEnter(event) {
+    event.preventDefault();
+    if (templateEditor.backgroundImage) {
+        templateEditor.canvas.classList.add('drag-over');
+    }
+}
+
+// Drag leave handler
+function handleDragLeave(event) {
+    // Only remove drag-over if leaving the canvas completely
+    if (!templateEditor.canvas.contains(event.relatedTarget)) {
+        templateEditor.canvas.classList.remove('drag-over');
+    }
+}
+
+// Drop handler
+function handleDrop(event) {
+    event.preventDefault();
+    templateEditor.canvas.classList.remove('drag-over');
+    
+    if (!templateEditor.backgroundImage) {
+        showMessage('Please upload a template image first', 'warning');
+        return;
+    }
+    
+    const fieldType = event.dataTransfer.getData('text/plain');
+    if (!fieldType) return;
+    
+    // Calculate drop position relative to background image
+    const canvasRect = templateEditor.canvas.getBoundingClientRect();
+    const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+    
+    const x = event.clientX - bgRect.left;
+    const y = event.clientY - bgRect.top;
+    
+    // Ensure drop is within background image bounds
+    if (x < 0 || y < 0 || x > bgRect.width || y > bgRect.height) {
+        showMessage('Please drop fields within the template image area', 'warning');
+        return;
+    }
+    
+    // Create positioned field
+    createPositionedField(fieldType, x, y);
+    
+    updateCanvasRect();
+}
+
+// Create positioned field on canvas
+function createPositionedField(fieldType, x, y) {
+    const fieldData = getFieldData(fieldType);
+    
+    // Remove existing field of same type
+    const existingField = templateEditor.positionedFields.get(fieldType);
+    if (existingField) {
+        existingField.remove();
+    }
+    
+    // Create field element
+    const fieldElement = document.createElement('div');
+    fieldElement.className = 'positioned-field newly-placed';
+    fieldElement.dataset.field = fieldType;
+    
+    fieldElement.innerHTML = `
+        <span class="field-icon">${fieldData.icon}</span>
+        <span class="field-label">${fieldData.label}</span>
+        <button class="remove-field" onclick="removePositionedField('${fieldType}')">×</button>
+    `;
+    
+    // Position relative to background image
+    const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+    const canvasRect = templateEditor.canvas.getBoundingClientRect();
+    
+    fieldElement.style.left = (bgRect.left - canvasRect.left + x) + 'px';
+    fieldElement.style.top = (bgRect.top - canvasRect.top + y) + 'px';
+    
+    // Add to canvas
+    templateEditor.canvas.appendChild(fieldElement);
+    
+    // Store field reference
+    templateEditor.positionedFields.set(fieldType, fieldElement);
+    
+    // Store position data
+    templateEditor.fieldPositions[fieldType] = {
+        x: x,
+        y: y,
+        relativeX: x / bgRect.width,
+        relativeY: y / bgRect.height
+    };
+    
+    // Setup field dragging
+    setupFieldDragging(fieldElement);
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+        fieldElement.classList.remove('newly-placed');
+    }, 500);
+    
+    showMessage(`${fieldData.label} field positioned`, 'success');
+}
+
+// Get field data
+function getFieldData(fieldType) {
+    const fieldData = {
+        photo: { icon: '📷', label: 'Photo' },
+        name: { icon: '👤', label: 'Name' },
+        role: { icon: '💼', label: 'Role' },
+        company: { icon: '🏢', label: 'Company' },
+        badge_number: { icon: '🏷️', label: 'Badge #' },
+        access_level: { icon: '🔐', label: 'Access Level' },
+        qr_code: { icon: '📱', label: 'QR Code' }
+    };
+    
+    return fieldData[fieldType] || { icon: '❓', label: 'Unknown' };
+}
+
+// Setup field dragging for repositioning
+function setupFieldDragging(fieldElement) {
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    fieldElement.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('remove-field')) return;
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = parseInt(fieldElement.style.left);
+        startTop = parseInt(fieldElement.style.top);
+        
+        fieldElement.classList.add('dragging');
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        e.preventDefault();
+    });
+    
+    function handleMouseMove(e) {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        const newLeft = startLeft + deltaX;
+        const newTop = startTop + deltaY;
+        
+        fieldElement.style.left = newLeft + 'px';
+        fieldElement.style.top = newTop + 'px';
+    }
+    
+    function handleMouseUp(e) {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        fieldElement.classList.remove('dragging');
+        
+        // Update position data
+        const fieldType = fieldElement.dataset.field;
+        const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+        const canvasRect = templateEditor.canvas.getBoundingClientRect();
+        
+        const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left);
+        const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top);
+        
+        templateEditor.fieldPositions[fieldType] = {
+            x: x,
+            y: y,
+            relativeX: x / bgRect.width,
+            relativeY: y / bgRect.height
+        };
+        
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    }
+}
+
+// Remove positioned field
+function removePositionedField(fieldType) {
+    const fieldElement = templateEditor.positionedFields.get(fieldType);
+    if (fieldElement) {
+        fieldElement.remove();
+        templateEditor.positionedFields.delete(fieldType);
+        delete templateEditor.fieldPositions[fieldType];
+        
+        const fieldData = getFieldData(fieldType);
+        showMessage(`${fieldData.label} field removed`, 'info');
+    }
+}
+
+// Make removePositionedField available globally
+window.removePositionedField = removePositionedField;
+
+// Reset field positions
+function resetFieldPositions() {
+    templateEditor.positionedFields.forEach((fieldElement, fieldType) => {
+        fieldElement.remove();
+    });
+    
+    templateEditor.positionedFields.clear();
+    templateEditor.fieldPositions = {};
+    
+    showMessage('All field positions reset', 'info');
+}
+
+// Update canvas rect for positioning calculations
+function updateCanvasRect() {
+    templateEditor.canvasRect = templateEditor.canvas.getBoundingClientRect();
+}
+
 // Preview badge template
 async function previewBadgeTemplate() {
     try {
-        showMessage('Generating template preview...', 'info');
+        if (!templateEditor.backgroundImage) {
+            showMessage('Please upload a template image first', 'warning');
+            return;
+        }
         
-        // For now, show a simple preview message
-        // In a full implementation, you would generate a sample badge
-        const previewContainer = document.querySelector('.template-preview');
+        if (Object.keys(templateEditor.fieldPositions).length === 0) {
+            showMessage('Please position at least one field on the template', 'warning');
+            return;
+        }
         
-        previewContainer.innerHTML = `
-            <div class="preview-content">
-                <h4>Template Preview</h4>
-                <p>Custom badge template is configured and ready to use.</p>
-                <p><strong>Template Name:</strong> ${document.getElementById('templateName').value || 'Unnamed Template'}</p>
-                <p><strong>Background Color:</strong> ${document.getElementById('backgroundColor').value}</p>
-                <p><strong>Text Color:</strong> ${document.getElementById('textColor').value}</p>
-                <p><strong>Accent Color:</strong> ${document.getElementById('accentColor').value}</p>
-                <p><em>Custom badges will be generated with the World Pool Championship style as shown in your reference image.</em></p>
-            </div>
-        `;
+        showMessage('Generating badge preview...', 'info');
         
-        showMessage('Template preview updated', 'success');
+        // For now, show positioned fields info
+        const fieldCount = Object.keys(templateEditor.fieldPositions).length;
+        const fieldList = Object.keys(templateEditor.fieldPositions).map(field => 
+            getFieldData(field).label
+        ).join(', ');
+        
+        showMessage(`Preview: ${fieldCount} fields positioned (${fieldList})`, 'success');
         
     } catch (error) {
         console.error('Error generating template preview:', error);
@@ -1492,5 +1945,7 @@ function setupBadgeTemplateListeners() {
     
     // Preview template buttons
     document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
-    document.getElementById('generatePreview').addEventListener('click', previewBadgeTemplate);
+    
+    // Initialize template editor
+    initializeTemplateEditor();
 }

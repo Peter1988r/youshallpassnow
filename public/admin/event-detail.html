@@ -264,9 +264,9 @@
                         </div>
                         
                         <div class="form-group" id="templateUploadGroup">
-                            <label for="templateFile">Adobe Illustrator Template</label>
-                            <input type="file" id="templateFile" accept=".ai,.pdf,.png,.jpg,.jpeg">
-                            <small class="form-help">Upload your Adobe Illustrator file or converted image template</small>
+                            <label for="templateFile">Badge Template Image</label>
+                            <input type="file" id="templateFile" accept=".png,.jpg,.jpeg">
+                            <small class="form-help">Upload your badge template as PNG or JPG image</small>
                         </div>
                     </div>
                     
@@ -310,11 +310,53 @@
                     
                     <!-- Template Preview -->
                     <div class="overview-card" id="templatePreviewCard">
-                        <h3>Template Preview</h3>
-                        <div class="template-preview">
-                            <div class="preview-placeholder">
-                                <p>Click "Preview Template" to see how badges will look with current settings</p>
-                                <button type="button" class="btn-secondary" id="generatePreview">Generate Preview</button>
+                        <h3>Template Editor</h3>
+                        <div class="template-editor">
+                            <div class="template-editor-toolbar">
+                                <button type="button" class="btn-secondary" id="resetFieldPositions">Reset Positions</button>
+                                <button type="button" class="btn-secondary" id="previewBadge">Preview Badge</button>
+                                <span class="editor-help">Drag fields to position them on your template</span>
+                            </div>
+                            <div class="template-canvas-container">
+                                <div class="template-canvas" id="templateCanvas">
+                                    <div class="template-placeholder">
+                                        <p>Upload a template image to start positioning fields</p>
+                                        <div class="upload-hint">
+                                            <span>📁 Supported formats: PNG, JPG, JPEG</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field-palette">
+                                    <h4>Available Fields</h4>
+                                    <div class="field-item" draggable="true" data-field="photo">
+                                        <span class="field-icon">📷</span>
+                                        <span class="field-label">Photo</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="name">
+                                        <span class="field-icon">👤</span>
+                                        <span class="field-label">Name</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="role">
+                                        <span class="field-icon">💼</span>
+                                        <span class="field-label">Role</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="company">
+                                        <span class="field-icon">🏢</span>
+                                        <span class="field-label">Company</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="badge_number">
+                                        <span class="field-icon">🏷️</span>
+                                        <span class="field-label">Badge #</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="access_level">
+                                        <span class="field-icon">🔐</span>
+                                        <span class="field-label">Access Level</span>
+                                    </div>
+                                    <div class="field-item" draggable="true" data-field="qr_code">
+                                        <span class="field-icon">📱</span>
+                                        <span class="field-label">QR Code</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

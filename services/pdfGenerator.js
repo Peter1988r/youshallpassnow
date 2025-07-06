@@ -292,25 +292,37 @@ class PDFGenerator {
     // Generate badge using custom template if available, otherwise use default
     async generateCustomBadge(crewMember, event) {
         try {
-            // For now, always use default A5 badge to ensure system stability
-            // Custom template functionality will be activated after testing
-            console.log('Using default A5 badge for crew member:', crewMember.id);
-            return await this.generateA5Badge(crewMember);
+            // Check if custom badge is enabled and has field positions
+            if (event.use_custom_badge && event.custom_badge_field_mapping?.field_positions) {
+                console.log('Generating custom badge for crew member:', crewMember.id);
+                return await this.generateFromCustomTemplate(crewMember, event);
+            } else {
+                console.log('No custom template configured, using default A5 badge for crew member:', crewMember.id);
+                return await this.generateA5Badge(crewMember);
+            }
         } catch (error) {
             console.error('Badge generation error:', error.message);
             // Fallback to default badge if custom fails
+            console.log('Falling back to A5 badge for crew member:', crewMember.id);
             return await this.generateA5Badge(crewMember);
         }
     }
 
-    // Generate badge from custom Adobe Illustrator template
+    // Generate badge from custom template with positioned fields
     async generateFromCustomTemplate(crewMember, event) {
         return new Promise((resolve, reject) => {
             try {
-                // A5 size: 420 x 595 points (148.5 x 210 mm)
+                // Get field mapping and positions
+                const fieldMapping = event.custom_badge_field_mapping || {};
+                const fieldPositions = fieldMapping.field_positions || {};
+                
+                // Use A5 size as default (can be made configurable later)
+                const badgeWidth = 420;  // A5 width in points
+                const badgeHeight = 595; // A5 height in points
+                
                 const doc = new PDFDocument({
-                    size: [420, 595], // A5 portrait
-                    margins: 0 // No margins for custom template
+                    size: [badgeWidth, badgeHeight],
+                    margins: 0
                 });
 
                 const buffers = [];
@@ -320,15 +332,15 @@ class PDFGenerator {
                     resolve(pdfBuffer);
                 });
 
-                // Load custom template background if available
-                this.loadCustomTemplate(doc, event, crewMember)
+                // Create the custom badge with positioned fields
+                this.createCustomBadgeWithPositions(doc, crewMember, event, fieldPositions, badgeWidth, badgeHeight)
                     .then(() => {
                         doc.end();
                     })
                     .catch((error) => {
-                        console.error('Error loading custom template:', error);
-                        // If template loading fails, create a basic badge with custom styling
-                        this.createBasicCustomBadge(doc, crewMember, event);
+                        console.error('Error creating custom badge:', error);
+                        // If custom badge creation fails, create fallback
+                        this.createFallbackCustomBadge(doc, crewMember, event, badgeWidth, badgeHeight);
                         doc.end();
                     });
 
@@ -338,16 +350,288 @@ class PDFGenerator {
         });
     }
 
-    // Load and apply custom template with field mapping
-    async loadCustomTemplate(doc, event, crewMember) {
-        // For now, we'll create a custom-styled badge based on the example
-        // In a full implementation, you would parse the AI file or use a converted template
+    // Create custom badge with positioned fields
+    async createCustomBadgeWithPositions(doc, crewMember, event, fieldPositions, badgeWidth, badgeHeight) {
+        try {
+            // Load background image if template path exists
+            if (event.custom_badge_template_path) {
+                await this.loadBackgroundImage(doc, event.custom_badge_template_path, badgeWidth, badgeHeight);
+            } else {
+                // Create a simple background if no image is provided
+                const bgColor = event.custom_badge_field_mapping?.background_color || '#FFFFFF';
+                doc.rect(0, 0, badgeWidth, badgeHeight)
+                   .fillColor(bgColor)
+                   .fill();
+            }
+
+            // Position and render each field based on stored coordinates
+            for (const [fieldType, position] of Object.entries(fieldPositions)) {
+                await this.renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight);
+            }
+
+        } catch (error) {
+            console.error('Error creating custom badge with positions:', error);
+            throw error;
+        }
+    }
+
+    // Load background image for custom template
+    async loadBackgroundImage(doc, imagePath, badgeWidth, badgeHeight) {
+        try {
+            
+            // Check if it's a URL or local path
+            if (imagePath.startsWith('http')) {
+                // Handle remote image (for uploaded templates)
+                const https = require('https');
+                return new Promise((resolve, reject) => {
+                    https.get(imagePath, (response) => {
+                        if (response.statusCode !== 200) {
+                            reject(new Error(`HTTP ${response.statusCode}`));
+                            return;
+                        }
+
+                        const chunks = [];
+                        response.on('data', chunk => chunks.push(chunk));
+                        response.on('end', () => {
+                            try {
+                                const imageBuffer = Buffer.concat(chunks);
+                                doc.image(imageBuffer, 0, 0, { 
+                                    width: badgeWidth, 
+                                    height: badgeHeight 
+                                });
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        });
+                    }).on('error', reject);
+                });
+            } else {
+                // Handle local file - convert relative path to absolute
+                let fullImagePath;
+                if (imagePath.startsWith('/')) {
+                    // Relative to public directory
+                    fullImagePath = path.join(__dirname, '../public', imagePath);
+                } else {
+                    // Absolute path or relative to current directory
+                    fullImagePath = path.resolve(imagePath);
+                }
+                
+                console.log('Loading background image from:', fullImagePath);
+                
+                if (fs.existsSync(fullImagePath)) {
+                    doc.image(fullImagePath, 0, 0, { 
+                        width: badgeWidth, 
+                        height: badgeHeight 
+                    });
+                    console.log('Background image loaded successfully');
+                } else {
+                    throw new Error(`Background image not found at: ${fullImagePath}`);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load background image:', error.message);
+            // Continue without background image
+        }
+    }
+
+    // Render a positioned field on the badge
+    async renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight) {
+        try {
+            // Convert relative position to absolute position
+            const x = position.relativeX * badgeWidth;
+            const y = position.relativeY * badgeHeight;
+
+            // Get field mapping for styling
+            const fieldMapping = event.custom_badge_field_mapping || {};
+            const textColor = fieldMapping.text_color || '#000000';
+            const accentColor = fieldMapping.accent_color || '#0066CC';
+
+            // Set default font properties
+            doc.fillColor(textColor);
+
+            switch (fieldType) {
+                case 'photo':
+                    await this.renderPhotoField(doc, crewMember, x, y);
+                    break;
+                
+                case 'name':
+                    this.renderTextField(doc, `${crewMember.first_name} ${crewMember.last_name}`, x, y, {
+                        fontSize: 16,
+                        font: 'Helvetica-Bold',
+                        color: textColor
+                    });
+                    break;
+                
+                case 'role':
+                    const roleName = crewMember.role ? crewMember.role.replace(/_/g, ' ') : 'Crew Member';
+                    this.renderTextField(doc, roleName, x, y, {
+                        fontSize: 12,
+                        font: 'Helvetica',
+                        color: textColor
+                    });
+                    break;
+                
+                case 'company':
+                    if (crewMember.company_name) {
+                        this.renderTextField(doc, crewMember.company_name, x, y, {
+                            fontSize: 12,
+                            font: 'Helvetica-Bold',
+                            color: accentColor
+                        });
+                    }
+                    break;
+                
+                case 'badge_number':
+                    if (crewMember.badge_number) {
+                        this.renderTextField(doc, `#${crewMember.badge_number}`, x, y, {
+                            fontSize: 10,
+                            font: 'Helvetica-Bold',
+                            color: textColor
+                        });
+                    }
+                    break;
+                
+                case 'access_level':
+                    this.renderTextField(doc, crewMember.access_level || 'General', x, y, {
+                        fontSize: 10,
+                        font: 'Helvetica',
+                        color: textColor
+                    });
+                    break;
+                
+                case 'qr_code':
+                    this.renderQRCodeField(doc, crewMember, x, y);
+                    break;
+                
+                default:
+                    console.warn(`Unknown field type: ${fieldType}`);
+            }
+
+        } catch (error) {
+            console.error(`Error rendering field ${fieldType}:`, error);
+            // Continue with other fields even if one fails
+        }
+    }
+
+    // Render a text field
+    renderTextField(doc, text, x, y, options = {}) {
+        const fontSize = options.fontSize || 12;
+        const font = options.font || 'Helvetica';
+        const color = options.color || '#000000';
+        const maxWidth = options.maxWidth || 200;
+
+        doc.fontSize(fontSize)
+           .font(font)
+           .fillColor(color)
+           .text(text, x, y, { width: maxWidth });
+    }
+
+    // Render a photo field
+    async renderPhotoField(doc, crewMember, x, y) {
+        const photoSize = 60; // Default photo size
         
-        // Parse field mapping from event configuration
-        const fieldMapping = event.custom_badge_field_mapping || this.getDefaultFieldMapping();
+        if (crewMember.photo_path) {
+            try {
+                await this.loadCrewPhotoForCustomTemplate(doc, crewMember.photo_path, x, y, photoSize);
+            } catch (error) {
+                console.warn('Failed to load crew photo:', error);
+                this.renderPhotoPlaceholder(doc, x, y, photoSize);
+            }
+        } else {
+            this.renderPhotoPlaceholder(doc, x, y, photoSize);
+        }
+    }
+
+    // Render photo placeholder
+    renderPhotoPlaceholder(doc, x, y, size) {
+        // Draw photo placeholder rectangle
+        doc.rect(x, y, size, size)
+           .fillColor('#E0E0E0')
+           .fill()
+           .rect(x, y, size, size)
+           .strokeColor('#CCCCCC')
+           .stroke();
+
+        // Add photo icon text
+        doc.fontSize(8)
+           .fillColor('#999999')
+           .text('PHOTO', x + size/2 - 12, y + size/2 - 4);
+    }
+
+    // Render QR code field (placeholder for now)
+    renderQRCodeField(doc, crewMember, x, y) {
+        const qrSize = 40;
         
-        // Create custom badge based on the example design
-        await this.createWorldPoolChampionshipBadge(doc, crewMember, event, fieldMapping);
+        // Draw QR code placeholder
+        doc.rect(x, y, qrSize, qrSize)
+           .fillColor('#000000')
+           .fill();
+
+        // Add some pattern to simulate QR code
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 5; j++) {
+                if ((i + j) % 2 === 0) {
+                    doc.rect(x + i * 8 + 2, y + j * 8 + 2, 6, 6)
+                       .fillColor('#FFFFFF')
+                       .fill();
+                }
+            }
+        }
+    }
+
+    // Create fallback custom badge when template loading fails
+    createFallbackCustomBadge(doc, crewMember, event, badgeWidth, badgeHeight) {
+        // Create a simple styled badge as fallback
+        const bgColor = event.custom_badge_field_mapping?.background_color || '#F5F5F5';
+        const textColor = event.custom_badge_field_mapping?.text_color || '#333333';
+        const accentColor = event.custom_badge_field_mapping?.accent_color || '#0066CC';
+
+        // Background
+        doc.rect(0, 0, badgeWidth, badgeHeight)
+           .fillColor(bgColor)
+           .fill();
+
+        // Border
+        doc.rect(10, 10, badgeWidth - 20, badgeHeight - 20)
+           .strokeColor(accentColor)
+           .lineWidth(2)
+           .stroke();
+
+        // Event name
+        doc.fontSize(18)
+           .font('Helvetica-Bold')
+           .fillColor(accentColor)
+           .text(event.name || 'Event', 20, 30, { width: badgeWidth - 40, align: 'center' });
+
+        // Crew member name
+        doc.fontSize(16)
+           .font('Helvetica-Bold')
+           .fillColor(textColor)
+           .text(`${crewMember.first_name} ${crewMember.last_name}`, 20, 200, { 
+               width: badgeWidth - 40, 
+               align: 'center' 
+           });
+
+        // Role
+        doc.fontSize(12)
+           .font('Helvetica')
+           .fillColor(textColor)
+           .text(crewMember.role?.replace(/_/g, ' ') || 'Crew Member', 20, 230, { 
+               width: badgeWidth - 40, 
+               align: 'center' 
+           });
+
+        // Badge number
+        if (crewMember.badge_number) {
+            doc.fontSize(10)
+               .font('Helvetica')
+               .fillColor(textColor)
+               .text(`Badge #${crewMember.badge_number}`, 20, 260, { 
+                   width: badgeWidth - 40, 
+                   align: 'center' 
+               });
+        }
     }
 
     // Create a badge styled like the World Pool Championship example
