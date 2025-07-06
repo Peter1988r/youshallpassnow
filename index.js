@@ -47,7 +47,7 @@ app.use((req, res, next) => {
     res.removeHeader('Content-Security-Policy-Report-Only');
     
     // Set permissive CSP that allows everything
-    res.setHeader('Content-Security-Policy', "img-src *; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
+    res.setHeader('Content-Security-Policy', "img-src * blob:; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
     
     console.log('CSP Headers set:', res.getHeaders()['content-security-policy']);
     next();
