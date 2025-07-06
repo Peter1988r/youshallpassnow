@@ -47,7 +47,7 @@ app.use((req, res, next) => {
     res.removeHeader('Content-Security-Policy-Report-Only');
     
     // Set permissive CSP that allows everything
-    res.setHeader('Content-Security-Policy', "img-src * blob:; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
+    res.setHeader('Content-Security-Policy', "img-src * blob: data: 'self'; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
     
     console.log('CSP Headers set:', res.getHeaders()['content-security-policy']);
     next();
@@ -2331,6 +2331,12 @@ const templateUpload = multer({
         fileSize: 10 * 1024 * 1024, // 10MB limit
     },
     fileFilter: function (req, file, cb) {
+        console.log('File filter check:', { 
+            filename: file.originalname, 
+            mimetype: file.mimetype,
+            size: file.size 
+        });
+        
         // Only allow image files
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -2341,10 +2347,33 @@ const templateUpload = multer({
 });
 
 // Upload custom badge template for an event
-app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, templateUpload.single('templateFile'), async (req, res) => {
+app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    templateUpload.single('templateFile')(req, res, (err) => {
+        if (err) {
+            console.error('Upload error:', err);
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'File size too large. Maximum 10MB allowed.' });
+                }
+                return res.status(400).json({ error: 'File upload error: ' + err.message });
+            }
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         const { eventId } = req.params;
         const { templateName, useCustomBadge, fieldMapping } = req.body;
+        
+        console.log('Badge template save request received:', {
+            eventId,
+            templateName,
+            useCustomBadge,
+            fieldMappingType: typeof fieldMapping,
+            hasFile: !!req.file,
+            bodyKeys: Object.keys(req.body)
+        });
         
         // Parse fieldMapping if it's a string (from form data)
         let parsedFieldMapping;
