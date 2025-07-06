@@ -2362,9 +2362,9 @@ const templateStorage = multer.diskStorage({
     }
 });
 
-// Use disk storage for template uploads so PDF generator can access files
-const templateUpload = multer({
-    storage: templateStorage,
+// Use memory storage for serverless compatibility
+const templateUploadMemory = multer({
+    storage: multer.memoryStorage(),
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB limit
     },
@@ -2518,8 +2518,8 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
     console.log('Request method:', req.method);
     console.log('Starting file upload middleware for badge template');
     
-    // Use disk storage so PDF generator can access files
-    templateUpload.single('templateFile')(req, res, (err) => {
+    // Use memory storage for serverless compatibility
+    templateUploadMemory.single('templateFile')(req, res, (err) => {
         if (err) {
             console.error('Upload error occurred:', err);
             console.error('Error type:', err.constructor.name);
@@ -2568,19 +2568,21 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
 
         // Handle uploaded template file
         let templatePath = null;
+        let templateData = null;
+        
         if (req.file) {
             console.log('Template file received:', {
                 filename: req.file.originalname,
                 size: req.file.size,
                 mimetype: req.file.mimetype,
-                savedFilename: req.file.filename,
-                savedPath: req.file.path
+                hasBuffer: !!req.file.buffer
             });
             
-            // Using disk storage - file is saved to public/badge-templates/
-            templatePath = `/badge-templates/${req.file.filename}`;
+            // Using memory storage - store file data in database
+            templateData = req.file.buffer.toString('base64');
+            templatePath = `data:${req.file.mimetype};base64,${templateData}`;
             
-            console.log('Template path set to:', templatePath);
+            console.log('Template data stored in database, size:', templateData.length);
         }
 
         // Update event with template configuration

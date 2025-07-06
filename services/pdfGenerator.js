@@ -392,7 +392,22 @@ class PDFGenerator {
     // Load background image for custom template
     async loadBackgroundImage(doc, imagePath, badgeWidth, badgeHeight) {
         try {
-            console.log('Loading background image from path:', imagePath);
+            console.log('Loading background image from path:', imagePath?.substring(0, 50) + '...');
+            
+            // Check if it's a data URI (base64 encoded image)
+            if (imagePath.startsWith('data:')) {
+                console.log('Loading image from data URI');
+                // Extract base64 data from data URI
+                const base64Data = imagePath.split(',')[1];
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                
+                doc.image(imageBuffer, 0, 0, { 
+                    width: badgeWidth, 
+                    height: badgeHeight 
+                });
+                console.log('Background image loaded successfully from data URI');
+                return;
+            }
             
             // Check if it's a URL or local path
             if (imagePath.startsWith('http')) {
