@@ -66,6 +66,10 @@
                     <span class="tab-icon">📋</span>
                     Event Overview
                 </button>
+                <button class="tab-btn" data-tab="access">
+                    <span class="tab-icon">🏢</span>
+                    Event Access
+                </button>
                 <button class="tab-btn" data-tab="approvals">
                     <span class="tab-icon">⏳</span>
                     Crew Approvals
@@ -157,7 +161,38 @@
                 </div>
             </section>
 
-            <!-- Section 2: Crew Approvals -->
+            <!-- Section 2: Event Access -->
+            <section class="event-section event-access-section tab-panel" data-tab="access">
+                <div class="section-header">
+                    <h2>Event Access Zones</h2>
+                    <div class="section-actions">
+                        <button type="button" class="btn-primary" id="addZoneBtn">Add Zone</button>
+                    </div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="access-description">
+                        <p>Define access zones for this event. Each zone represents a specific area with controlled access. You can create up to 21 zones per event.</p>
+                    </div>
+                    
+                    <!-- Zone Management -->
+                    <div class="zones-container">
+                        <div class="zones-header">
+                            <h3>Access Zones (<span id="zoneCount">0</span>/21)</h3>
+                        </div>
+                        
+                        <div class="zones-list" id="zonesList">
+                            <!-- Zones will be dynamically loaded here -->
+                            <div class="no-zones-message" id="noZonesMessage">
+                                <p>No access zones defined yet. Add your first zone to get started.</p>
+                                <p class="text-muted">Zone 0 will be created automatically when you add your first zone.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Crew Approvals -->
             <section class="event-section crew-approvals-section tab-panel" data-tab="approvals">
                 <div class="section-header">
                     <h2>Crew Approvals</h2>
@@ -168,7 +203,7 @@
                 
                 <div class="section-content">
                     <div class="approvals-description">
-                        <p>Manage crew member approvals and access levels for this event:</p>
+                        <p>Manage crew member approvals and access zones for this event:</p>
                     </div>
                     <div class="approvals-table-container">
                         <table class="data-table">
@@ -179,7 +214,7 @@
                                     <th>Email</th>
                                     <th>Role</th>
                                     <th>Requested</th>
-                                    <th>Access Level</th>
+                                    <th>Access Zones</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -191,7 +226,7 @@
                 </div>
             </section>
 
-            <!-- Section 3: Accredited Crew -->
+            <!-- Section 4: Accredited Crew -->
             <section class="event-section accredited-crew-section tab-panel" data-tab="accredited">
                 <div class="section-header">
                     <h2>Accredited Crew</h2>
@@ -217,7 +252,7 @@
                                     <th>Company</th>
                                     <th>Email</th>
                                     <th>Role</th>
-                                    <th>Access Level</th>
+                                    <th>Access Zones</th>
                                     <th>Approved Date</th>
                                     <th>Actions</th>
                                 </tr>

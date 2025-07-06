@@ -2112,6 +2112,212 @@ app.delete('/api/admin/events/:eventId/companies/:companyId', authenticateToken,
     }
 });
 
+// ===== ZONE MANAGEMENT ENDPOINTS =====
+
+// Get access zones for an event
+app.get('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        // Get access zones from the event
+        const eventResult = await query(`
+            SELECT access_zones 
+            FROM events 
+            WHERE id = $1
+        `, [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        // Parse zones from JSONB or return empty array
+        const zones = eventResult[0].access_zones || [];
+        
+        // Add IDs for frontend management if they don't exist
+        const zonesWithIds = zones.map((zone, index) => ({
+            id: zone.id || index,
+            zone_number: zone.zone_number,
+            area_name: zone.area_name
+        }));
+        
+        res.json(zonesWithIds);
+    } catch (error) {
+        console.error('Get event zones error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create a new access zone for an event
+app.post('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { zone_number, area_name } = req.body;
+        
+        if (typeof zone_number !== 'number' || !area_name || area_name.trim() === '') {
+            return res.status(400).json({ error: 'Zone number and area name are required' });
+        }
+        
+        // Get current zones
+        const eventResult = await query(`
+            SELECT access_zones 
+            FROM events 
+            WHERE id = $1
+        `, [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const currentZones = eventResult[0].access_zones || [];
+        
+        // Check if zone number already exists
+        if (currentZones.some(zone => zone.zone_number === zone_number)) {
+            return res.status(400).json({ error: `Zone ${zone_number} already exists` });
+        }
+        
+        // Check maximum zones limit
+        if (currentZones.length >= 21) {
+            return res.status(400).json({ error: 'Maximum of 21 zones allowed per event' });
+        }
+        
+        // Create new zone
+        const newZone = {
+            id: Date.now(), // Simple ID generation
+            zone_number,
+            area_name: area_name.trim()
+        };
+        
+        // Add to zones array and sort by zone number
+        const updatedZones = [...currentZones, newZone].sort((a, b) => a.zone_number - b.zone_number);
+        
+        // Update event with new zones
+        await run(`
+            UPDATE events 
+            SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [JSON.stringify(updatedZones), eventId]);
+        
+        res.status(201).json({
+            message: 'Access zone created successfully',
+            zone: newZone
+        });
+    } catch (error) {
+        console.error('Create event zone error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update an access zone for an event
+app.put('/api/admin/events/:eventId/zones/:zoneId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId, zoneId } = req.params;
+        const { area_name } = req.body;
+        
+        if (!area_name || area_name.trim() === '') {
+            return res.status(400).json({ error: 'Area name is required' });
+        }
+        
+        // Get current zones
+        const eventResult = await query(`
+            SELECT access_zones 
+            FROM events 
+            WHERE id = $1
+        `, [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const currentZones = eventResult[0].access_zones || [];
+        const zoneIndex = currentZones.findIndex(zone => String(zone.id) === String(zoneId));
+        
+        if (zoneIndex === -1) {
+            return res.status(404).json({ error: 'Zone not found' });
+        }
+        
+        // Update zone
+        const updatedZones = [...currentZones];
+        updatedZones[zoneIndex] = {
+            ...updatedZones[zoneIndex],
+            area_name: area_name.trim()
+        };
+        
+        // Update event with modified zones
+        await run(`
+            UPDATE events 
+            SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [JSON.stringify(updatedZones), eventId]);
+        
+        res.json({
+            message: 'Access zone updated successfully',
+            zone: updatedZones[zoneIndex]
+        });
+    } catch (error) {
+        console.error('Update event zone error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete an access zone for an event
+app.delete('/api/admin/events/:eventId/zones/:zoneId', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId, zoneId } = req.params;
+        
+        // Get current zones
+        const eventResult = await query(`
+            SELECT access_zones 
+            FROM events 
+            WHERE id = $1
+        `, [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const currentZones = eventResult[0].access_zones || [];
+        const zoneIndex = currentZones.findIndex(zone => String(zone.id) === String(zoneId));
+        
+        if (zoneIndex === -1) {
+            return res.status(404).json({ error: 'Zone not found' });
+        }
+        
+        const deletedZone = currentZones[zoneIndex];
+        
+        // Remove zone from array
+        const updatedZones = currentZones.filter(zone => String(zone.id) !== String(zoneId));
+        
+        // Update event with modified zones
+        await run(`
+            UPDATE events 
+            SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [JSON.stringify(updatedZones), eventId]);
+        
+        // TODO: Remove this zone from all crew members' access_zones as well
+        await run(`
+            UPDATE crew_members 
+            SET access_zones = (
+                SELECT COALESCE(
+                    jsonb_agg(zone_num)::jsonb, 
+                    '[]'::jsonb
+                )
+                FROM jsonb_array_elements_text(access_zones) AS zone_num
+                WHERE zone_num::integer != $1
+            )
+            WHERE event_id = $2 AND access_zones IS NOT NULL
+        `, [deletedZone.zone_number, eventId]);
+        
+        res.json({
+            message: 'Access zone deleted successfully',
+            deletedZone
+        });
+    } catch (error) {
+        console.error('Delete event zone error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Get crew approvals for a specific event
 app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (req, res) => {
     try {
@@ -2129,6 +2335,7 @@ app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (r
                     cm.email,
                     cm.role,
                     cm.access_level,
+                    cm.access_zones,
                     cm.status,
                     cm.created_at,
                     cm.approved_at,
@@ -2148,6 +2355,7 @@ app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (r
                     cm.email,
                     cm.role,
                     cm.access_level,
+                    cm.access_zones,
                     cm.status,
                     cm.created_at,
                     cm.approved_at
@@ -2163,7 +2371,42 @@ app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (r
     }
 });
 
-// Update crew member access level
+// Update crew member access zones (replaces access level)
+app.put('/api/admin/crew/:crewId/access-zones', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { crewId } = req.params;
+        const { access_zones } = req.body;
+        
+        // Validate access_zones is an array of zone numbers
+        if (!Array.isArray(access_zones)) {
+            return res.status(400).json({ error: 'Access zones must be an array' });
+        }
+        
+        // Validate all zone numbers are integers
+        const validZones = access_zones.every(zone => Number.isInteger(zone) && zone >= 0);
+        if (!validZones) {
+            return res.status(400).json({ error: 'All zone numbers must be non-negative integers' });
+        }
+        
+        await run(`
+            UPDATE crew_members 
+            SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [JSON.stringify(access_zones), crewId]);
+        
+        const crewMembers = await query('SELECT * FROM crew_members WHERE id = $1', [crewId]);
+        
+        res.json({
+            message: 'Access zones updated successfully',
+            crewMember: crewMembers[0]
+        });
+    } catch (error) {
+        console.error('Update access zones error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update crew member access level (legacy endpoint - kept for backward compatibility)
 app.put('/api/admin/crew/:crewId/access-level', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {
         const { crewId } = req.params;
@@ -2685,6 +2928,7 @@ app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, async (re
                 cm.email,
                 cm.role,
                 cm.access_level,
+                cm.access_zones,
                 cm.status,
                 cm.created_at,
                 cm.approved_at,

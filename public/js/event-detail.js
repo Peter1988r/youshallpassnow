@@ -258,6 +258,7 @@ function setupEventListeners() {
 
     // Auto-save functionality
     setupAutoSave();
+    setupZoneManagement();
 }
 
 // Tab switching function
@@ -293,7 +294,9 @@ function switchTab(tabName) {
     // Load data based on the selected tab
     const eventId = new URLSearchParams(window.location.search).get('id');
     
-    if (tabName === 'approvals') {
+    if (tabName === 'access') {
+        loadEventZones(eventId);
+    } else if (tabName === 'approvals') {
         loadCrewApprovals(eventId);
     } else if (tabName === 'accredited') {
         const companyFilter = document.getElementById('companyFilter');
@@ -408,6 +411,297 @@ async function autoSaveEvent(eventId) {
             indicator.classList.remove('show');
             indicator.style.background = '';
         }, 3000);
+    }
+}
+
+// ===== ZONE MANAGEMENT FUNCTIONS =====
+function setupZoneManagement() {
+    const addZoneBtn = document.getElementById('addZoneBtn');
+    if (addZoneBtn) {
+        addZoneBtn.addEventListener('click', showAddZoneForm);
+    }
+}
+
+// Global variable to store current event zones
+let eventZones = [];
+
+// Load access zones for the event
+async function loadEventZones(eventId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/zones`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load event zones');
+        }
+        
+        eventZones = await response.json();
+        displayEventZones(eventZones);
+        updateZoneCount(eventZones.length);
+        
+    } catch (error) {
+        console.error('Error loading event zones:', error);
+        // If endpoint doesn't exist yet, initialize empty zones
+        eventZones = [];
+        displayEventZones(eventZones);
+        updateZoneCount(0);
+    }
+}
+
+// Display event zones in the UI
+function displayEventZones(zones) {
+    const zonesList = document.getElementById('zonesList');
+    const noZonesMessage = document.getElementById('noZonesMessage');
+    
+    if (zones.length === 0) {
+        noZonesMessage.style.display = 'block';
+        zonesList.innerHTML = '';
+        return;
+    }
+    
+    noZonesMessage.style.display = 'none';
+    
+    let html = '';
+    zones.forEach((zone, index) => {
+        html += `
+            <div class="zone-item" data-zone-id="${zone.id || index}">
+                <div class="zone-number">${zone.zone_number}</div>
+                <div class="zone-info">
+                    <div class="zone-name" data-original="${zone.area_name}">${zone.area_name}</div>
+                    <div class="zone-description">Zone ${zone.zone_number} • Area Access Control</div>
+                </div>
+                <div class="zone-actions">
+                    <button class="btn-edit-zone" onclick="editZone(${zone.id || index})">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn-delete-zone" onclick="deleteZone(${zone.id || index})">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    zonesList.innerHTML = html;
+}
+
+// Update zone count display
+function updateZoneCount(count) {
+    const zoneCountElement = document.getElementById('zoneCount');
+    if (zoneCountElement) {
+        zoneCountElement.textContent = count;
+    }
+}
+
+// Show add zone form
+function showAddZoneForm() {
+    if (eventZones.length >= 21) {
+        showMessage('Maximum of 21 zones allowed per event', 'error');
+        return;
+    }
+    
+    // Determine next zone number (0, 1, 2, etc.)
+    const nextZoneNumber = eventZones.length === 0 ? 0 : Math.max(...eventZones.map(z => z.zone_number)) + 1;
+    
+    const formHtml = `
+        <div class="add-zone-form active" id="addZoneForm">
+            <h4>Add Zone ${nextZoneNumber}</h4>
+            <div class="form-group">
+                <label for="newZoneAreaName">Area Name</label>
+                <input type="text" id="newZoneAreaName" placeholder="e.g., Paddock, Pit Lane, VIP Area" required>
+                <small class="form-help">Enter a descriptive name for this access zone</small>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="cancelAddZone()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="saveNewZone(${nextZoneNumber})">Add Zone</button>
+            </div>
+        </div>
+    `;
+    
+    const zonesList = document.getElementById('zonesList');
+    zonesList.insertAdjacentHTML('afterbegin', formHtml);
+    
+    // Focus on the input
+    document.getElementById('newZoneAreaName').focus();
+}
+
+// Cancel adding zone
+function cancelAddZone() {
+    const form = document.getElementById('addZoneForm');
+    if (form) {
+        form.remove();
+    }
+}
+
+// Save new zone
+async function saveNewZone(zoneNumber) {
+    const areaNameInput = document.getElementById('newZoneAreaName');
+    const areaName = areaNameInput.value.trim();
+    
+    if (!areaName) {
+        showMessage('Please enter an area name', 'error');
+        areaNameInput.focus();
+        return;
+    }
+    
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`/api/admin/events/${eventId}/zones`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                zone_number: zoneNumber,
+                area_name: areaName
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to create zone');
+        }
+        
+        // Reload zones
+        await loadEventZones(eventId);
+        showMessage(`Zone ${zoneNumber} created successfully`, 'success');
+        
+        // Remove the form
+        cancelAddZone();
+        
+    } catch (error) {
+        console.error('Error creating zone:', error);
+        showMessage('Failed to create zone', 'error');
+    }
+}
+
+// Edit zone
+async function editZone(zoneIndex) {
+    const zone = eventZones[zoneIndex];
+    if (!zone) return;
+    
+    const zoneItem = document.querySelector(`[data-zone-id="${zone.id || zoneIndex}"]`);
+    const zoneNameElement = zoneItem.querySelector('.zone-name');
+    const actionsElement = zoneItem.querySelector('.zone-actions');
+    
+    // Add editing class
+    zoneItem.classList.add('editing');
+    
+    // Replace name with input
+    const originalName = zoneNameElement.dataset.original;
+    zoneNameElement.innerHTML = `<input type="text" class="zone-name editable" value="${originalName}" data-zone-index="${zoneIndex}">`;
+    
+    // Replace actions with save/cancel
+    actionsElement.innerHTML = `
+        <button class="btn-save-zone" onclick="saveZoneEdit(${zoneIndex})">
+            ✅ Save
+        </button>
+        <button class="btn-cancel-zone" onclick="cancelZoneEdit(${zoneIndex})">
+            ❌ Cancel
+        </button>
+    `;
+    
+    // Focus on input
+    const input = zoneNameElement.querySelector('input');
+    input.focus();
+    input.select();
+}
+
+// Save zone edit
+async function saveZoneEdit(zoneIndex) {
+    const zone = eventZones[zoneIndex];
+    if (!zone) return;
+    
+    const zoneItem = document.querySelector(`[data-zone-id="${zone.id || zoneIndex}"]`);
+    const input = zoneItem.querySelector('.zone-name input');
+    const newAreaName = input.value.trim();
+    
+    if (!newAreaName) {
+        showMessage('Please enter an area name', 'error');
+        input.focus();
+        return;
+    }
+    
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`/api/admin/events/${eventId}/zones/${zone.id || zoneIndex}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                area_name: newAreaName
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update zone');
+        }
+        
+        // Update local data
+        eventZones[zoneIndex].area_name = newAreaName;
+        
+        // Refresh display
+        displayEventZones(eventZones);
+        showMessage('Zone updated successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error updating zone:', error);
+        showMessage('Failed to update zone', 'error');
+        // Refresh display to revert changes
+        displayEventZones(eventZones);
+    }
+}
+
+// Cancel zone edit
+function cancelZoneEdit(zoneIndex) {
+    // Simply refresh the display to revert changes
+    displayEventZones(eventZones);
+}
+
+// Delete zone
+async function deleteZone(zoneIndex) {
+    const zone = eventZones[zoneIndex];
+    if (!zone) return;
+    
+    if (!confirm(`Are you sure you want to delete Zone ${zone.zone_number} (${zone.area_name})?\n\nThis will remove access to this zone from all crew members.`)) {
+        return;
+    }
+    
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`/api/admin/events/${eventId}/zones/${zone.id || zoneIndex}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete zone');
+        }
+        
+        // Reload zones
+        await loadEventZones(eventId);
+        showMessage(`Zone ${zone.zone_number} deleted successfully`, 'success');
+        
+    } catch (error) {
+        console.error('Error deleting zone:', error);
+        showMessage('Failed to delete zone', 'error');
     }
 }
 
@@ -701,8 +995,26 @@ function displayCrewApprovals(approvals) {
     let html = '';
     approvals.forEach(approval => {
         const requestedDate = new Date(approval.created_at).toLocaleDateString();
-        const accessLevel = approval.access_level || 'No Clearance';
         const companyName = approval.company_name || 'No Company';
+        const currentZones = approval.access_zones || [];
+        
+        // Generate zone checkboxes based on event zones
+        let zoneHtml = '';
+        if (eventZones.length === 0) {
+            zoneHtml = '<small style="color: #666;">No zones defined</small>';
+        } else {
+            zoneHtml = '<div class="zone-checkboxes" data-crew-id="' + approval.id + '">';
+            eventZones.forEach(zone => {
+                const isChecked = currentZones.includes(zone.zone_number);
+                zoneHtml += `
+                    <label class="zone-checkbox">
+                        <input type="checkbox" value="${zone.zone_number}" ${isChecked ? 'checked' : ''}>
+                        Zone ${zone.zone_number}
+                    </label>
+                `;
+            });
+            zoneHtml += '</div>';
+        }
         
         html += `
             <tr>
@@ -712,14 +1024,7 @@ function displayCrewApprovals(approvals) {
                 <td>${approval.role}</td>
                 <td>${requestedDate}</td>
                 <td>
-                    <select class="access-level-select" data-crew-id="${approval.id}">
-                        <option value="No Clearance" ${accessLevel === 'No Clearance' ? 'selected' : ''}>No Clearance</option>
-                        <option value="RESTRICTED" ${accessLevel === 'RESTRICTED' ? 'selected' : ''}>Restricted</option>
-                        <option value="STANDARD" ${accessLevel === 'STANDARD' ? 'selected' : ''}>Standard</option>
-                        <option value="EXTENDED" ${accessLevel === 'EXTENDED' ? 'selected' : ''}>Extended</option>
-                        <option value="FULL" ${accessLevel === 'FULL' ? 'selected' : ''}>Full</option>
-                        <option value="ADMIN" ${accessLevel === 'ADMIN' ? 'selected' : ''}>Admin</option>
-                    </select>
+                    ${zoneHtml}
                 </td>
                 <td>
                     <div class="approval-actions">
@@ -755,17 +1060,53 @@ function displayCrewApprovals(approvals) {
         }
     });
     
-    // Add event listeners for access level changes
+    // Add event listeners for zone checkbox changes
     tbody.addEventListener('change', (e) => {
-        if (e.target.classList.contains('access-level-select')) {
-            const crewId = e.target.dataset.crewId;
-            const accessLevel = e.target.value;
-            updateAccessLevel(crewId, accessLevel);
+        if (e.target.type === 'checkbox' && e.target.closest('.zone-checkboxes')) {
+            const crewId = e.target.closest('.zone-checkboxes').dataset.crewId;
+            updateCrewAccessZones(crewId);
         }
     });
 }
 
-// Update access level for crew member
+// Update access zones for crew member
+async function updateCrewAccessZones(crewId) {
+    try {
+        // Get all selected zones for this crew member
+        const zoneCheckboxes = document.querySelector(`.zone-checkboxes[data-crew-id="${crewId}"]`);
+        if (!zoneCheckboxes) return;
+        
+        const selectedZones = [];
+        zoneCheckboxes.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedZones.push(parseInt(checkbox.value));
+        });
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/crew/${crewId}/access-zones`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ access_zones: selectedZones })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update access zones');
+        }
+        
+        const zoneNames = selectedZones.length > 0 ? 
+            selectedZones.map(z => `Zone ${z}`).join(', ') : 
+            'No zones';
+        showMessage(`Access zones updated: ${zoneNames}`, 'success');
+        
+    } catch (error) {
+        console.error('Error updating access zones:', error);
+        showMessage('Failed to update access zones', 'error');
+    }
+}
+
+// Update access level for crew member (legacy function)
 async function updateAccessLevel(crewId, accessLevel) {
     try {
         const token = localStorage.getItem('token');
@@ -1030,8 +1371,23 @@ function displayApprovedCrew(approvedCrew) {
     let html = '';
     approvedCrew.forEach(crew => {
         const approvedDate = new Date(crew.approved_at).toLocaleDateString();
-        const accessLevel = crew.access_level || 'No Clearance';
         const companyName = crew.company_name || 'No Company';
+        const assignedZones = crew.access_zones || [];
+        
+        // Generate zone tags for display
+        let zoneHtml = '';
+        if (assignedZones.length === 0) {
+            zoneHtml = '<div class="zone-tags"><span class="zone-tag no-zones">No zones assigned</span></div>';
+        } else {
+            zoneHtml = '<div class="zone-tags">';
+            assignedZones.forEach(zoneNumber => {
+                // Find zone name from eventZones
+                const zone = eventZones.find(z => z.zone_number === zoneNumber);
+                const zoneName = zone ? zone.area_name : `Zone ${zoneNumber}`;
+                zoneHtml += `<span class="zone-tag" title="${zoneName}">Zone ${zoneNumber}</span>`;
+            });
+            zoneHtml += '</div>';
+        }
         
         html += `
             <tr>
@@ -1039,7 +1395,7 @@ function displayApprovedCrew(approvedCrew) {
                 <td>${companyName}</td>
                 <td>${crew.email}</td>
                 <td>${crew.role}</td>
-                <td>${accessLevel}</td>
+                <td>${zoneHtml}</td>
                 <td>${approvedDate}</td>
                 <td>
                     <div class="crew-actions">

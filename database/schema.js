@@ -96,6 +96,15 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Add access zones column to events table
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='access_zones') THEN
+                    ALTER TABLE events ADD COLUMN access_zones JSONB DEFAULT '[]'::jsonb;
+                END IF;
+            END $$;
+        `);
+
         // Crew members table
         await client.query(`
             CREATE TABLE IF NOT EXISTS crew_members (
@@ -221,6 +230,15 @@ const initDatabase = async () => {
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='company_id') THEN
                     ALTER TABLE crew_members ADD COLUMN company_id INTEGER REFERENCES companies(id);
+                END IF;
+            END $$;
+        `);
+
+        // Add access zones column to crew_members table (replaces simple access_level)
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='access_zones') THEN
+                    ALTER TABLE crew_members ADD COLUMN access_zones JSONB DEFAULT '[]'::jsonb;
                 END IF;
             END $$;
         `);
