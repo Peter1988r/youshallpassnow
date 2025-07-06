@@ -2153,20 +2153,7 @@ app.post('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmi
         const { eventId } = req.params;
         const { zone_number, area_name } = req.body;
         
-        console.log('Zone creation debug:', {
-            eventId,
-            zone_number,
-            area_name,
-            typeof_zone_number: typeof zone_number,
-            req_body: req.body
-        });
-        
         if (typeof zone_number !== 'number' || !area_name || area_name.trim() === '') {
-            console.log('Validation failed:', {
-                zone_number_is_number: typeof zone_number === 'number',
-                has_area_name: !!area_name,
-                area_name_not_empty: area_name && area_name.trim() !== ''
-            });
             return res.status(400).json({ error: 'Zone number and area name are required' });
         }
         
@@ -2177,22 +2164,11 @@ app.post('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmi
             WHERE id = $1
         `, [eventId]);
         
-        console.log('Event query result:', {
-            found_events: eventResult.length,
-            access_zones: eventResult[0]?.access_zones
-        });
-        
         if (eventResult.length === 0) {
             return res.status(404).json({ error: 'Event not found' });
         }
         
         const currentZones = eventResult[0].access_zones || [];
-        
-        console.log('Current zones:', {
-            raw_access_zones: eventResult[0].access_zones,
-            parsed_zones: currentZones,
-            zones_length: currentZones.length
-        });
         
         // Check if zone number already exists
         if (currentZones.some(zone => zone.zone_number === zone_number)) {
@@ -2211,12 +2187,8 @@ app.post('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmi
             area_name: area_name.trim()
         };
         
-        console.log('New zone object:', newZone);
-        
         // Add to zones array and sort by zone number
         const updatedZones = [...currentZones, newZone].sort((a, b) => a.zone_number - b.zone_number);
-        
-        console.log('Updated zones array:', updatedZones);
         
         // Update event with new zones
         await run(`
@@ -2225,15 +2197,13 @@ app.post('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmi
             WHERE id = $2
         `, [JSON.stringify(updatedZones), eventId]);
         
-        console.log('Database update completed successfully');
-        
         res.status(201).json({
             message: 'Access zone created successfully',
             zone: newZone
         });
     } catch (error) {
         console.error('Create event zone error:', error);
-        res.status(500).json({ error: 'Internal server error', details: error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
