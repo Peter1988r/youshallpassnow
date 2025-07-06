@@ -306,24 +306,44 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('Authentication check:', {
+        hasAuthHeader: !!authHeader,
+        hasToken: !!token,
+        path: req.path,
+        method: req.method
+    });
+
     if (!token) {
+        console.log('Authentication failed: No token provided');
         return res.status(401).json({ error: 'Access token required' });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
+            console.log('Authentication failed: Invalid token', err.message);
             return res.status(403).json({ error: 'Invalid token' });
         }
         req.user = user;
+        console.log('Authentication successful for user:', user.email);
         next();
     });
 };
 
 // Super Admin Middleware
 const requireSuperAdmin = (req, res, next) => {
+    console.log('Super admin check:', {
+        user: req.user ? req.user.email : 'No user',
+        is_super_admin: req.user ? req.user.is_super_admin : 'No user',
+        path: req.path,
+        method: req.method
+    });
+    
     if (!req.user.is_super_admin) {
+        console.log('Super admin access denied for user:', req.user.email);
         return res.status(403).json({ error: 'Super admin access required' });
     }
+    
+    console.log('Super admin access granted for user:', req.user.email);
     next();
 };
 
@@ -2348,9 +2368,14 @@ const templateUpload = multer({
 
 // Upload custom badge template for an event
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    console.log('Starting file upload middleware for badge template');
+    
     templateUpload.single('templateFile')(req, res, (err) => {
         if (err) {
-            console.error('Upload error:', err);
+            console.error('Upload error occurred:', err);
+            console.error('Error type:', err.constructor.name);
+            console.error('Error code:', err.code);
+            
             if (err instanceof multer.MulterError) {
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({ error: 'File size too large. Maximum 10MB allowed.' });
@@ -2359,6 +2384,14 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             }
             return res.status(400).json({ error: err.message });
         }
+        
+        console.log('File upload middleware completed successfully');
+        console.log('File info:', req.file ? {
+            filename: req.file.filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        } : 'No file uploaded');
+        
         next();
     });
 }, async (req, res) => {
