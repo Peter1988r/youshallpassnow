@@ -2331,17 +2331,49 @@ app.get('/api/admin/crew/:crewId/badge/custom-pdf', authenticateToken, requireSu
 const templateStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadDir = path.join(__dirname, 'public', 'badge-templates');
+        console.log('Upload directory:', uploadDir);
+        
         // Ensure directory exists
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        try {
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+                console.log('Created upload directory:', uploadDir);
+            }
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error('Error creating upload directory:', error);
+            cb(error);
         }
-        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         // Generate unique filename
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
-        cb(null, `template-${uniqueSuffix}${ext}`);
+        const filename = `template-${uniqueSuffix}${ext}`;
+        console.log('Generated filename:', filename);
+        cb(null, filename);
+    }
+});
+
+// Simple memory storage for testing
+const templateUploadMemory = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: function (req, file, cb) {
+        console.log('File filter check:', { 
+            filename: file.originalname, 
+            mimetype: file.mimetype,
+            size: file.size 
+        });
+        
+        // Only allow image files
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
     }
 });
 
@@ -2376,11 +2408,35 @@ app.get('/api/admin/debug/middleware-test', authenticateToken, requireSuperAdmin
     });
 });
 
+// Test file upload with memory storage
+app.post('/api/admin/debug/file-upload-test', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    console.log('Testing file upload with memory storage');
+    
+    templateUploadMemory.single('testFile')(req, res, (err) => {
+        if (err) {
+            console.error('Memory upload error:', err);
+            return res.status(400).json({ error: 'File upload failed: ' + err.message });
+        }
+        
+        console.log('Memory upload successful');
+        res.json({
+            message: 'File upload test successful!',
+            fileInfo: req.file ? {
+                filename: req.file.originalname,
+                size: req.file.size,
+                mimetype: req.file.mimetype
+            } : 'No file uploaded',
+            timestamp: new Date().toISOString()
+        });
+    });
+});
+
 // Upload custom badge template for an event
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
     console.log('Starting file upload middleware for badge template');
     
-    templateUpload.single('templateFile')(req, res, (err) => {
+    // Use memory storage instead of disk storage for now
+    templateUploadMemory.single('templateFile')(req, res, (err) => {
         if (err) {
             console.error('Upload error occurred:', err);
             console.error('Error type:', err.constructor.name);
@@ -2430,9 +2486,25 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
         // Handle uploaded template file
         let templatePath = null;
         if (req.file) {
-            // Store relative path to the uploaded file
-            templatePath = `/badge-templates/${req.file.filename}`;
-            console.log('Template file uploaded:', templatePath);
+            console.log('Template file received:', {
+                filename: req.file.originalname,
+                size: req.file.size,
+                mimetype: req.file.mimetype,
+                hasBuffer: !!req.file.buffer,
+                hasPath: !!req.file.path
+            });
+            
+            // For memory storage, we have the file in req.file.buffer
+            // For now, we'll skip saving to disk and just store the filename
+            if (req.file.buffer) {
+                console.log('Using memory storage - file in buffer');
+                templatePath = `/badge-templates/memory-${Date.now()}-${req.file.originalname}`;
+            } else if (req.file.path) {
+                console.log('Using disk storage - file saved to path');
+                templatePath = `/badge-templates/${req.file.filename}`;
+            }
+            
+            console.log('Template path set to:', templatePath);
         }
 
         // Update event with template configuration
