@@ -2471,6 +2471,47 @@ app.post('/api/admin/debug/file-upload-test', authenticateToken, requireSuperAdm
     });
 });
 
+// Test with exact same setup as main endpoint
+app.post('/api/admin/debug/badge-template-exact-test/:eventId', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    console.log('🧪 Testing EXACT same setup as main endpoint');
+    console.log('Event ID:', req.params.eventId);
+    
+    templateUploadMemory.single('templateFile')(req, res, (err) => {
+        if (err) {
+            console.error('Exact test upload error:', err);
+            return res.status(400).json({ error: 'File upload failed: ' + err.message });
+        }
+        
+        console.log('Exact test upload successful');
+        res.json({
+            message: 'Exact test successful!',
+            eventId: req.params.eventId,
+            fileInfo: req.file ? {
+                filename: req.file.originalname,
+                size: req.file.size,
+                mimetype: req.file.mimetype
+            } : 'No file uploaded',
+            bodyKeys: Object.keys(req.body),
+            timestamp: new Date().toISOString()
+        });
+    });
+});
+
+// Global request logger for all badge template related requests
+app.use((req, res, next) => {
+    if (req.url.includes('badge-template')) {
+        console.log('🌍 GLOBAL: Badge template request detected:', {
+            method: req.method,
+            url: req.url,
+            originalUrl: req.originalUrl,
+            path: req.path,
+            contentType: req.get('Content-Type'),
+            hasFile: req.url.includes('events') && req.method === 'POST'
+        });
+    }
+    next();
+});
+
 // Log all API requests for debugging
 app.use('/api/admin/events/:eventId/badge-template', (req, res, next) => {
     console.log('🔍 Badge template request intercepted:', {
