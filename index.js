@@ -2408,6 +2408,46 @@ app.get('/api/admin/debug/middleware-test', authenticateToken, requireSuperAdmin
     });
 });
 
+// Debug endpoint to list available routes
+app.get('/api/admin/debug/routes', authenticateToken, requireSuperAdmin, (req, res) => {
+    const routes = [];
+    
+    // Get all registered routes
+    app._router.stack.forEach((middleware) => {
+        if (middleware.route) {
+            // Individual route
+            routes.push({
+                path: middleware.route.path,
+                methods: Object.keys(middleware.route.methods),
+                stack: middleware.route.stack.length
+            });
+        } else if (middleware.name === 'router') {
+            // Router middleware
+            middleware.handle.stack.forEach((handler) => {
+                if (handler.route) {
+                    routes.push({
+                        path: handler.route.path,
+                        methods: Object.keys(handler.route.methods),
+                        stack: handler.route.stack.length
+                    });
+                }
+            });
+        }
+    });
+    
+    // Filter for badge-template routes
+    const badgeTemplateRoutes = routes.filter(route => 
+        route.path.includes('badge-template')
+    );
+    
+    res.json({
+        message: 'Available routes',
+        allRoutesCount: routes.length,
+        badgeTemplateRoutes,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Test file upload with memory storage
 app.post('/api/admin/debug/file-upload-test', authenticateToken, requireSuperAdmin, (req, res, next) => {
     console.log('Testing file upload with memory storage');
@@ -2431,8 +2471,24 @@ app.post('/api/admin/debug/file-upload-test', authenticateToken, requireSuperAdm
     });
 });
 
+// Log all API requests for debugging
+app.use('/api/admin/events/:eventId/badge-template', (req, res, next) => {
+    console.log('🔍 Badge template request intercepted:', {
+        method: req.method,
+        url: req.url,
+        params: req.params,
+        path: req.path,
+        route: req.route?.path
+    });
+    next();
+});
+
 // Upload custom badge template for an event
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    console.log('🔵 POST /api/admin/events/:eventId/badge-template route HIT!');
+    console.log('Request params:', req.params);
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
     console.log('Starting file upload middleware for badge template');
     
     // Use memory storage instead of disk storage for now
@@ -2543,6 +2599,10 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
 
 // Get badge template configuration for an event
 app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, async (req, res) => {
+    console.log('🔵 GET /api/admin/events/:eventId/badge-template route HIT!');
+    console.log('Request params:', req.params);
+    console.log('Request URL:', req.url);
+    
     try {
         const { eventId } = req.params;
         
