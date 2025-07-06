@@ -307,8 +307,12 @@ function switchTab(tabName) {
         const filterValue = companyFilter ? companyFilter.value : '';
         loadApprovedCrew(eventId, filterValue || null);
     } else if (tabName === 'badge-template') {
+        // Only initialize template editor once to prevent duplicate listeners
+        if (!templateEditor.initialized) {
+            setupBadgeTemplateListeners();
+            templateEditor.initialized = true;
+        }
         loadBadgeTemplate(eventId);
-        setupBadgeTemplateListeners();
     }
     
     // Smooth scroll to the section
@@ -1621,6 +1625,12 @@ async function loadExistingTemplate(templatePath, fieldPositions) {
             // Display the template background
             displayTemplateBackground(img, templatePath);
             
+            // Set template data for persistence (convert base64 back to usable format if needed)
+            if (templatePath.startsWith('data:')) {
+                // Store the data URL for persistence
+                templateEditor.templateDataUrl = templatePath;
+            }
+            
             // Wait a bit for the background to render, then restore field positions
             setTimeout(() => {
                 restoreFieldPositions(fieldPositions);
@@ -1628,6 +1638,7 @@ async function loadExistingTemplate(templatePath, fieldPositions) {
         };
         img.onerror = function() {
             console.warn('Failed to load existing template image');
+            showMessage('Failed to load existing template image', 'warning');
         };
         img.src = templatePath;
         
@@ -1665,7 +1676,7 @@ function restoreFieldPositions(fieldPositions) {
                 }
             }
             
-            // Restore styling if available
+            // Restore styling if available - FIX FOR FONT PERSISTENCE
             if (position.styling) {
                 fieldElement.classList.add('has-custom-styling');
                 
@@ -1683,11 +1694,17 @@ function restoreFieldPositions(fieldPositions) {
                     fieldLabel.style.fontSize = Math.min(position.styling.fontSize || 12, 14) + 'px';
                     fieldLabel.style.color = position.styling.color || '#000000';
                 }
+                
+                // Store the styling in templateEditor for persistence
+                if (!templateEditor.fieldPositions[fieldType]) {
+                    templateEditor.fieldPositions[fieldType] = {};
+                }
+                templateEditor.fieldPositions[fieldType].styling = position.styling;
             }
         }
         
-        // Update field positions reference
-        templateEditor.fieldPositions = { ...fieldPositions };
+        // Update field positions reference - ENSURE COMPLETE PERSISTENCE
+        templateEditor.fieldPositions = JSON.parse(JSON.stringify(fieldPositions));
         
         console.log('Field positions restored:', Object.keys(fieldPositions).length, 'fields');
         showMessage('Template and field positions loaded successfully', 'success');
@@ -1722,11 +1739,19 @@ function updateBadgeTemplateFormVisibility() {
     }
 }
 
-// Save badge template configuration
+// Save badge template configuration - FIX FOR MULTIPLE PDF ISSUE
 async function saveBadgeTemplate() {
     try {
         const eventId = new URLSearchParams(window.location.search).get('id');
         const token = localStorage.getItem('token');
+        
+        // Prevent multiple simultaneous saves
+        const saveButton = document.getElementById('saveBadgeTemplate');
+        if (saveButton.disabled) {
+            return;
+        }
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
         
         // Validate template configuration
         const useCustomBadge = document.getElementById('useCustomBadge').checked;
@@ -1744,17 +1769,20 @@ async function saveBadgeTemplate() {
         // Create FormData for file upload
         const formData = new FormData();
         
-        // Add template file if present
+        // Add template file if present (prioritize new upload, then existing data)
         const templateFile = document.getElementById('templateFile').files[0];
         if (templateFile) {
             formData.append('templateFile', templateFile);
+        } else if (templateEditor.templateData) {
+            // Use stored template data if no new file uploaded
+            formData.append('templateFile', templateEditor.templateData);
         }
         
         // Add other form data
         formData.append('templateName', document.getElementById('templateName').value);
         formData.append('useCustomBadge', useCustomBadge);
         
-        // Create field mapping object
+        // Create field mapping object - ENSURE ALL STYLING IS SAVED
         const fieldMapping = {
             show_photo: document.getElementById('showPhoto').checked,
             show_name: document.getElementById('showName').checked,
@@ -1766,31 +1794,13 @@ async function saveBadgeTemplate() {
             background_color: document.getElementById('backgroundColor').value,
             text_color: document.getElementById('textColor').value,
             accent_color: document.getElementById('accentColor').value,
-            // Add field positions
+            // Add field positions with styling
             field_positions: templateEditor.fieldPositions
         };
         
         formData.append('fieldMapping', JSON.stringify(fieldMapping));
         
-        // Debug: Log FormData contents
-        console.log('FormData contents:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`${key}:`, value);
-        }
-        
         showMessage('Saving badge template configuration...', 'info');
-        
-        // Debug: Log what we're sending
-        console.log('Sending badge template data:', {
-            eventId,
-            templateName: document.getElementById('templateName').value,
-            useCustomBadge,
-            fieldPositions: templateEditor.fieldPositions,
-            hasFile: !!templateFile,
-            fileName: templateFile?.name,
-            fileSize: templateFile?.size,
-            fileType: templateFile?.type
-        });
         
         const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
             method: 'POST',
@@ -1814,34 +1824,136 @@ async function saveBadgeTemplate() {
         const result = await response.json();
         showMessage('Badge template configuration saved successfully', 'success');
         
-        // Update approved crew table buttons to use custom badge
-        updateCrewActionButtons();
+        // Update template data for future saves
+        if (result.templatePath) {
+            templateEditor.templateDataUrl = result.templatePath;
+        }
         
     } catch (error) {
         console.error('Error saving badge template:', error);
         showMessage('Failed to save badge template configuration: ' + error.message, 'error');
+    } finally {
+        // Re-enable save button
+        const saveButton = document.getElementById('saveBadgeTemplate');
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Template';
     }
 }
 
-// Update crew action buttons (no longer needed since main buttons auto-detect custom templates)
-function updateCrewActionButtons() {
-    // Custom badge buttons are no longer needed since main PDF/Print buttons 
-    // automatically use custom templates when configured
-    console.log('Badge template saved - main PDF/Print buttons will now automatically use custom template when available');
+// Setup badge template event listeners - PREVENT DUPLICATE LISTENERS
+function setupBadgeTemplateListeners() {
+    // Prevent duplicate event listeners
+    if (templateEditor.listenersSetup) {
+        return;
+    }
+    
+    // Use custom badge checkbox
+    document.getElementById('useCustomBadge').addEventListener('change', updateBadgeTemplateFormVisibility);
+    
+    // Save template button
+    document.getElementById('saveBadgeTemplate').addEventListener('click', saveBadgeTemplate);
+    
+    // Preview template buttons
+    document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
+    
+    // Styling panel buttons
+    document.getElementById('applyFieldStyling').addEventListener('click', applyFieldStyling);
+    document.getElementById('closeFieldStyling').addEventListener('click', closeFieldStyling);
+    
+    // Initialize template editor
+    initializeTemplateEditor();
+    
+    templateEditor.listenersSetup = true;
 }
 
-// Custom badge PDF download function (no longer needed - main downloadBadgePDF now auto-detects custom templates)
+// Variables for field styling
+let currentStyledField = null;
 
-// Print custom badge function (no longer needed - main printBadge now auto-detects custom templates)
+// Show field styling panel
+function showFieldStyling(fieldElement) {
+    currentStyledField = fieldElement;
+    const panel = document.getElementById('fieldStylingPanel');
+    const fieldType = fieldElement.dataset.field;
+    
+    // Load existing styling if any
+    const fieldPosition = templateEditor.fieldPositions[fieldType];
+    if (fieldPosition && fieldPosition.styling) {
+        document.getElementById('fieldFont').value = fieldPosition.styling.font || 'Helvetica';
+        document.getElementById('fieldFontSize').value = fieldPosition.styling.fontSize || 12;
+        document.getElementById('fieldTextColor').value = fieldPosition.styling.color || '#000000';
+    } else {
+        // Reset to defaults
+        document.getElementById('fieldFont').value = 'Helvetica';
+        document.getElementById('fieldFontSize').value = '12';
+        document.getElementById('fieldTextColor').value = '#000000';
+    }
+    
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth' });
+}
 
-// Template Editor Variables
+// Apply field styling
+function applyFieldStyling() {
+    if (!currentStyledField) return;
+    
+    const fieldType = currentStyledField.dataset.field;
+    const font = document.getElementById('fieldFont').value;
+    const fontSize = document.getElementById('fieldFontSize').value;
+    const color = document.getElementById('fieldTextColor').value;
+    
+    // Store styling in field position
+    if (!templateEditor.fieldPositions[fieldType]) {
+        templateEditor.fieldPositions[fieldType] = {};
+    }
+    
+    templateEditor.fieldPositions[fieldType].styling = {
+        font: font,
+        fontSize: parseInt(fontSize),
+        color: color
+    };
+    
+    // Add visual indicator to field
+    currentStyledField.classList.add('has-custom-styling');
+    
+    // Add or update styling indicator
+    let indicator = currentStyledField.querySelector('.styling-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'styling-indicator';
+        indicator.textContent = 'S';
+        indicator.title = 'Custom styling applied';
+        currentStyledField.appendChild(indicator);
+    }
+    
+    // Update field preview styling (visual feedback)
+    const fieldLabel = currentStyledField.querySelector('.field-label');
+    if (fieldLabel) {
+        fieldLabel.style.fontFamily = font.includes('Bold') ? 'bold' : 'normal';
+        fieldLabel.style.fontSize = Math.min(parseInt(fontSize), 14) + 'px';
+        fieldLabel.style.color = color;
+    }
+    
+    showMessage(`Styling applied to ${getFieldData(fieldType).label}`, 'success');
+    closeFieldStyling();
+}
+
+// Close field styling panel
+function closeFieldStyling() {
+    document.getElementById('fieldStylingPanel').style.display = 'none';
+    currentStyledField = null;
+}
+
+// Template Editor Variables - Add initialization flag
 let templateEditor = {
     canvas: null,
     backgroundImage: null,
     positionedFields: new Map(),
     draggedField: null,
     canvasRect: null,
-    fieldPositions: {}
+    fieldPositions: {},
+    initialized: false,
+    zonesLoaded: false,
+    templateData: null // Store template file data for persistence
 };
 
 // Initialize template editor
@@ -1850,6 +1962,11 @@ function initializeTemplateEditor() {
     const fileInput = document.getElementById('templateFile');
     
     templateEditor.canvas = canvas;
+    
+    // Prevent duplicate event listeners
+    if (templateEditor.listenersAttached) {
+        return;
+    }
     
     // File upload handler
     fileInput.addEventListener('change', handleTemplateUpload);
@@ -1861,11 +1978,14 @@ function initializeTemplateEditor() {
     document.getElementById('resetFieldPositions').addEventListener('click', resetFieldPositions);
     document.getElementById('previewBadge').addEventListener('click', previewBadgeTemplate);
     
-    // Load zones and update field palette
+    // Load zones only once
     const eventId = new URLSearchParams(window.location.search).get('id');
-    if (eventId) {
+    if (eventId && !templateEditor.zonesLoaded) {
         loadZonesForTemplate(eventId);
+        templateEditor.zonesLoaded = true;
     }
+    
+    templateEditor.listenersAttached = true;
 }
 
 // Handle template file upload
@@ -1887,6 +2007,9 @@ async function handleTemplateUpload(event) {
     
     try {
         showMessage('Loading template image...', 'info');
+        
+        // Store template file data for persistence
+        templateEditor.templateData = file;
         
         // Create object URL for preview
         const imageUrl = URL.createObjectURL(file);
@@ -2352,100 +2475,4 @@ function updateFieldPalette(zones) {
     
     // Re-setup drag and drop for new fields
     setupDragAndDrop();
-}
-
-// Setup badge template event listeners
-function setupBadgeTemplateListeners() {
-    // Use custom badge checkbox
-    document.getElementById('useCustomBadge').addEventListener('change', updateBadgeTemplateFormVisibility);
-    
-    // Save template button
-    document.getElementById('saveBadgeTemplate').addEventListener('click', saveBadgeTemplate);
-    
-    // Preview template buttons
-    document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
-    
-    // Styling panel buttons
-    document.getElementById('applyFieldStyling').addEventListener('click', applyFieldStyling);
-    document.getElementById('closeFieldStyling').addEventListener('click', closeFieldStyling);
-    
-    // Initialize template editor
-    initializeTemplateEditor();
-}
-
-// Variables for field styling
-let currentStyledField = null;
-
-// Show field styling panel
-function showFieldStyling(fieldElement) {
-    currentStyledField = fieldElement;
-    const panel = document.getElementById('fieldStylingPanel');
-    const fieldType = fieldElement.dataset.field;
-    
-    // Load existing styling if any
-    const fieldPosition = templateEditor.fieldPositions[fieldType];
-    if (fieldPosition && fieldPosition.styling) {
-        document.getElementById('fieldFont').value = fieldPosition.styling.font || 'Helvetica';
-        document.getElementById('fieldFontSize').value = fieldPosition.styling.fontSize || 12;
-        document.getElementById('fieldTextColor').value = fieldPosition.styling.color || '#000000';
-    } else {
-        // Reset to defaults
-        document.getElementById('fieldFont').value = 'Helvetica';
-        document.getElementById('fieldFontSize').value = '12';
-        document.getElementById('fieldTextColor').value = '#000000';
-    }
-    
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth' });
-}
-
-// Apply field styling
-function applyFieldStyling() {
-    if (!currentStyledField) return;
-    
-    const fieldType = currentStyledField.dataset.field;
-    const font = document.getElementById('fieldFont').value;
-    const fontSize = document.getElementById('fieldFontSize').value;
-    const color = document.getElementById('fieldTextColor').value;
-    
-    // Store styling in field position
-    if (!templateEditor.fieldPositions[fieldType]) {
-        templateEditor.fieldPositions[fieldType] = {};
-    }
-    
-    templateEditor.fieldPositions[fieldType].styling = {
-        font: font,
-        fontSize: parseInt(fontSize),
-        color: color
-    };
-    
-    // Add visual indicator to field
-    currentStyledField.classList.add('has-custom-styling');
-    
-    // Add or update styling indicator
-    let indicator = currentStyledField.querySelector('.styling-indicator');
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.className = 'styling-indicator';
-        indicator.textContent = 'S';
-        indicator.title = 'Custom styling applied';
-        currentStyledField.appendChild(indicator);
-    }
-    
-    // Update field preview styling (visual feedback)
-    const fieldLabel = currentStyledField.querySelector('.field-label');
-    if (fieldLabel) {
-        fieldLabel.style.fontFamily = font.includes('Bold') ? 'bold' : 'normal';
-        fieldLabel.style.fontSize = Math.min(parseInt(fontSize), 14) + 'px';
-        fieldLabel.style.color = color;
-    }
-    
-    showMessage(`Styling applied to ${getFieldData(fieldType).label}`, 'success');
-    closeFieldStyling();
-}
-
-// Close field styling panel
-function closeFieldStyling() {
-    document.getElementById('fieldStylingPanel').style.display = 'none';
-    currentStyledField = null;
 }
