@@ -1,18 +1,18 @@
 # Deployment Trigger
 
-Version: 3.0.3
+Version: 3.0.4
 Date: 2024-12-19
 
 ## Changes in this version:
-- **NEW LOGO**: Updated to YSPlogoV2.png across all pages
-- Updated all logo references from logo.jpg to YSPlogoV2.png
-- **STYLING IMPROVEMENTS**: Enhanced event details section headers
-- Changed section headers to use #374151 grey background for better consistency
-- Improved text contrast with proper color variables
-- Applied consistent dark theme styling to all section headers
-- Removed bright gradient backgrounds in favor of cohesive dark design
+- **LOGO PATH FIX**: Corrected logo file path to resolve 404 errors
+- Fixed all logo references to use correct path: /assets/YSPlogoV2.png
+- Logo file was located in public/assets/ not public/assets/images/
+- Confirmed complete removal of "YouShallPass" text from all navigation bars
+- New logo now loads properly across all 6 pages without errors
+- Logo displays at 1.5x size without any accompanying text
 
 ## Previous versions:
+- v3.0.3: New logo and section header styling improvements
 - v3.0.2: Sign-in page transformation with purple-blue gradient theme
 - v3.0.1: Landing page dark mode transformation
 - v3.0.0: Complete dark mode overhaul - removed day mode entirely
