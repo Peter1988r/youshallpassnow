@@ -458,12 +458,18 @@ function displayEventZones(zones) {
     const noZonesMessage = document.getElementById('noZonesMessage');
     
     if (zones.length === 0) {
-        noZonesMessage.style.display = 'block';
-        zonesList.innerHTML = '';
+        if (noZonesMessage) {
+            noZonesMessage.style.display = 'block';
+        }
+        if (zonesList) {
+            zonesList.innerHTML = '';
+        }
         return;
     }
     
-    noZonesMessage.style.display = 'none';
+    if (noZonesMessage) {
+        noZonesMessage.style.display = 'none';
+    }
     
     let html = '';
     zones.forEach((zone, index) => {
@@ -486,7 +492,9 @@ function displayEventZones(zones) {
         `;
     });
     
-    zonesList.innerHTML = html;
+    if (zonesList) {
+        zonesList.innerHTML = html;
+    }
 }
 
 // Update zone count display
@@ -523,10 +531,15 @@ function showAddZoneForm() {
     `;
     
     const zonesList = document.getElementById('zonesList');
-    zonesList.insertAdjacentHTML('afterbegin', formHtml);
+    if (zonesList) {
+        zonesList.insertAdjacentHTML('afterbegin', formHtml);
+    }
     
     // Focus on the input
-    document.getElementById('newZoneAreaName').focus();
+    const newZoneInput = document.getElementById('newZoneAreaName');
+    if (newZoneInput) {
+        newZoneInput.focus();
+    }
 }
 
 // Cancel adding zone
@@ -540,6 +553,11 @@ function cancelAddZone() {
 // Save new zone
 async function saveNewZone(zoneNumber) {
     const areaNameInput = document.getElementById('newZoneAreaName');
+    if (!areaNameInput) {
+        showMessage('Area name input not found', 'error');
+        return;
+    }
+    
     const areaName = areaNameInput.value.trim();
     
     if (!areaName) {
