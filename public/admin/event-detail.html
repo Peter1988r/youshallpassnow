@@ -390,6 +390,36 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Field Styling Options -->
+                            <div class="field-styling-panel" id="fieldStylingPanel" style="display: none;">
+                                <h4>Field Styling</h4>
+                                <div class="styling-controls">
+                                    <div class="form-group">
+                                        <label for="fieldFont">Font Family</label>
+                                        <select id="fieldFont">
+                                            <option value="Helvetica">Helvetica</option>
+                                            <option value="Helvetica-Bold">Helvetica Bold</option>
+                                            <option value="Times-Roman">Times Roman</option>
+                                            <option value="Times-Bold">Times Bold</option>
+                                            <option value="Courier">Courier</option>
+                                            <option value="Courier-Bold">Courier Bold</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="fieldFontSize">Font Size</label>
+                                        <input type="number" id="fieldFontSize" min="6" max="72" value="12">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="fieldTextColor">Text Color</label>
+                                        <input type="color" id="fieldTextColor" value="#000000">
+                                    </div>
+                                    <div class="styling-buttons">
+                                        <button type="button" class="btn-apply-styling" id="applyFieldStyling">Apply Styling</button>
+                                        <button type="button" class="btn-close-styling" id="closeFieldStyling">Close</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1779,6 +1779,122 @@ select[multiple] option:disabled {
     font-style: italic;
 }
 
+/* Field Styling Panel */
+.field-styling-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.field-styling-panel h4 {
+    margin: 0 0 15px 0;
+    color: var(--primary-color);
+    font-size: 16px;
+}
+
+.styling-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.styling-buttons {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-apply-styling {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-apply-styling:hover {
+    background: var(--primary-hover);
+}
+
+.btn-close-styling {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.btn-close-styling:hover {
+    background: var(--border-color);
+}
+
+/* Field styling indicators */
+.positioned-field.has-custom-styling {
+    border: 2px solid var(--primary-color);
+}
+
+.positioned-field .styling-indicator {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Field buttons */
+.field-buttons {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.positioned-field:hover .field-buttons {
+    opacity: 1;
+}
+
+.style-field,
+.remove-field {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.style-field:hover {
+    background: var(--primary-color);
+}
+
+.remove-field:hover {
+    background: #dc2626;
+}
+
 .badge-field-config {
     margin-bottom: 30px;
 }

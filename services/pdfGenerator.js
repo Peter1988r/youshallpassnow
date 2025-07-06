@@ -503,10 +503,16 @@ class PDFGenerator {
 
             // Get field mapping for styling
             const fieldMapping = event.custom_badge_field_mapping || {};
-            const textColor = fieldMapping.text_color || '#000000';
+            const globalTextColor = fieldMapping.text_color || '#000000';
             const accentColor = fieldMapping.accent_color || '#0066CC';
 
-            // Set default font properties
+            // Get custom styling for this field if available
+            const customStyling = position.styling || {};
+            const textColor = customStyling.color || globalTextColor;
+            const fontSize = customStyling.fontSize || Math.min(16, fieldHeight * 0.5);
+            const fontFamily = customStyling.font || 'Helvetica';
+
+            // Set field-specific font properties
             doc.fillColor(textColor);
 
             switch (fieldType) {
@@ -516,8 +522,8 @@ class PDFGenerator {
                 
                 case 'name':
                     this.renderTextField(doc, `${crewMember.first_name} ${crewMember.last_name}`, x, y, {
-                        fontSize: Math.min(16, fieldHeight * 0.5),
-                        font: 'Helvetica-Bold',
+                        fontSize: fontSize,
+                        font: fontFamily,
                         color: textColor,
                         maxWidth: fieldWidth
                     });
@@ -526,8 +532,8 @@ class PDFGenerator {
                 case 'role':
                     const roleName = crewMember.role ? crewMember.role.replace(/_/g, ' ') : 'Crew Member';
                     this.renderTextField(doc, roleName, x, y, {
-                        fontSize: Math.min(12, fieldHeight * 0.4),
-                        font: 'Helvetica',
+                        fontSize: fontSize,
+                        font: fontFamily,
                         color: textColor,
                         maxWidth: fieldWidth
                     });
@@ -536,9 +542,9 @@ class PDFGenerator {
                 case 'company':
                     if (crewMember.company_name) {
                         this.renderTextField(doc, crewMember.company_name, x, y, {
-                            fontSize: Math.min(12, fieldHeight * 0.4),
-                            font: 'Helvetica-Bold',
-                            color: accentColor,
+                            fontSize: fontSize,
+                            font: fontFamily,
+                            color: customStyling.color || accentColor,
                             maxWidth: fieldWidth
                         });
                     }
@@ -547,8 +553,8 @@ class PDFGenerator {
                 case 'badge_number':
                     if (crewMember.badge_number) {
                         this.renderTextField(doc, `#${crewMember.badge_number}`, x, y, {
-                            fontSize: Math.min(10, fieldHeight * 0.3),
-                            font: 'Helvetica-Bold',
+                            fontSize: fontSize,
+                            font: fontFamily,
                             color: textColor,
                             maxWidth: fieldWidth
                         });
@@ -561,9 +567,9 @@ class PDFGenerator {
                 
                 case 'access_zones':
                     this.renderAccessZonesField(doc, crewMember, x, y, {
-                        fontSize: Math.min(12, fieldHeight * 0.4),
-                        font: 'Helvetica-Bold',
-                        color: accentColor,
+                        fontSize: fontSize,
+                        font: fontFamily,
+                        color: customStyling.color || accentColor,
                         maxWidth: fieldWidth
                     });
                     break;
@@ -573,9 +579,9 @@ class PDFGenerator {
                     if (fieldType.startsWith('zone_')) {
                         const zoneNumber = fieldType.replace('zone_', '');
                         this.renderZoneField(doc, crewMember, zoneNumber, x, y, {
-                            fontSize: Math.min(12, fieldHeight * 0.4),
-                            font: 'Helvetica-Bold',
-                            color: accentColor,
+                            fontSize: fontSize,
+                            font: fontFamily,
+                            color: customStyling.color || accentColor,
                             maxWidth: fieldWidth
                         });
                     } else {
@@ -673,10 +679,10 @@ class PDFGenerator {
 
     // Render individual zone field
     renderZoneField(doc, crewMember, zoneNumber, x, y, options) {
-        let zoneText = '❌';
+        let zoneText = '';
         
         if (crewMember.access_zones && Array.isArray(crewMember.access_zones) && crewMember.access_zones.includes(parseInt(zoneNumber))) {
-            zoneText = '✅';
+            zoneText = zoneNumber;
         }
         
         this.renderTextField(doc, zoneText, x, y, options);
@@ -1368,7 +1374,7 @@ class PDFGenerator {
 
                 // Table header
                 const startY = options.isCompanyFiltered ? 215 : 200;
-                const colWidths = [70, 120, 100, 80, 80, 80];
+                const colWidths = [60, 110, 90, 110, 70, 70];
                 const headers = ['Badge #', 'Name', 'Role', 'Access Zones', 'Status', 'Company'];
 
                 doc.fontSize(10)

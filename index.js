@@ -2523,59 +2523,7 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
     }
 });
 
-// Generate individual badge PDF using custom template (A5 format)
-app.get('/api/admin/crew/:crewId/badge/custom-pdf', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        const { crewId } = req.params;
-        const { eventId } = req.query;
-        
-        // Get crew member details with event info
-        const crewDetails = await query(`
-            SELECT 
-                cm.*,
-                e.name as event_name,
-                e.location as event_location,
-                e.start_date as event_start_date,
-                e.end_date as event_end_date,
-                e.use_custom_badge,
-                e.custom_badge_template_path,
-                e.custom_badge_field_mapping,
-                e.badge_template_name,
-                c.name as company_name
-            FROM crew_members cm
-            JOIN events e ON cm.event_id = e.id
-            LEFT JOIN companies c ON cm.company_id = c.id
-            WHERE cm.id = $1 AND cm.status = 'approved'
-        `, [crewId]);
-        
-        if (crewDetails.length === 0) {
-            return res.status(404).json({ error: 'Approved crew member not found' });
-        }
-        
-        const crewMember = crewDetails[0];
-        const pdfGenerator = require('./services/pdfGenerator');
-        
-        console.log('Generating custom badge for crew member:', crewMember.id, crewMember.first_name, crewMember.last_name);
-        console.log('Event has custom template:', crewMember.use_custom_badge);
-        
-        // Generate custom badge PDF
-        const pdfBuffer = await pdfGenerator.generateCustomBadge(crewMember, crewMember);
-        
-        console.log('Custom PDF generated successfully, buffer size:', pdfBuffer.length);
-        
-        // Set response headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="badge_${crewMember.first_name}_${crewMember.last_name}_${crewMember.badge_number}_custom.pdf"`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        
-        // Send the PDF buffer
-        res.send(pdfBuffer);
-        
-    } catch (error) {
-        console.error('Error generating custom badge PDF:', error);
-        res.status(500).json({ error: 'Failed to generate custom badge PDF: ' + error.message });
-    }
-});
+// Note: Removed redundant custom PDF endpoint - main badge/pdf endpoint now auto-detects custom templates
 
 // Set up multer for file uploads
 

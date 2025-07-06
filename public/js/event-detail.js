@@ -1214,7 +1214,7 @@ function showCrewDetailsModal(details) {
                             <strong>Badge #:</strong> ${details.badge_number || 'Not assigned'}
                         </div>
                         <div class="badge-field">
-                            <strong>Access Level:</strong> ${details.access_level || 'Not set'}
+                            <strong>Access Zones:</strong> ${details.access_zones && Array.isArray(details.access_zones) && details.access_zones.length > 0 ? details.access_zones.map(zone => `Zone ${zone}`).join(', ') : 'No zones assigned'}
                         </div>
                         <div class="badge-field">
                             <strong>Status:</strong> 
@@ -1660,6 +1660,26 @@ function restoreFieldPositions(fieldPositions) {
                     sizeElement.textContent = `${position.width}×${position.height}`;
                 }
             }
+            
+            // Restore styling if available
+            if (position.styling) {
+                fieldElement.classList.add('has-custom-styling');
+                
+                // Add styling indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'styling-indicator';
+                indicator.textContent = 'S';
+                indicator.title = 'Custom styling applied';
+                fieldElement.appendChild(indicator);
+                
+                // Apply visual styling to field label
+                const fieldLabel = fieldElement.querySelector('.field-label');
+                if (fieldLabel) {
+                    fieldLabel.style.fontFamily = position.styling.font && position.styling.font.includes('Bold') ? 'bold' : 'normal';
+                    fieldLabel.style.fontSize = Math.min(position.styling.fontSize || 12, 14) + 'px';
+                    fieldLabel.style.color = position.styling.color || '#000000';
+                }
+            }
         }
         
         // Update field positions reference
@@ -2042,7 +2062,10 @@ function createPositionedField(fieldType, x, y) {
         <span class="field-icon">${fieldData.icon}</span>
         <span class="field-label">${fieldData.label}</span>
         <span class="field-size">80×35</span>
-        <button class="remove-field" onclick="removePositionedField('${fieldType}')">×</button>
+        <div class="field-buttons">
+            <button class="style-field" onclick="showFieldStyling(this.closest('.positioned-field'))" title="Style field">🎨</button>
+            <button class="remove-field" onclick="removePositionedField('${fieldType}')" title="Remove field">×</button>
+        </div>
     `;
     
     // Position relative to background image
@@ -2107,7 +2130,7 @@ function setupFieldDragging(fieldElement) {
     let startX, startY, startLeft, startTop, startWidth, startHeight;
     
     fieldElement.addEventListener('mousedown', (e) => {
-        if (e.target.classList.contains('remove-field')) return;
+        if (e.target.classList.contains('remove-field') || e.target.classList.contains('style-field')) return;
         
         const rect = fieldElement.getBoundingClientRect();
         const isNearBottomRight = (e.clientX > rect.right - 12) && (e.clientY > rect.bottom - 12);
@@ -2338,6 +2361,87 @@ function setupBadgeTemplateListeners() {
     // Preview template buttons
     document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
     
+    // Styling panel buttons
+    document.getElementById('applyFieldStyling').addEventListener('click', applyFieldStyling);
+    document.getElementById('closeFieldStyling').addEventListener('click', closeFieldStyling);
+    
     // Initialize template editor
     initializeTemplateEditor();
+}
+
+// Variables for field styling
+let currentStyledField = null;
+
+// Show field styling panel
+function showFieldStyling(fieldElement) {
+    currentStyledField = fieldElement;
+    const panel = document.getElementById('fieldStylingPanel');
+    const fieldType = fieldElement.dataset.field;
+    
+    // Load existing styling if any
+    const fieldPosition = templateEditor.fieldPositions[fieldType];
+    if (fieldPosition && fieldPosition.styling) {
+        document.getElementById('fieldFont').value = fieldPosition.styling.font || 'Helvetica';
+        document.getElementById('fieldFontSize').value = fieldPosition.styling.fontSize || 12;
+        document.getElementById('fieldTextColor').value = fieldPosition.styling.color || '#000000';
+    } else {
+        // Reset to defaults
+        document.getElementById('fieldFont').value = 'Helvetica';
+        document.getElementById('fieldFontSize').value = '12';
+        document.getElementById('fieldTextColor').value = '#000000';
+    }
+    
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Apply field styling
+function applyFieldStyling() {
+    if (!currentStyledField) return;
+    
+    const fieldType = currentStyledField.dataset.field;
+    const font = document.getElementById('fieldFont').value;
+    const fontSize = document.getElementById('fieldFontSize').value;
+    const color = document.getElementById('fieldTextColor').value;
+    
+    // Store styling in field position
+    if (!templateEditor.fieldPositions[fieldType]) {
+        templateEditor.fieldPositions[fieldType] = {};
+    }
+    
+    templateEditor.fieldPositions[fieldType].styling = {
+        font: font,
+        fontSize: parseInt(fontSize),
+        color: color
+    };
+    
+    // Add visual indicator to field
+    currentStyledField.classList.add('has-custom-styling');
+    
+    // Add or update styling indicator
+    let indicator = currentStyledField.querySelector('.styling-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'styling-indicator';
+        indicator.textContent = 'S';
+        indicator.title = 'Custom styling applied';
+        currentStyledField.appendChild(indicator);
+    }
+    
+    // Update field preview styling (visual feedback)
+    const fieldLabel = currentStyledField.querySelector('.field-label');
+    if (fieldLabel) {
+        fieldLabel.style.fontFamily = font.includes('Bold') ? 'bold' : 'normal';
+        fieldLabel.style.fontSize = Math.min(parseInt(fontSize), 14) + 'px';
+        fieldLabel.style.color = color;
+    }
+    
+    showMessage(`Styling applied to ${getFieldData(fieldType).label}`, 'success');
+    closeFieldStyling();
+}
+
+// Close field styling panel
+function closeFieldStyling() {
+    document.getElementById('fieldStylingPanel').style.display = 'none';
+    currentStyledField = null;
 }
