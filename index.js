@@ -2334,34 +2334,6 @@ app.get('/api/admin/crew/:crewId/badge/custom-pdf', authenticateToken, requireSu
 
 // Set up multer for file uploads
 
-// Configure multer for template uploads - USE DISK STORAGE
-const templateStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, 'public', 'badge-templates');
-        console.log('Upload directory:', uploadDir);
-        
-        // Ensure directory exists
-        try {
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-                console.log('Created upload directory:', uploadDir);
-            }
-            cb(null, uploadDir);
-        } catch (error) {
-            console.error('Error creating upload directory:', error);
-            cb(error);
-        }
-    },
-    filename: function (req, file, cb) {
-        // Generate unique filename
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        const filename = `template-${uniqueSuffix}${ext}`;
-        console.log('Generated filename:', filename);
-        cb(null, filename);
-    }
-});
-
 // Use memory storage for serverless compatibility
 const templateUploadMemory = multer({
     storage: multer.memoryStorage(),
@@ -2579,10 +2551,20 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             });
             
             // Using memory storage - store file data in database
+            // Check file size to prevent memory issues
+            if (req.file.size > 10 * 1024 * 1024) { // 10MB limit
+                return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+            }
+            
             templateData = req.file.buffer.toString('base64');
             templatePath = `data:${req.file.mimetype};base64,${templateData}`;
             
-            console.log('Template data stored in database, size:', templateData.length);
+            console.log('Template data stored in database:', {
+                originalSize: req.file.size,
+                base64Size: templateData.length,
+                mimeType: req.file.mimetype,
+                filename: req.file.originalname
+            });
         }
 
         // Update event with template configuration
@@ -2606,14 +2588,7 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
     } catch (error) {
         console.error('Error updating badge template:', error);
         
-        // Clean up uploaded file if there was an error
-        if (req.file) {
-            try {
-                fs.unlinkSync(req.file.path);
-            } catch (unlinkError) {
-                console.error('Error deleting uploaded file:', unlinkError);
-            }
-        }
+        // No file cleanup needed for memory storage - files are only in memory
         
         res.status(500).json({ error: 'Failed to update badge template: ' + error.message });
     }

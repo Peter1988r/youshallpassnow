@@ -397,16 +397,25 @@ class PDFGenerator {
             // Check if it's a data URI (base64 encoded image)
             if (imagePath.startsWith('data:')) {
                 console.log('Loading image from data URI');
-                // Extract base64 data from data URI
-                const base64Data = imagePath.split(',')[1];
-                const imageBuffer = Buffer.from(base64Data, 'base64');
-                
-                doc.image(imageBuffer, 0, 0, { 
-                    width: badgeWidth, 
-                    height: badgeHeight 
-                });
-                console.log('Background image loaded successfully from data URI');
-                return;
+                try {
+                    // Extract base64 data from data URI
+                    const base64Data = imagePath.split(',')[1];
+                    if (!base64Data) {
+                        throw new Error('Invalid data URI format');
+                    }
+                    
+                    const imageBuffer = Buffer.from(base64Data, 'base64');
+                    
+                    doc.image(imageBuffer, 0, 0, { 
+                        width: badgeWidth, 
+                        height: badgeHeight 
+                    });
+                    console.log('Background image loaded successfully from data URI');
+                    return;
+                } catch (dataUriError) {
+                    console.error('Error loading image from data URI:', dataUriError);
+                    throw new Error('Failed to load image from data URI: ' + dataUriError.message);
+                }
             }
             
             // Check if it's a URL or local path
