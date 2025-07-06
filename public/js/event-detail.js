@@ -1836,6 +1836,12 @@ function initializeTemplateEditor() {
     // Setup toolbar buttons
     document.getElementById('resetFieldPositions').addEventListener('click', resetFieldPositions);
     document.getElementById('previewBadge').addEventListener('click', previewBadgeTemplate);
+    
+    // Load zones and update field palette
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    if (eventId) {
+        loadZonesForTemplate(eventId);
+    }
 }
 
 // Handle template file upload
@@ -2081,8 +2087,15 @@ function getFieldData(fieldType) {
         role: { icon: '💼', label: 'Role' },
         company: { icon: '🏢', label: 'Company' },
         badge_number: { icon: '🏷️', label: 'Badge #' },
-        qr_code: { icon: '📱', label: 'QR Code' }
+        qr_code: { icon: '📱', label: 'QR Code' },
+        access_zones: { icon: '🎯', label: 'Access Zones' }
     };
+    
+    // Check if it's a zone field
+    if (fieldType.startsWith('zone_')) {
+        const zoneNumber = fieldType.replace('zone_', '');
+        return { icon: '🔒', label: `Zone ${zoneNumber}` };
+    }
     
     return fieldData[fieldType] || { icon: '❓', label: 'Unknown' };
 }
@@ -2249,6 +2262,69 @@ async function previewBadgeTemplate() {
         console.error('Error generating template preview:', error);
         showMessage('Failed to generate template preview', 'error');
     }
+}
+
+// Load zones for template editor
+async function loadZonesForTemplate(eventId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/zones`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const zones = await response.json();
+            updateFieldPalette(zones);
+        }
+    } catch (error) {
+        console.error('Error loading zones for template:', error);
+    }
+}
+
+// Update field palette with zone fields
+function updateFieldPalette(zones) {
+    const fieldPalette = document.querySelector('.field-palette');
+    if (!fieldPalette) return;
+    
+    // Remove existing zone fields
+    fieldPalette.querySelectorAll('.field-item[data-field^="zone_"]').forEach(item => {
+        item.remove();
+    });
+    
+    // Add zone fields after the main fields
+    zones.forEach(zone => {
+        const zoneFieldElement = document.createElement('div');
+        zoneFieldElement.className = 'field-item';
+        zoneFieldElement.draggable = true;
+        zoneFieldElement.dataset.field = `zone_${zone.zone_number}`;
+        
+        zoneFieldElement.innerHTML = `
+            <span class="field-icon">🔒</span>
+            <span class="field-label">Zone ${zone.zone_number}</span>
+            <div class="field-hint">${zone.area_name}</div>
+        `;
+        
+        fieldPalette.appendChild(zoneFieldElement);
+    });
+    
+    // Add access zones summary field
+    const accessZonesElement = document.createElement('div');
+    accessZonesElement.className = 'field-item';
+    accessZonesElement.draggable = true;
+    accessZonesElement.dataset.field = 'access_zones';
+    
+    accessZonesElement.innerHTML = `
+        <span class="field-icon">🎯</span>
+        <span class="field-label">Access Zones</span>
+        <div class="field-hint">All assigned zones</div>
+    `;
+    
+    fieldPalette.appendChild(accessZonesElement);
+    
+    // Re-setup drag and drop for new fields
+    setupDragAndDrop();
 }
 
 // Setup badge template event listeners

@@ -251,10 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
             
+            // Format access zones display
+            let accessZonesDisplay = 'No zones assigned';
+            if (member.access_zones && Array.isArray(member.access_zones) && member.access_zones.length > 0) {
+                accessZonesDisplay = member.access_zones.map(zone => `Zone ${zone}`).join(', ');
+            }
+            
             row.innerHTML = `
                 <td>${member.first_name} ${member.last_name}</td>
                 <td>${member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                <td>${member.access_level || 'RESTRICTED'}</td>
+                <td><span class="access-zones">${accessZonesDisplay}</span></td>
                 <td>${member.email || ''}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>${actionsHtml}</td>

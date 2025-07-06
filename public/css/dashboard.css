@@ -326,4 +326,16 @@
 .form-group input[type="file"]:hover {
     border-color: var(--primary-color);
     background-color: #f3f4f6;
+}
+
+/* Access zones styling */
+.access-zones {
+    color: #4F46E5;
+    font-weight: 500;
+}
+
+.access-zones:empty::before {
+    content: 'No zones assigned';
+    color: #9CA3AF;
+    font-style: italic;
 } 

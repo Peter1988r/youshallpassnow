@@ -272,7 +272,12 @@ class PDFGenerator {
                     doc.text(member.badge_number, x, y); x += colWidths[0];
                     doc.text(`${member.first_name} ${member.last_name}`, x, y); x += colWidths[1];
                     doc.text(member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), x, y); x += colWidths[2];
-                    doc.text(member.access_level, x, y); x += colWidths[3];
+                    // Format access zones display
+                    let accessZonesDisplay = 'No zones';
+                    if (member.access_zones && Array.isArray(member.access_zones) && member.access_zones.length > 0) {
+                        accessZonesDisplay = member.access_zones.map(zone => `Zone ${zone}`).join(', ');
+                    }
+                    doc.text(accessZonesDisplay, x, y); x += colWidths[3];
                     doc.text(member.status, x, y);
                 });
 
@@ -554,8 +559,28 @@ class PDFGenerator {
                     this.renderQRCodeField(doc, crewMember, x, y, Math.min(fieldWidth, fieldHeight));
                     break;
                 
+                case 'access_zones':
+                    this.renderAccessZonesField(doc, crewMember, x, y, {
+                        fontSize: Math.min(12, fieldHeight * 0.4),
+                        font: 'Helvetica-Bold',
+                        color: accentColor,
+                        maxWidth: fieldWidth
+                    });
+                    break;
+                
                 default:
-                    console.warn(`Unknown field type: ${fieldType}`);
+                    // Check if it's a zone field
+                    if (fieldType.startsWith('zone_')) {
+                        const zoneNumber = fieldType.replace('zone_', '');
+                        this.renderZoneField(doc, crewMember, zoneNumber, x, y, {
+                            fontSize: Math.min(12, fieldHeight * 0.4),
+                            font: 'Helvetica-Bold',
+                            color: accentColor,
+                            maxWidth: fieldWidth
+                        });
+                    } else {
+                        console.warn(`Unknown field type: ${fieldType}`);
+                    }
             }
 
         } catch (error) {
@@ -633,6 +658,28 @@ class PDFGenerator {
                 }
             }
         }
+    }
+
+    // Render access zones field
+    renderAccessZonesField(doc, crewMember, x, y, options) {
+        let accessZonesText = 'No zones assigned';
+        
+        if (crewMember.access_zones && Array.isArray(crewMember.access_zones) && crewMember.access_zones.length > 0) {
+            accessZonesText = crewMember.access_zones.map(zone => `Zone ${zone}`).join(', ');
+        }
+        
+        this.renderTextField(doc, accessZonesText, x, y, options);
+    }
+
+    // Render individual zone field
+    renderZoneField(doc, crewMember, zoneNumber, x, y, options) {
+        let zoneText = '❌';
+        
+        if (crewMember.access_zones && Array.isArray(crewMember.access_zones) && crewMember.access_zones.includes(parseInt(zoneNumber))) {
+            zoneText = '✅';
+        }
+        
+        this.renderTextField(doc, zoneText, x, y, options);
     }
 
     // Create fallback custom badge when template loading fails
@@ -855,15 +902,20 @@ class PDFGenerator {
            .fillColor('#FFD700')
            .text('ACCESS ZONES:', 40, 380);
 
-        // Sample access zones based on access level
-        const accessZones = this.getAccessZonesForLevel(crewMember.access_level);
+        // Use actual access zones from crew member
+        let accessZones = [];
+        if (crewMember.access_zones && Array.isArray(crewMember.access_zones) && crewMember.access_zones.length > 0) {
+            accessZones = crewMember.access_zones.map(zone => `Zone ${zone}`);
+        } else {
+            accessZones = ['No zones assigned'];
+        }
         
         doc.fontSize(10)
            .font('Helvetica')
            .fillColor('#FFFFFF');
            
         accessZones.forEach((zone, index) => {
-            doc.text(`Zone ${index + 1}: ${zone}`, 40, 400 + (index * 15));
+            doc.text(zone, 40, 400 + (index * 15));
         });
     }
 
@@ -1317,7 +1369,7 @@ class PDFGenerator {
                 // Table header
                 const startY = options.isCompanyFiltered ? 215 : 200;
                 const colWidths = [70, 120, 100, 80, 80, 80];
-                const headers = ['Badge #', 'Name', 'Role', 'Access Level', 'Status', 'Company'];
+                const headers = ['Badge #', 'Name', 'Role', 'Access Zones', 'Status', 'Company'];
 
                 doc.fontSize(10)
                    .font('Helvetica-Bold')
@@ -1382,8 +1434,12 @@ class PDFGenerator {
                     doc.text(roleName, x, currentY);
                     x += colWidths[2];
                     
-                    // Access level
-                    doc.text(member.access_level || 'RESTRICTED', x, currentY);
+                    // Access zones
+                    let accessZonesDisplay = 'No zones';
+                    if (member.access_zones && Array.isArray(member.access_zones) && member.access_zones.length > 0) {
+                        accessZonesDisplay = member.access_zones.map(zone => `Zone ${zone}`).join(', ');
+                    }
+                    doc.text(accessZonesDisplay, x, currentY);
                     x += colWidths[3];
                     
                     // Status with color

@@ -445,7 +445,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             if (isSuperAdmin) {
                 // Super admin sees all crew members with company info
                 crew = await query(`
-                    SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, 
+                    SELECT cm.id, cm.first_name, cm.last_name, cm.email, cm.role, cm.access_level, cm.access_zones,
                            cm.badge_number, cm.status, cm.created_at, cm.company_id,
                            c.name as company_name
                     FROM crew_members cm
@@ -456,7 +456,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
             } else {
                 // Company users only see their own crew members
                 crew = await query(`
-                    SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
+                    SELECT id, first_name, last_name, email, role, access_level, access_zones, badge_number, status, created_at
                     FROM crew_members 
                     WHERE event_id = $1 AND company_id = $2
                     ORDER BY created_at DESC
@@ -465,7 +465,7 @@ app.get('/api/events/:eventId/crew', authenticateToken, async (req, res) => {
         } else {
             // Fallback: old behavior without company filtering (until migration is run)
             crew = await query(`
-                SELECT id, first_name, last_name, email, role, access_level, badge_number, status, created_at
+                SELECT id, first_name, last_name, email, role, access_level, access_zones, badge_number, status, created_at
                 FROM crew_members 
                 WHERE event_id = $1 
                 ORDER BY created_at DESC
@@ -817,6 +817,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
                     cm.last_name, 
                     cm.role, 
                     cm.access_level, 
+                    cm.access_zones,
                     cm.badge_number, 
                     cm.status,
                     c.name as company_name
@@ -835,6 +836,7 @@ app.get('/api/events/:eventId/crew/pdf', authenticateToken, async (req, res) => 
                     cm.last_name, 
                     cm.role, 
                     cm.access_level, 
+                    cm.access_zones,
                     cm.badge_number, 
                     cm.status,
                     c.name as company_name
