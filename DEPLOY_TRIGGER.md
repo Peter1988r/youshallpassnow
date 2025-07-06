@@ -1,5 +1,36 @@
 # Deployment Trigger
 
+## Version 2.2.0 - Badge System Fixes and Font Styling
+**Date:** January 6, 2025
+**Status:** 🚀 READY FOR DEPLOYMENT
+
+### Badge System Fixes and Font Styling Feature
+- ✅ **Fixed crew details modal** to show access zones instead of access level
+- ✅ **Fixed PDF column widths** in crew reports to prevent zone/status field overlapping
+- ✅ **Removed redundant custom PDF endpoint** to prevent double generation
+- ✅ **Fixed individual zone fields** to show zone numbers (0, 1, 2) instead of checkmarks
+- ✅ **Added comprehensive font styling system** for badge template fields
+- ✅ **Added style buttons** to positioned fields with visual indicators
+- ✅ **Integrated font styling options** into PDF generator for custom field rendering
+- ✅ **Added styling options** for font family, size, and color customization per field
+- ✅ **Preserved styling settings** when loading existing templates
+
+### Font Styling Features
+- ✅ **Font family selection** (Helvetica, Times, Courier variants)
+- ✅ **Font size adjustment** (6-72px range)
+- ✅ **Text color customization** with color picker
+- ✅ **Per-field styling** with visual indicators
+- ✅ **Template preservation** of styling settings
+
+### Files Modified
+- `public/js/event-detail.js` - Updated crew details modal, added font styling UI
+- `services/pdfGenerator.js` - Fixed column widths, zone fields, font styling
+- `index.js` - Removed redundant endpoint
+- `public/admin/event-detail.html` - Added styling panel HTML
+- `public/css/admin.css` - Added styling panel and field button CSS
+
+---
+
 ## Version 2.1.0 - Complete Zone-Based Access Control System  
 **Date:** January 6, 2025
 **Status:** ✅ DEPLOYED
