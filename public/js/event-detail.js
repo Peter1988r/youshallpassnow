@@ -1366,7 +1366,25 @@ async function saveBadgeTemplate() {
         
         formData.append('fieldMapping', JSON.stringify(fieldMapping));
         
+        // Debug: Log FormData contents
+        console.log('FormData contents:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}:`, value);
+        }
+        
         showMessage('Saving badge template configuration...', 'info');
+        
+        // Debug: Log what we're sending
+        console.log('Sending badge template data:', {
+            eventId,
+            templateName: document.getElementById('templateName').value,
+            useCustomBadge,
+            fieldPositions: templateEditor.fieldPositions,
+            hasFile: !!templateFile,
+            fileName: templateFile?.name,
+            fileSize: templateFile?.size,
+            fileType: templateFile?.type
+        });
         
         const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
             method: 'POST',
@@ -1378,7 +1396,13 @@ async function saveBadgeTemplate() {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to save badge template configuration');
+            const errorText = await response.text();
+            console.error('Server error response:', {
+                status: response.status,
+                statusText: response.statusText,
+                responseText: errorText
+            });
+            throw new Error(`Failed to save badge template configuration: ${errorText}`);
         }
         
         const result = await response.json();
