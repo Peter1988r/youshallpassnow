@@ -2223,7 +2223,7 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         const { crewId } = req.params;
         const { eventId } = req.query;
         
-        // Get crew member details
+        // Get crew member details with event custom badge configuration
         const crewDetails = await query(`
             SELECT 
                 cm.*,
@@ -2231,6 +2231,10 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
                 e.location as event_location,
                 e.start_date as event_start_date,
                 e.end_date as event_end_date,
+                e.use_custom_badge,
+                e.custom_badge_template_path,
+                e.custom_badge_field_mapping,
+                e.badge_template_name,
                 c.name as company_name
             FROM crew_members cm
             JOIN events e ON cm.event_id = e.id
@@ -2245,7 +2249,9 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         const crewMember = crewDetails[0];
         const pdfGenerator = require('./services/pdfGenerator');
         
-        console.log('Generating A5 badge for crew member:', crewMember.id, crewMember.first_name, crewMember.last_name);
+        console.log('Generating badge for crew member:', crewMember.id, crewMember.first_name, crewMember.last_name);
+        console.log('Event has custom template:', crewMember.use_custom_badge);
+        console.log('Custom template path:', crewMember.custom_badge_template_path);
         
         // Generate badge PDF (custom if available, default otherwise)
         const pdfBuffer = await pdfGenerator.generateCustomBadge(crewMember, crewMember);
@@ -2253,8 +2259,9 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
         
         // Set response headers for PDF download
+        const badgeType = crewMember.use_custom_badge ? 'custom' : 'standard';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="badge_${crewMember.first_name}_${crewMember.last_name}_${crewMember.badge_number}.pdf"`);
+        res.setHeader('Content-Disposition', `attachment; filename="badge_${crewMember.first_name}_${crewMember.last_name}_${crewMember.badge_number}_${badgeType}.pdf"`);
         res.setHeader('Content-Length', pdfBuffer.length);
         
         // Send the PDF buffer
