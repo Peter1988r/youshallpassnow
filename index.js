@@ -2334,7 +2334,7 @@ app.get('/api/admin/crew/:crewId/badge/custom-pdf', authenticateToken, requireSu
 
 // Set up multer for file uploads
 
-// Configure multer for template uploads
+// Configure multer for template uploads - USE DISK STORAGE
 const templateStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadDir = path.join(__dirname, 'public', 'badge-templates');
@@ -2362,28 +2362,7 @@ const templateStorage = multer.diskStorage({
     }
 });
 
-// Simple memory storage for testing
-const templateUploadMemory = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
-    },
-    fileFilter: function (req, file, cb) {
-        console.log('File filter check:', { 
-            filename: file.originalname, 
-            mimetype: file.mimetype,
-            size: file.size 
-        });
-        
-        // Only allow image files
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image files are allowed'), false);
-        }
-    }
-});
-
+// Use disk storage for template uploads so PDF generator can access files
 const templateUpload = multer({
     storage: templateStorage,
     limits: {
@@ -2539,8 +2518,8 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
     console.log('Request method:', req.method);
     console.log('Starting file upload middleware for badge template');
     
-    // Use memory storage instead of disk storage for now
-    templateUploadMemory.single('templateFile')(req, res, (err) => {
+    // Use disk storage so PDF generator can access files
+    templateUpload.single('templateFile')(req, res, (err) => {
         if (err) {
             console.error('Upload error occurred:', err);
             console.error('Error type:', err.constructor.name);
@@ -2594,19 +2573,12 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
                 filename: req.file.originalname,
                 size: req.file.size,
                 mimetype: req.file.mimetype,
-                hasBuffer: !!req.file.buffer,
-                hasPath: !!req.file.path
+                savedFilename: req.file.filename,
+                savedPath: req.file.path
             });
             
-            // For memory storage, we have the file in req.file.buffer
-            // For now, we'll skip saving to disk and just store the filename
-            if (req.file.buffer) {
-                console.log('Using memory storage - file in buffer');
-                templatePath = `/badge-templates/memory-${Date.now()}-${req.file.originalname}`;
-            } else if (req.file.path) {
-                console.log('Using disk storage - file saved to path');
-                templatePath = `/badge-templates/${req.file.filename}`;
-            }
+            // Using disk storage - file is saved to public/badge-templates/
+            templatePath = `/badge-templates/${req.file.filename}`;
             
             console.log('Template path set to:', templatePath);
         }

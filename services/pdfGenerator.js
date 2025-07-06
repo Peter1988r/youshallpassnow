@@ -353,10 +353,21 @@ class PDFGenerator {
     // Create custom badge with positioned fields
     async createCustomBadgeWithPositions(doc, crewMember, event, fieldPositions, badgeWidth, badgeHeight) {
         try {
+            console.log('Creating custom badge with positions:', {
+                crewMemberId: crewMember.id,
+                crewMemberName: `${crewMember.first_name} ${crewMember.last_name}`,
+                templatePath: event.custom_badge_template_path,
+                fieldCount: Object.keys(fieldPositions).length,
+                fieldTypes: Object.keys(fieldPositions),
+                badgeSize: { width: badgeWidth, height: badgeHeight }
+            });
+
             // Load background image if template path exists
             if (event.custom_badge_template_path) {
+                console.log('Loading background image...');
                 await this.loadBackgroundImage(doc, event.custom_badge_template_path, badgeWidth, badgeHeight);
             } else {
+                console.log('No template path provided, using background color');
                 // Create a simple background if no image is provided
                 const bgColor = event.custom_badge_field_mapping?.background_color || '#FFFFFF';
                 doc.rect(0, 0, badgeWidth, badgeHeight)
@@ -365,9 +376,12 @@ class PDFGenerator {
             }
 
             // Position and render each field based on stored coordinates
+            console.log('Rendering positioned fields...');
             for (const [fieldType, position] of Object.entries(fieldPositions)) {
                 await this.renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight);
             }
+
+            console.log('Custom badge creation completed successfully');
 
         } catch (error) {
             console.error('Error creating custom badge with positions:', error);
@@ -378,6 +392,7 @@ class PDFGenerator {
     // Load background image for custom template
     async loadBackgroundImage(doc, imagePath, badgeWidth, badgeHeight) {
         try {
+            console.log('Loading background image from path:', imagePath);
             
             // Check if it's a URL or local path
             if (imagePath.startsWith('http')) {
@@ -410,7 +425,7 @@ class PDFGenerator {
                 // Handle local file - convert relative path to absolute
                 let fullImagePath;
                 if (imagePath.startsWith('/')) {
-                    // Relative to public directory
+                    // Relative to public directory (e.g., /badge-templates/file.jpg)
                     fullImagePath = path.join(__dirname, '../public', imagePath);
                 } else {
                     // Absolute path or relative to current directory
@@ -441,6 +456,15 @@ class PDFGenerator {
             // Convert relative position to absolute position
             const x = position.relativeX * badgeWidth;
             const y = position.relativeY * badgeHeight;
+
+            console.log(`Rendering field ${fieldType} at position:`, {
+                relativeX: position.relativeX,
+                relativeY: position.relativeY,
+                absoluteX: x,
+                absoluteY: y,
+                badgeWidth,
+                badgeHeight
+            });
 
             // Get field mapping for styling
             const fieldMapping = event.custom_badge_field_mapping || {};
