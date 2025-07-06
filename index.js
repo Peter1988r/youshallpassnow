@@ -2366,6 +2366,16 @@ const templateUpload = multer({
     }
 });
 
+// Debug endpoint to test middlewares
+app.get('/api/admin/debug/middleware-test', authenticateToken, requireSuperAdmin, (req, res) => {
+    res.json({ 
+        message: 'All middlewares passed!',
+        user: req.user.email,
+        is_super_admin: req.user.is_super_admin,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Upload custom badge template for an event
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
     console.log('Starting file upload middleware for badge template');
