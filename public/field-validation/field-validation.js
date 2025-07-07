@@ -3,7 +3,6 @@
 class FieldValidationApp {
     constructor() {
         this.authToken = localStorage.getItem('field_auth_token');
-        this.html5QrCode = null;
         this.scanHistory = [];
         this.currentScreen = 'auth';
         
@@ -23,16 +22,8 @@ class FieldValidationApp {
             this.handleLogin();
         });
 
-        // Scanner controls
-        document.getElementById('start-scan-btn').addEventListener('click', () => this.startScanning());
-        document.getElementById('stop-scan-btn').addEventListener('click', () => this.stopScanning());
-        document.getElementById('camera-app-btn').addEventListener('click', () => this.showCameraInstructions());
+        // Manual entry
         document.getElementById('manual-entry-btn').addEventListener('click', () => this.showManualEntry());
-        document.getElementById('scan-another-btn').addEventListener('click', () => this.resetScanner());
-
-        // Camera app instructions
-        document.getElementById('validate-camera-data-btn').addEventListener('click', () => this.validateCameraData());
-        document.getElementById('hide-instructions-btn').addEventListener('click', () => this.hideCameraInstructions());
 
         // Manual entry modal
         document.getElementById('validate-manual-btn').addEventListener('click', () => this.validateManualEntry());
@@ -133,21 +124,8 @@ class FieldValidationApp {
             // Show scanner screen and auto-validate
             this.showScannerScreen();
             
-            // Show loading message
-            const statusElement = document.getElementById('scanner-status');
-            statusElement.innerHTML = `
-                <div style="color: #10B981; text-align: center;">
-                    🔍 Auto-validating QR code...<br>
-                    <small style="color: #666; margin-top: 0.5rem; display: block;">
-                        Scanned from your camera app
-                    </small>
-                </div>
-            `;
-            
-            // Validate after a short delay to show the message
-            setTimeout(() => {
-                this.validateQRCode(qrData);
-            }, 1000);
+            // Validate the QR code data
+            this.validateQRCode(qrData);
             
         } catch (error) {
             console.error('Auto-validation error:', error);
@@ -240,206 +218,10 @@ class FieldValidationApp {
     logout() {
         this.authToken = null;
         localStorage.removeItem('field_auth_token');
-        this.stopScanning();
         this.showAuthScreen();
     }
 
-    async startScanning() {
-        const startBtn = document.getElementById('start-scan-btn');
-        const stopBtn = document.getElementById('stop-scan-btn');
-        const statusElement = document.getElementById('scanner-status');
 
-        try {
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'inline-block';
-            statusElement.textContent = 'Starting camera...';
-
-            this.html5QrCode = new Html5Qrcode("qr-reader");
-            
-            // Optimized config for mobile devices and better QR detection
-            const config = {
-                fps: 20, // Higher FPS for better detection
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // Dynamic qrbox sizing based on screen
-                    let minEdgePercentage = 0.7; // 70% of the smaller edge
-                    let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                    let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-                    return {
-                        width: Math.min(qrboxSize, 400),
-                        height: Math.min(qrboxSize, 400)
-                    };
-                },
-                // Enhanced detection settings
-                aspectRatio: undefined, // Let the library choose optimal ratio
-                videoConstraints: {
-                    facingMode: "environment",
-                    focusMode: "continuous",
-                    advanced: [
-                        { focusMode: "continuous" },
-                        { focusDistance: { ideal: 0.3 } }
-                    ]
-                },
-                // Better algorithm settings for QR detection
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
-                },
-                rememberLastUsedCamera: true
-            };
-
-            // Try multiple camera configurations for iOS compatibility
-            let cameraConfig = { facingMode: "environment" };
-            
-            try {
-                await this.html5QrCode.start(
-                    cameraConfig,
-                    config,
-                    (qrCodeMessage) => {
-                        console.log('QR Code detected:', qrCodeMessage);
-                        this.onScanSuccess(qrCodeMessage);
-                    },
-                    (errorMessage) => {
-                        // Only log significant errors, not routine "no QR found" messages
-                        if (!errorMessage.includes('No QR code found') && 
-                            !errorMessage.includes('NotFoundException')) {
-                            console.warn('QR scan error:', errorMessage);
-                        }
-                    }
-                );
-                
-                statusElement.innerHTML = `
-                    <div style="color: #10B981; text-align: center;">
-                        📷 Camera active - Point at QR code<br>
-                        <small style="color: #666; margin-top: 0.5rem; display: block;">
-                            Having trouble? Try the <strong>📱 Use Camera App</strong> button above
-                        </small>
-                    </div>
-                `;
-                
-            } catch (startError) {
-                console.warn('Failed with environment camera, trying any camera:', startError);
-                
-                try {
-                    // Fallback: try any available camera
-                    cameraConfig = true;
-                    await this.html5QrCode.start(
-                        cameraConfig,
-                        config,
-                        (qrCodeMessage) => {
-                            console.log('QR Code detected:', qrCodeMessage);
-                             this.onScanSuccess(qrCodeMessage);
-                         },
-                         (errorMessage) => {
-                             if (!errorMessage.includes('No QR code found') && 
-                                 !errorMessage.includes('NotFoundException')) {
-                                 console.warn('QR scan error:', errorMessage);
-                             }
-                         }
-                     );
-                 } catch (fallbackError) {
-                     console.warn('Advanced config failed, trying simple config:', fallbackError);
-                     
-                     // Final fallback: use very simple configuration for older devices
-                     const simpleConfig = {
-                         fps: 10,
-                         qrbox: 250,
-                         aspectRatio: 1.0
-                     };
-                     
-                     await this.html5QrCode.start(
-                         { facingMode: "environment" },
-                         simpleConfig,
-                         (qrCodeMessage) => {
-                             console.log('QR Code detected (simple mode):', qrCodeMessage);
-                             this.onScanSuccess(qrCodeMessage);
-                         },
-                         (errorMessage) => {
-                             if (!errorMessage.includes('No QR code found') && 
-                                 !errorMessage.includes('NotFoundException')) {
-                                 console.warn('QR scan error (simple mode):', errorMessage);
-                             }
-                         }
-                     );
-                 }
-             }
-
-            statusElement.textContent = 'Ready to scan QR codes - Point camera at QR code';
-            
-            // Add helpful tips for mobile users
-            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                statusElement.innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="color: #10B981; font-weight: bold; margin-bottom: 0.5rem;">📱 Scanning Active</div>
-                        <div style="font-size: 0.9rem;">Point camera at QR code</div>
-                        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #6B7280;">
-                            Tip: Hold steady, ensure good lighting
-                        </div>
-                    </div>
-                `;
-            }
-            
-        } catch (error) {
-            console.error('Error starting scanner:', error);
-            statusElement.textContent = 'Camera access failed. Please check permissions.';
-            this.showCameraError();
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-        }
-    }
-
-    async stopScanning() {
-        const startBtn = document.getElementById('start-scan-btn');
-        const stopBtn = document.getElementById('stop-scan-btn');
-        const statusElement = document.getElementById('scanner-status');
-
-        if (this.html5QrCode) {
-            try {
-                await this.html5QrCode.stop();
-                this.html5QrCode = null;
-                statusElement.textContent = 'Scanner stopped';
-            } catch (error) {
-                console.error('Error stopping scanner:', error);
-                statusElement.textContent = 'Scanner stopped';
-            }
-        }
-
-        startBtn.style.display = 'inline-block';
-        stopBtn.style.display = 'none';
-    }
-
-    showCameraError() {
-        const scannerArea = document.getElementById('scanner-area');
-        scannerArea.innerHTML = `
-            <div class="camera-permission">
-                <h3>📷 Camera Scanner Issue</h3>
-                <p>The web camera scanner isn't working properly on your device.</p>
-                
-                <div style="margin: 1rem 0; padding: 1.5rem; background: rgba(255, 107, 53, 0.1); border: 2px solid #FF6B35; border-radius: 0.5rem; color: #FF6B35;">
-                    <strong style="font-size: 1.1em;">📱 RECOMMENDED SOLUTION</strong><br>
-                    <div style="color: #E0E0E0; margin-top: 0.5rem;">
-                        Click the <strong style="color: #FF6B35;">"📱 Use Camera App"</strong> button above.<br>
-                        Your device's native camera app works much better!
-                    </div>
-                </div>
-                
-                <div style="margin: 1rem 0; padding: 1rem; background: #FEF3C7; border-radius: 0.5rem; color: #92400E;">
-                    <strong>📱 For iPhone/iPad users:</strong><br>
-                    • Use the "📱 Use Camera App" button (most reliable)<br>
-                    • Or allow camera access in Safari if you want to try web scanning<br>
-                    • Make sure you're using Safari browser for best compatibility
-                </div>
-                
-                <p style="font-size: 0.9em; color: #999;"><strong>Other options:</strong> Manual Entry button • Browser settings • Try refreshing</p>
-            </div>
-        `;
-    }
-
-    async onScanSuccess(qrData) {
-        // Stop scanning immediately to prevent multiple scans
-        await this.stopScanning();
-        
-        // Validate the QR code
-        await this.validateQRCode(qrData);
-    }
 
     async validateQRCode(qrData) {
         const scanLocation = document.getElementById('location-input').value.trim();
@@ -550,29 +332,15 @@ class FieldValidationApp {
             <div class="error-message show">
                 <strong>Validation Failed:</strong> ${message}
             </div>
-            <button id="scan-another-btn" class="btn btn-primary" style="margin-top: 1rem;">Try Another Scan</button>
+            <div class="next-scan" style="margin-top: 1rem;">
+                <p>🔄 Ready for next validation</p>
+                <small>Simply scan another QR code with your camera app</small>
+            </div>
         `;
         resultsContainer.style.display = 'block';
-        
-        // Re-bind the scan another button
-        document.getElementById('scan-another-btn').addEventListener('click', () => this.resetScanner());
     }
 
-    resetScanner() {
-        // Hide results
-        document.getElementById('validation-results').style.display = 'none';
-        
-        // Reset crew and event info visibility
-        document.getElementById('crew-info').style.display = 'block';
-        document.getElementById('event-info').style.display = 'block';
-        document.getElementById('access-zones').style.display = 'block';
-        
-        // Clear location input
-        document.getElementById('location-input').value = '';
-        
-        // Reset scanner status
-        document.getElementById('scanner-status').textContent = 'Ready to scan';
-    }
+
 
     showManualEntry() {
         document.getElementById('manual-entry-modal').style.display = 'flex';
@@ -596,43 +364,7 @@ class FieldValidationApp {
         await this.validateQRCode(qrData);
     }
 
-    showCameraInstructions() {
-        const instructions = document.getElementById('camera-instructions');
-        instructions.style.display = 'block';
-        
-        // If iOS device, add specific instructions
-        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-            const instructionCard = instructions.querySelector('.instruction-card ol');
-            instructionCard.innerHTML = `
-                <li>Open your iPhone's <strong>Camera app</strong></li>
-                <li>Point it at the QR code on the badge</li>
-                <li>Tap the yellow banner or notification that appears at the top</li>
-                <li>This will open Safari with the QR code data displayed as text</li>
-                <li>Long-press and select "Copy All" to copy all the text</li>
-                <li>Return to this app and paste it in the box below</li>
-            `;
-        }
-        
-        // Auto-focus the textarea
-        setTimeout(() => {
-            document.getElementById('camera-app-data').focus();
-        }, 300);
-    }
 
-    hideCameraInstructions() {
-        document.getElementById('camera-instructions').style.display = 'none';
-        document.getElementById('camera-app-data').value = '';
-    }
-
-    async validateCameraData() {
-        const qrData = document.getElementById('camera-app-data').value.trim();
-        if (qrData) {
-            this.hideCameraInstructions();
-            await this.validateQRCode(qrData);
-        } else {
-            this.displayError('Please paste the QR code data from your camera app');
-        }
-    }
 
     addToScanHistory(result) {
         this.scanHistory.unshift(result);
