@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
+const QRCode = require('qrcode');
+const crypto = require('crypto');
 
 // Initialize Supabase only if credentials are available
 let supabase = null;
@@ -562,7 +564,7 @@ class PDFGenerator {
                     break;
                 
                 case 'qr_code':
-                    this.renderQRCodeField(doc, crewMember, x, y, Math.min(fieldWidth, fieldHeight));
+                    await this.renderQRCodeField(doc, crewMember, x, y, Math.min(fieldWidth, fieldHeight));
                     break;
                 
                 case 'access_zones':
@@ -641,7 +643,36 @@ class PDFGenerator {
     }
 
     // Render QR code field (placeholder for now)
-    renderQRCodeField(doc, crewMember, x, y, size = 40) {
+    async renderQRCodeField(doc, crewMember, x, y, size = 40) {
+        try {
+            // Generate QR code data
+            const qrData = this.generateQRCodeData(crewMember);
+            
+            // Generate QR code as data URL
+            const qrCodeDataURL = await QRCode.toDataURL(qrData, {
+                width: size * 2, // Higher resolution for PDF
+                margin: 1,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            });
+            
+            // Convert data URL to buffer
+            const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
+            const qrCodeBuffer = Buffer.from(base64Data, 'base64');
+            
+            // Add QR code image to PDF
+            doc.image(qrCodeBuffer, x, y, { width: size, height: size });
+            
+        } catch (error) {
+            console.error('Failed to generate QR code:', error);
+            // Fallback to placeholder if QR generation fails
+            this.renderQRCodePlaceholder(doc, x, y, size);
+        }
+    }
+
+    renderQRCodePlaceholder(doc, x, y, size = 40) {
         const qrSize = size;
         
         // Draw QR code placeholder
@@ -664,6 +695,39 @@ class PDFGenerator {
                 }
             }
         }
+    }
+
+    generateQRCodeData(crewMember) {
+        const secretKey = process.env.QR_SECRET_KEY || 'default-secret-key-change-in-production';
+        
+        // Calculate expiration (event end date + 48 hours)
+        const eventEndDate = new Date(crewMember.event_end_date || Date.now());
+        const expirationDate = new Date(eventEndDate.getTime() + (48 * 60 * 60 * 1000));
+        
+        const qrPayload = {
+            badge_number: crewMember.badge_number,
+            event_id: crewMember.event_id,
+            crew_member_id: crewMember.id,
+            first_name: crewMember.first_name,
+            last_name: crewMember.last_name,
+            company_name: crewMember.company_name || '',
+            role: crewMember.role,
+            access_zones: crewMember.access_zones || [],
+            issued_at: new Date().toISOString(),
+            expires_at: expirationDate.toISOString(),
+            version: '1.0'
+        };
+        
+        // Create digital signature
+        const dataToSign = JSON.stringify(qrPayload);
+        const signature = crypto.createHmac('sha256', secretKey).update(dataToSign).digest('hex');
+        
+        const signedPayload = {
+            ...qrPayload,
+            signature: signature
+        };
+        
+        return JSON.stringify(signedPayload);
     }
 
     // Render access zones field

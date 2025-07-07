@@ -6,13 +6,26 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const fs = require('fs');
+
+// Load environment variables first
+require('dotenv').config();
+
+// Import Supabase after loading env vars
 const { createClient } = require('@supabase/supabase-js');
 
-// Configure Supabase client
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Configure Supabase client only if credentials are available
+let supabase = null;
+try {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+    }
+} catch (error) {
+    console.warn('Supabase initialization failed:', error.message);
+}
 
 // Configure multer for memory storage (no disk writes)
 const upload = multer({ 
@@ -29,8 +42,6 @@ const upload = multer({
         }
     }
 });
-const fs = require('fs');
-require('dotenv').config();
 
 // Import our modules
 const { initDatabase, query, run } = require('./database/schema');
@@ -413,6 +424,165 @@ app.post('/api/auth/login', async (req, res) => {
         console.error('Login error details:', error);
         console.error('Error stack:', error.stack);
         res.status(500).json({ error: 'Internal server error: ' + error.message });
+    }
+});
+
+// Field Admin Authentication middleware
+const authenticateFieldAdmin = async (req, res, next) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({ error: 'Access token required' });
+        }
+
+        jwt.verify(token, JWT_SECRET, async (err, user) => {
+            if (err) {
+                return res.status(403).json({ error: 'Invalid token' });
+            }
+            
+            // Check if user is field admin
+            if (user.role !== 'field_admin') {
+                return res.status(403).json({ error: 'Field admin access required' });
+            }
+            
+            req.user = user;
+            next();
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Authentication error' });
+    }
+};
+
+// QR Code validation endpoint
+app.post('/api/qr/validate', authenticateFieldAdmin, async (req, res) => {
+    try {
+        const { qrData, scanLocation } = req.body;
+        const scannerIp = req.ip;
+        const scannerUserAgent = req.get('User-Agent');
+        
+        if (!qrData) {
+            return res.status(400).json({ error: 'QR code data required' });
+        }
+
+        let validationResult = 'invalid';
+        let crewMemberId = null;
+        let eventId = null;
+        let crewMemberData = null;
+        let eventData = null;
+
+        try {
+            // Parse QR code data
+            const qrPayload = JSON.parse(qrData);
+            
+            // Verify signature
+            const secretKey = process.env.QR_SECRET_KEY || 'default-secret-key-change-in-production';
+            const { signature, ...dataToVerify } = qrPayload;
+            const expectedSignature = require('crypto').createHmac('sha256', secretKey).update(JSON.stringify(dataToVerify)).digest('hex');
+            
+            if (signature !== expectedSignature) {
+                validationResult = 'invalid_signature';
+            } else {
+                // Check expiration
+                const expirationDate = new Date(qrPayload.expires_at);
+                const now = new Date();
+                
+                if (now > expirationDate) {
+                    validationResult = 'expired';
+                } else {
+                    // Verify crew member exists and matches
+                    const crewMembers = await query(`
+                        SELECT cm.*, e.name as event_name, e.location as event_location, c.name as company_name
+                        FROM crew_members cm
+                        LEFT JOIN events e ON cm.event_id = e.id
+                        LEFT JOIN companies c ON cm.company_id = c.id
+                        WHERE cm.id = $1 AND cm.badge_number = $2 AND cm.event_id = $3
+                    `, [qrPayload.crew_member_id, qrPayload.badge_number, qrPayload.event_id]);
+                    
+                    if (crewMembers.length === 0) {
+                        validationResult = 'not_found';
+                    } else {
+                        const crewMember = crewMembers[0];
+                        
+                        // Check if crew member is approved
+                        if (crewMember.status !== 'approved') {
+                            validationResult = 'not_approved';
+                        } else {
+                            validationResult = 'valid';
+                            crewMemberId = crewMember.id;
+                            eventId = crewMember.event_id;
+                            crewMemberData = {
+                                id: crewMember.id,
+                                name: `${crewMember.first_name} ${crewMember.last_name}`,
+                                role: crewMember.role,
+                                badge_number: crewMember.badge_number,
+                                company_name: crewMember.company_name,
+                                access_zones: crewMember.access_zones
+                            };
+                            eventData = {
+                                id: crewMember.event_id,
+                                name: crewMember.event_name,
+                                location: crewMember.event_location
+                            };
+                        }
+                    }
+                }
+            }
+        } catch (parseError) {
+            validationResult = 'invalid_format';
+        }
+
+        // Log the scan attempt
+        await query(`
+            INSERT INTO qr_scan_logs (crew_member_id, event_id, scanned_data, validation_result, scanner_ip, scanner_user_agent, scan_location, scanned_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        `, [crewMemberId, eventId, qrData, validationResult, scannerIp, scannerUserAgent, scanLocation]);
+
+        // Return validation result
+        res.json({
+            valid: validationResult === 'valid',
+            result: validationResult,
+            crew_member: crewMemberData,
+            event: eventData,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('QR validation error:', error);
+        res.status(500).json({ error: 'Validation failed' });
+    }
+});
+
+// Get scan logs for audit trail
+app.get('/api/qr/scan-logs', authenticateFieldAdmin, async (req, res) => {
+    try {
+        const { eventId, limit = 100, offset = 0 } = req.query;
+        
+        let whereClause = '';
+        let queryParams = [limit, offset];
+        
+        if (eventId) {
+            whereClause = 'WHERE qsl.event_id = $3';
+            queryParams.push(eventId);
+        }
+        
+        const logs = await query(`
+            SELECT qsl.*, 
+                   cm.first_name, cm.last_name, cm.badge_number,
+                   e.name as event_name
+            FROM qr_scan_logs qsl
+            LEFT JOIN crew_members cm ON qsl.crew_member_id = cm.id
+            LEFT JOIN events e ON qsl.event_id = e.id
+            ${whereClause}
+            ORDER BY qsl.scanned_at DESC
+            LIMIT $1 OFFSET $2
+        `, queryParams);
+        
+        res.json(logs);
+    } catch (error) {
+        console.error('Get scan logs error:', error);
+        res.status(500).json({ error: 'Failed to retrieve scan logs' });
     }
 });
 
@@ -1936,6 +2106,10 @@ app.get('/admin', (req, res) => {
 
 app.get('/admin/event-detail', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'event-detail.html'));
+});
+
+app.get('/field-validation', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'field-validation', 'index.html'));
 });
 
 // Debug route to show environment variables

@@ -1,32 +1,40 @@
 # Deployment Trigger
 
-## Version 3.0.5 - Company Admin Dashboard Dark Theme Fix
+## Version 3.0.6 - Template System Comprehensive Fixes
+
+### Issues Fixed:
+- **🔧 Access Zones Popup**: Fixed zones loading every time badge template tab was opened
+- **🖼️ Template Image Persistence**: Fixed template images not loading on PDF export after page reload  
+- **🎨 Font Settings Persistence**: Fixed font and size settings resetting when leaving page
+- **📄 Multiple PDF Generation**: Fixed multiple PDFs being generated when template saved multiple times
 
 ### Changes Made:
-- **Fixed Company Admin Dashboard**: Updated company admin dashboard page to match super admin dark theme style
-- **Navigation Bar**: Changed from white to dark theme with proper CSS variables
-- **Buttons**: Updated primary/secondary buttons to use dark theme with hover effects
-- **Event Cards**: Added purple-blue gradient thumbnails to match other pages
-- **Table Headers**: Changed from white background to dark theme
-- **Modal Styling**: Updated all modal elements to use dark theme
-- **Form Elements**: Updated form inputs to use dark theme with proper focus states
-- **Status Badges**: Updated to use proper dark theme colors for better contrast
-- **Typography**: All text colors updated to use CSS variables for consistency
-- **Logo**: Increased to 48px to match other pages
-- **JavaScript**: Added dark mode enforcement script
+- **Zone Loading Control**: Added `templateEditor.zonesLoaded` flag to prevent repeated zone loading
+- **Template Data Storage**: Added `templateEditor.templateData` and `templateDataUrl` for proper persistence
+- **Font Styling Persistence**: Enhanced `restoreFieldPositions()` to properly restore and store styling data
+- **Event Listener Protection**: Added flags to prevent duplicate event listeners and multiple saves
+- **Save Operation Safety**: Save button disabled during operation to prevent concurrent saves
+- **Complete Data Persistence**: Deep clone of field positions ensures all template data is preserved
 
 ### Files Modified:
-- `public/dashboard/index.html` - Complete dark theme overhaul for company admin dashboard
+- `public/js/event-detail.js` - Complete template system overhaul with persistence and duplicate prevention
 
 ### Technical Details:
-- Replaced all hardcoded white/light colors with CSS variables
-- Added proper hover effects and transitions
-- Updated form styling for better dark theme integration
-- Enhanced table styling with row hover effects
-- Improved modal appearance with dark theme
-- Added permanent dark mode enforcement
+- Single initialization prevents duplicate setup and event listeners
+- Template file data stored in memory for reliable PDF generation
+- Font styling data properly restored from saved templates
+- Error handling improved for template loading failures
+- Performance optimized with proper initialization control
+
+### Validation Status:
+✅ Access zones popup eliminated  
+✅ Template images persist for PDF export  
+✅ Font settings persist across page sessions  
+✅ Single PDF generation per save operation  
+✅ No duplicate event listeners or memory leaks  
 
 ### Previous Versions:
+- **Version 3.0.5**: Company admin dashboard dark theme fix
 - **Version 3.0.4**: Fixed logo path issue and confirmed text removal
 - **Version 3.0.3**: Updated logo to YSPlogoV2.png and removed YouShallPass text
 - **Version 3.0.2**: Sign-in page dark theme transformation

@@ -136,6 +136,21 @@ const initDatabase = async () => {
             )
         `);
 
+        // QR scan logs table for audit trail
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS qr_scan_logs (
+                id SERIAL PRIMARY KEY,
+                crew_member_id INTEGER REFERENCES crew_members(id),
+                event_id INTEGER REFERENCES events(id),
+                scanned_data TEXT NOT NULL,
+                validation_result TEXT NOT NULL,
+                scanner_ip TEXT,
+                scanner_user_agent TEXT,
+                scan_location TEXT,
+                scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // Add roles table for role library
         await client.query(`
             CREATE TABLE IF NOT EXISTS roles (
@@ -243,6 +258,31 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Add QR code columns to crew_members table
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='qr_code_data') THEN
+                    ALTER TABLE crew_members ADD COLUMN qr_code_data TEXT;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='qr_signature') THEN
+                    ALTER TABLE crew_members ADD COLUMN qr_signature TEXT;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='crew_members' AND column_name='qr_generated_at') THEN
+                    ALTER TABLE crew_members ADD COLUMN qr_generated_at TIMESTAMP;
+                END IF;
+            END $$;
+        `);
+
         // Insert default super admin user
         const bcrypt = require('bcryptjs');
         const adminPassword = bcrypt.hashSync('admin123', 10);
@@ -278,6 +318,14 @@ const initDatabase = async () => {
                 ON CONFLICT (email) DO NOTHING
             `, [companyId, 'company@demo.youshallpass.com', companyAdminPassword, 'Company', 'Admin', 'admin']);
         }
+
+        // Insert field admin user for QR code validation
+        const fieldAdminPassword = bcrypt.hashSync('admin123', 10);
+        await client.query(`
+            INSERT INTO users (email, password_hash, first_name, last_name, role, is_super_admin)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (email) DO NOTHING
+        `, ['fieldadmin@youshallpass.me', fieldAdminPassword, 'Field', 'Admin', 'field_admin', false]);
 
         // Insert sample events only if they don't exist and we have a valid company ID
         if (companyId) {

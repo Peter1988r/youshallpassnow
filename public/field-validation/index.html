@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Validation - WeAccredit</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/auth.css">
+    <link rel="stylesheet" href="field-validation.css">
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body class="dark-theme">
+    <div id="container">
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="screen active">
+            <div class="logo-container">
+                <img src="../assets/images/logo.jpg" alt="WeAccredit Logo" class="logo">
+                <h1>Field Validation</h1>
+                <p class="subtitle">Scan and validate crew badges</p>
+            </div>
+            
+            <form id="field-login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required 
+                           value="fieldadmin@youshallpass.me" 
+                           placeholder="Enter field admin email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Enter password">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <span>Sign In</span>
+                </button>
+                
+                <div id="auth-error" class="error-message"></div>
+            </form>
+        </div>
+
+        <!-- Scanner Screen -->
+        <div id="scanner-screen" class="screen">
+            <div class="header">
+                <h1>QR Badge Scanner</h1>
+                <button id="logout-btn" class="btn btn-secondary">Logout</button>
+            </div>
+
+            <div class="scanner-container">
+                <div id="scanner-area">
+                    <div id="qr-reader"></div>
+                    <div id="scanner-status" class="status-message">
+                        Initializing camera...
+                    </div>
+                </div>
+
+                <div class="scan-controls">
+                    <button id="start-scan-btn" class="btn btn-primary">Start Scanning</button>
+                    <button id="stop-scan-btn" class="btn btn-secondary" style="display: none;">Stop Scanning</button>
+                    <button id="manual-entry-btn" class="btn btn-outline">Manual Entry</button>
+                </div>
+
+                <div class="scan-location">
+                    <label for="location-input">Scan Location (Optional)</label>
+                    <input type="text" id="location-input" placeholder="e.g., Main Entrance, Paddock">
+                </div>
+            </div>
+
+            <!-- Validation Results -->
+            <div id="validation-results" class="results-container" style="display: none;">
+                <div id="result-header" class="result-header">
+                    <span id="result-status" class="result-status"></span>
+                    <span id="result-timestamp" class="result-timestamp"></span>
+                </div>
+                
+                <div id="crew-info" class="crew-info">
+                    <div class="crew-photo">
+                        <div class="photo-placeholder">No Photo</div>
+                    </div>
+                    <div class="crew-details">
+                        <h3 id="crew-name"></h3>
+                        <p id="crew-role"></p>
+                        <p id="crew-company"></p>
+                        <p id="crew-badge"></p>
+                    </div>
+                </div>
+                
+                <div id="event-info" class="event-info">
+                    <h4>Event Information</h4>
+                    <p id="event-name"></p>
+                    <p id="event-location"></p>
+                </div>
+                
+                <div id="access-zones" class="access-zones">
+                    <h4>Access Zones</h4>
+                    <div id="zones-list"></div>
+                </div>
+                
+                <button id="scan-another-btn" class="btn btn-primary">Scan Another Badge</button>
+            </div>
+
+            <!-- Manual Entry Modal -->
+            <div id="manual-entry-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3>Manual QR Data Entry</h3>
+                    <textarea id="manual-qr-data" placeholder="Paste QR code data here..."></textarea>
+                    <div class="modal-buttons">
+                        <button id="validate-manual-btn" class="btn btn-primary">Validate</button>
+                        <button id="cancel-manual-btn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan History -->
+            <div class="scan-history">
+                <h3>Recent Scans</h3>
+                <div id="history-list" class="history-list">
+                    <!-- Scan history will be populated here -->
+                </div>
+                <button id="view-all-logs-btn" class="btn btn-outline">View All Logs</button>
+            </div>
+        </div>
+
+        <!-- Logs Screen -->
+        <div id="logs-screen" class="screen">
+            <div class="header">
+                <button id="back-to-scanner-btn" class="btn btn-secondary">← Back to Scanner</button>
+                <h1>Scan Logs</h1>
+            </div>
+
+            <div class="logs-filters">
+                <select id="event-filter">
+                    <option value="">All Events</option>
+                </select>
+                <input type="date" id="date-filter">
+                <button id="refresh-logs-btn" class="btn btn-outline">Refresh</button>
+            </div>
+
+            <div id="logs-container" class="logs-container">
+                <!-- Logs will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="field-validation.js"></script>
+</body>
+</html> 

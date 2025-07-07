@@ -35,7 +35,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
     "pdfkit": "^0.14.0",
-    "pg": "^8.16.2"
+    "pg": "^8.16.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
