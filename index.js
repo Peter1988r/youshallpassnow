@@ -2736,31 +2736,14 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
 // Set up multer for file uploads
 const { v4: uuidv4 } = require('uuid');
 
-// Use disk storage for template images
-const templateUploadDisk = multer({
-    storage: multer.diskStorage({
-        destination: function (req, file, cb) {
-            cb(null, 'public/uploads/templates/');
-        },
-        filename: function (req, file, cb) {
-            // Check if there's actually a file with content
-            if (!file || !file.originalname || file.size === 0) {
-                console.log('No actual file to upload, skipping filename generation');
-                return cb(null, false); // Don't save the file
-            }
-            
-            // Generate unique filename: event-{eventId}-{uuid}.{ext}
-            const eventId = req.params.eventId || 'unknown';
-            const uniqueId = uuidv4();
-            const extension = path.extname(file.originalname).toLowerCase();
-            cb(null, `event-${eventId}-${uniqueId}${extension}`);
-        }
-    }),
+// Use memory storage for template images (Supabase upload)
+const templateUploadSupabase = multer({
+    storage: multer.memoryStorage(),
     limits: {
         fileSize: 10 * 1024 * 1024, // 10MB limit
     },
     fileFilter: function (req, file, cb) {
-        console.log('File filter check:', { 
+        console.log('Template file filter check:', { 
             filename: file.originalname, 
             mimetype: file.mimetype,
             size: file.size 
@@ -2768,31 +2751,9 @@ const templateUploadDisk = multer({
         
         // Skip processing if no actual file
         if (!file || !file.originalname || file.size === 0) {
-            console.log('No actual file to process, skipping filter');
+            console.log('No actual template file to process, skipping filter');
             return cb(null, false);
         }
-        
-        // Only allow image files
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image files are allowed'), false);
-        }
-    }
-});
-
-// Keep memory storage for backward compatibility (can be removed after migration)
-const templateUploadMemory = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
-    },
-    fileFilter: function (req, file, cb) {
-        console.log('File filter check:', { 
-            filename: file.originalname, 
-            mimetype: file.mimetype,
-            size: file.size 
-        });
         
         // Only allow image files
         if (file.mimetype.startsWith('image/')) {
@@ -2853,35 +2814,37 @@ app.get('/api/admin/debug/routes', authenticateToken, requireSuperAdmin, (req, r
     });
 });
 
-// Test file upload with memory storage
-app.post('/api/admin/debug/file-upload-test', authenticateToken, requireSuperAdmin, (req, res, next) => {
-    console.log('Testing file upload with memory storage');
+// Test template upload with Supabase storage
+app.post('/api/admin/debug/template-upload-test', authenticateToken, requireSuperAdmin, (req, res, next) => {
+    console.log('Testing template upload with Supabase storage');
     
-    templateUploadMemory.single('testFile')(req, res, (err) => {
+    templateUploadSupabase.single('testFile')(req, res, (err) => {
         if (err) {
-            console.error('Memory upload error:', err);
-            return res.status(400).json({ error: 'File upload failed: ' + err.message });
+            console.error('Supabase template upload error:', err);
+            return res.status(400).json({ error: 'Template upload failed: ' + err.message });
         }
         
-        console.log('Memory upload successful');
+        console.log('Supabase template upload test successful');
         res.json({
-            message: 'File upload test successful!',
+            message: 'Template upload test successful with Supabase!',
             fileInfo: req.file ? {
                 filename: req.file.originalname,
                 size: req.file.size,
                 mimetype: req.file.mimetype
             } : 'No file uploaded',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            supabaseConfigured: !!supabase,
+            templatesBucket: process.env.SUPABASE_TEMPLATES_BUCKET || 'badge-templates'
         });
     });
 });
 
 // Test with exact same setup as main endpoint
 app.post('/api/admin/debug/badge-template-exact-test/:eventId', authenticateToken, requireSuperAdmin, (req, res, next) => {
-    console.log('🧪 Testing EXACT same setup as main endpoint');
+    console.log('🧪 Testing EXACT same setup as main endpoint (Supabase)');
     console.log('Event ID:', req.params.eventId);
     
-    templateUploadMemory.single('templateFile')(req, res, (err) => {
+    templateUploadSupabase.single('templateFile')(req, res, (err) => {
         if (err) {
             console.error('Exact test upload error:', err);
             return res.status(400).json({ error: 'File upload failed: ' + err.message });
@@ -2889,7 +2852,7 @@ app.post('/api/admin/debug/badge-template-exact-test/:eventId', authenticateToke
         
         console.log('Exact test upload successful');
         res.json({
-            message: 'Exact test successful!',
+            message: 'Exact test successful with Supabase setup!',
             eventId: req.params.eventId,
             fileInfo: req.file ? {
                 filename: req.file.originalname,
@@ -2897,7 +2860,8 @@ app.post('/api/admin/debug/badge-template-exact-test/:eventId', authenticateToke
                 mimetype: req.file.mimetype
             } : 'No file uploaded',
             bodyKeys: Object.keys(req.body),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            supabaseConfigured: !!supabase
         });
     });
 });
@@ -2929,18 +2893,18 @@ app.use('/api/admin/events/:eventId/badge-template', (req, res, next) => {
     next();
 });
 
-// Upload custom badge template for an event (NEW SIMPLIFIED VERSION)
+// Upload custom badge template for an event (SUPABASE VERSION)
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
-    console.log('🔵 POST /api/admin/events/:eventId/badge-template route HIT! (NEW VERSION)');
+    console.log('🔵 POST /api/admin/events/:eventId/badge-template route HIT! (SUPABASE VERSION)');
     console.log('Request params:', req.params);
     console.log('Request URL:', req.url);
     console.log('Request method:', req.method);
-    console.log('Starting file upload middleware for badge template');
+    console.log('Starting Supabase template upload middleware');
     
-    // Use disk storage for template images
-    templateUploadDisk.single('templateFile')(req, res, (err) => {
+    // Use memory storage for Supabase upload
+    templateUploadSupabase.single('templateFile')(req, res, (err) => {
         if (err) {
-            console.error('Upload error occurred:', err);
+            console.error('Template upload error occurred:', err);
             console.error('Error type:', err.constructor.name);
             console.error('Error code:', err.code);
             
@@ -2953,10 +2917,9 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             return res.status(400).json({ error: err.message });
         }
         
-        console.log('File upload middleware completed successfully');
+        console.log('Template upload middleware completed successfully');
         console.log('File info:', req.file ? {
-            filename: req.file.filename,
-            path: req.file.path,
+            originalname: req.file.originalname,
             size: req.file.size,
             mimetype: req.file.mimetype
         } : 'No file uploaded');
@@ -2991,21 +2954,71 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
         
         if (req.file) {
             console.log('Template file received:', {
-                filename: req.file.filename,
                 originalname: req.file.originalname,
-                path: req.file.path,
                 size: req.file.size,
-                mimetype: req.file.mimetype
+                mimetype: req.file.mimetype,
+                supabaseConfigured: !!supabase
             });
             
-            // Store relative path (without 'public/' prefix for web serving)
-            templateImagePath = `/uploads/templates/${req.file.filename}`;
-            
-            console.log('Template image saved to disk:', {
-                filePath: req.file.path,
-                webPath: templateImagePath,
-                size: req.file.size
-            });
+            try {
+                if (supabase) {
+                    // Supabase storage upload
+                    console.log('Using Supabase storage for template upload');
+                    
+                    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+                    const uniqueFilename = `badge-template-event-${eventId}-${uuidv4()}${fileExtension}`;
+                    
+                    const bucketName = process.env.SUPABASE_TEMPLATES_BUCKET || 'badge-templates';
+                    console.log(`Uploading template to Supabase bucket: ${bucketName}`);
+                    
+                    const { data, error } = await supabase.storage
+                        .from(bucketName)
+                        .upload(uniqueFilename, req.file.buffer, {
+                            contentType: req.file.mimetype,
+                            upsert: false
+                        });
+                    
+                    if (error) {
+                        console.error('Supabase template upload error:', error);
+                        throw new Error(`Failed to upload to Supabase: ${error.message}`);
+                    }
+                    
+                    console.log('Template uploaded to Supabase successfully:', data);
+                    
+                    // Get public URL for the uploaded template
+                    const { data: urlData } = supabase.storage
+                        .from(bucketName)
+                        .getPublicUrl(uniqueFilename);
+                    
+                    templateImagePath = urlData.publicUrl;
+                    
+                    console.log('Template image saved to Supabase:', {
+                        filename: uniqueFilename,
+                        publicUrl: templateImagePath,
+                        size: req.file.size
+                    });
+                    
+                } else {
+                    // Fallback to base64 encoding (serverless-compatible)
+                    console.log('Supabase not configured, using base64 encoding for serverless compatibility');
+                    
+                    const base64Data = req.file.buffer.toString('base64');
+                    templateImagePath = `data:${req.file.mimetype};base64,${base64Data}`;
+                    
+                    console.log('Template image converted to base64 data URI:', {
+                        originalname: req.file.originalname,
+                        size: req.file.size,
+                        base64Length: base64Data.length
+                    });
+                }
+                
+            } catch (uploadError) {
+                console.error('Error during template upload:', uploadError);
+                return res.status(500).json({ 
+                    error: 'Failed to process template upload: ' + uploadError.message,
+                    supabaseConfigured: !!supabase
+                });
+            }
         } else {
             // If no new file, preserve existing image path
             const existingEvent = await query(`
@@ -3042,16 +3055,8 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
     } catch (error) {
         console.error('Error updating badge template:', error);
         
-        // Clean up uploaded file if there was an error
-        if (req.file && req.file.path) {
-            try {
-                const fs = require('fs');
-                fs.unlinkSync(req.file.path);
-                console.log('Cleaned up uploaded file after error:', req.file.path);
-            } catch (cleanupError) {
-                console.warn('Failed to cleanup file:', cleanupError.message);
-            }
-        }
+        // Note: No local file cleanup needed for Supabase storage
+        // If there was a Supabase upload error, it would have been handled above
         
         res.status(500).json({ error: 'Failed to update badge template: ' + error.message });
     }

@@ -299,9 +299,12 @@ class PDFGenerator {
     // Generate badge using custom template if available, otherwise use default
     async generateCustomBadge(crewMember, event) {
         try {
-            // Check if custom badge is enabled and has field positions
-            if (event.use_custom_badge && event.custom_badge_field_mapping?.field_positions) {
-                console.log('Generating custom badge for crew member:', crewMember.id);
+            // Check for new format first (badge_field_layout), then fallback to legacy format
+            const hasNewFormat = event.use_custom_badge && event.badge_field_layout && Object.keys(event.badge_field_layout).length > 0;
+            const hasLegacyFormat = event.use_custom_badge && event.custom_badge_field_mapping?.field_positions;
+            
+            if (hasNewFormat || hasLegacyFormat) {
+                console.log(`Generating custom badge for crew member ${crewMember.id} using ${hasNewFormat ? 'new' : 'legacy'} format`);
                 return await this.generateFromCustomTemplate(crewMember, event);
             } else {
                 console.log('No custom template configured, using default A5 badge for crew member:', crewMember.id);
@@ -319,9 +322,18 @@ class PDFGenerator {
     async generateFromCustomTemplate(crewMember, event) {
         return new Promise((resolve, reject) => {
             try {
-                // Get field mapping and positions
-                const fieldMapping = event.custom_badge_field_mapping || {};
-                const fieldPositions = fieldMapping.field_positions || {};
+                // Support both new format (badge_field_layout) and legacy format (custom_badge_field_mapping)
+                let fieldPositions;
+                if (event.badge_field_layout && Object.keys(event.badge_field_layout).length > 0) {
+                    // New format: direct field positions
+                    fieldPositions = event.badge_field_layout;
+                    console.log('Using new badge template format with field layout');
+                } else {
+                    // Legacy format: field positions nested in field_mapping
+                    const fieldMapping = event.custom_badge_field_mapping || {};
+                    fieldPositions = fieldMapping.field_positions || {};
+                    console.log('Using legacy badge template format with field mapping');
+                }
                 
                 // Use A5 size as default (can be made configurable later)
                 const badgeWidth = 420;  // A5 width in points
@@ -360,19 +372,23 @@ class PDFGenerator {
     // Create custom badge with positioned fields
     async createCustomBadgeWithPositions(doc, crewMember, event, fieldPositions, badgeWidth, badgeHeight) {
         try {
+            // Support both new and legacy template image paths
+            const templateImagePath = event.badge_template_image_path || event.custom_badge_template_path;
+            
             console.log('Creating custom badge with positions:', {
                 crewMemberId: crewMember.id,
                 crewMemberName: `${crewMember.first_name} ${crewMember.last_name}`,
-                templatePath: event.custom_badge_template_path,
+                templatePath: templateImagePath,
+                newFormat: !!event.badge_template_image_path,
                 fieldCount: Object.keys(fieldPositions).length,
                 fieldTypes: Object.keys(fieldPositions),
                 badgeSize: { width: badgeWidth, height: badgeHeight }
             });
 
             // Load background image if template path exists
-            if (event.custom_badge_template_path) {
-                console.log('Loading background image...');
-                await this.loadBackgroundImage(doc, event.custom_badge_template_path, badgeWidth, badgeHeight);
+            if (templateImagePath) {
+                console.log('Loading background image from:', templateImagePath.startsWith('http') ? 'Supabase URL' : 'local/data URI');
+                await this.loadBackgroundImage(doc, templateImagePath, badgeWidth, badgeHeight);
             } else {
                 console.log('No template path provided, using background color');
                 // Create a simple background if no image is provided
