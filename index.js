@@ -554,6 +554,40 @@ app.post('/api/qr/validate', authenticateFieldAdmin, async (req, res) => {
     }
 });
 
+// URL-based QR validation (for direct camera app scanning)
+app.get('/field-validation/validate', async (req, res) => {
+    try {
+        const { token } = req.query;
+        
+        if (!token) {
+            return res.redirect('/field-validation?error=no-token');
+        }
+
+        try {
+            // Decode the token to get QR data
+            const qrData = Buffer.from(token, 'base64url').toString('utf8');
+            
+            // Store validation data in session/cookie for the validation app to pick up
+            res.cookie('pending_validation', token, { 
+                httpOnly: false, // Allow JS access
+                secure: false, // Set to true in production with HTTPS
+                maxAge: 5 * 60 * 1000 // 5 minutes
+            });
+            
+            // Redirect to field validation app with auto-validate flag
+            return res.redirect('/field-validation?auto=true');
+            
+        } catch (decodeError) {
+            console.error('Token decode error:', decodeError);
+            return res.redirect('/field-validation?error=invalid-token');
+        }
+        
+    } catch (error) {
+        console.error('URL validation error:', error);
+        return res.redirect('/field-validation?error=validation-failed');
+    }
+});
+
 // Get scan logs for audit trail
 app.get('/api/qr/scan-logs', authenticateFieldAdmin, async (req, res) => {
     try {

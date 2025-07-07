@@ -727,7 +727,13 @@ class PDFGenerator {
             signature: signature
         };
         
-        return JSON.stringify(signedPayload);
+        // Create encrypted token for URL
+        const jsonData = JSON.stringify(signedPayload);
+        const encryptedToken = Buffer.from(jsonData).toString('base64url');
+        
+        // Return validation URL instead of raw JSON
+        const baseUrl = process.env.BASE_URL || 'https://www.youshallpass.me';
+        return `${baseUrl}/field-validation/validate?token=${encryptedToken}`;
     }
 
     // Render access zones field

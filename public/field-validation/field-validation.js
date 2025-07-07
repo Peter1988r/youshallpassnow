@@ -13,6 +13,7 @@ class FieldValidationApp {
     init() {
         this.bindEvents();
         this.checkAuthStatus();
+        this.checkUrlParameters();
     }
 
     bindEvents() {
@@ -57,6 +58,112 @@ class FieldValidationApp {
         } else {
             this.showAuthScreen();
         }
+    }
+
+    checkUrlParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check for error messages
+        const error = urlParams.get('error');
+        if (error) {
+            let errorMessage = 'Unknown error occurred';
+            switch(error) {
+                case 'no-token':
+                    errorMessage = 'QR code validation link is missing required data';
+                    break;
+                case 'invalid-token':
+                    errorMessage = 'QR code validation link is invalid or corrupted';
+                    break;
+                case 'validation-failed':
+                    errorMessage = 'QR code validation failed';
+                    break;
+            }
+            this.showUrlError(errorMessage);
+        }
+        
+        // Check for auto-validation
+        const autoValidate = urlParams.get('auto');
+        if (autoValidate === 'true') {
+            this.handleAutoValidation();
+        }
+        
+        // Clean up URL parameters
+        if (urlParams.has('error') || urlParams.has('auto')) {
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    }
+
+    showUrlError(message) {
+        // Show error in auth screen if not logged in, or in scanner screen if logged in
+        const currentScreen = this.authToken ? 'scanner' : 'auth';
+        
+        if (currentScreen === 'auth') {
+            const errorElement = document.getElementById('auth-error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        } else {
+            this.displayError(message);
+        }
+    }
+
+    async handleAutoValidation() {
+        // Check if user is authenticated
+        if (!this.authToken) {
+            // Store intent to auto-validate after login
+            localStorage.setItem('pending_auto_validation', 'true');
+            this.showUrlError('Please log in to validate the QR code');
+            return;
+        }
+        
+        // Get the pending validation token from cookie
+        const pendingToken = this.getCookie('pending_validation');
+        if (!pendingToken) {
+            this.displayError('Validation session expired. Please scan the QR code again.');
+            return;
+        }
+        
+        try {
+            // Decode and validate the token
+            const qrData = atob(pendingToken.replace(/-/g, '+').replace(/_/g, '/'));
+            
+            // Clear the cookie
+            this.deleteCookie('pending_validation');
+            
+            // Show scanner screen and auto-validate
+            this.showScannerScreen();
+            
+            // Show loading message
+            const statusElement = document.getElementById('scanner-status');
+            statusElement.innerHTML = `
+                <div style="color: #10B981; text-align: center;">
+                    🔍 Auto-validating QR code...<br>
+                    <small style="color: #666; margin-top: 0.5rem; display: block;">
+                        Scanned from your camera app
+                    </small>
+                </div>
+            `;
+            
+            // Validate after a short delay to show the message
+            setTimeout(() => {
+                this.validateQRCode(qrData);
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Auto-validation error:', error);
+            this.displayError('Failed to auto-validate QR code. Please try scanning again.');
+        }
+    }
+
+    getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    deleteCookie(name) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
     }
 
     showAuthScreen() {
@@ -111,6 +218,12 @@ class FieldValidationApp {
                 this.authToken = data.token;
                 localStorage.setItem('field_auth_token', data.token);
                 this.showScannerScreen();
+                
+                // Check if there was a pending auto-validation after login
+                if (localStorage.getItem('pending_auto_validation') === 'true') {
+                    localStorage.removeItem('pending_auto_validation');
+                    this.handleAutoValidation();
+                }
             } else {
                 throw new Error(data.error || 'Login failed');
             }
