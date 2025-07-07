@@ -1758,14 +1758,12 @@ async function saveBadgeTemplate() {
         // Create FormData for file upload
         const formData = new FormData();
         
-        // Add template file if present (prioritize new upload, then existing data)
+        // Add template file only if a new file is uploaded
         const templateFile = document.getElementById('templateFile').files[0];
         if (templateFile) {
             formData.append('templateFile', templateFile);
-        } else if (templateEditor.templateData) {
-            // Use stored template data if no new file uploaded
-            formData.append('templateFile', templateEditor.templateData);
         }
+        // Note: If no new file, the server will preserve the existing template image path
         
         // Add other form data
         formData.append('templateName', document.getElementById('templateName').value);
