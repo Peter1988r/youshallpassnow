@@ -96,6 +96,23 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // New simplified badge template columns
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='badge_template_image_path') THEN
+                    ALTER TABLE events ADD COLUMN badge_template_image_path TEXT;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='badge_field_layout') THEN
+                    ALTER TABLE events ADD COLUMN badge_field_layout JSONB;
+                END IF;
+            END $$;
+        `);
+
         // Add access zones column to events table
         await client.query(`
             DO $$ BEGIN

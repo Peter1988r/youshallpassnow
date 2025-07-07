@@ -1905,42 +1905,7 @@ select[multiple] option:disabled {
     font-weight: 600;
 }
 
-.checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.checkbox-grid label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    color: var(--text-primary);
-}
-
-.checkbox-grid input[type="checkbox"] {
-    margin: 0;
-}
-
-.color-config {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
-}
-
-.color-config .form-group {
-    margin-bottom: 0;
-}
-
-.color-config input[type="color"] {
-    width: 100%;
-    height: 40px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    cursor: pointer;
-}
+/* Removed checkbox-grid and color-config styles - no longer needed */
 
 .template-preview {
     background: var(--card-bg);
@@ -1964,16 +1929,14 @@ select[multiple] option:disabled {
 }
 
 #templateNameGroup,
-#templateUploadGroup,
-#fieldMappingCard {
+#templateUploadGroup {
     opacity: 0.5;
     pointer-events: none;
     transition: opacity 0.3s ease;
 }
 
 #useCustomBadge:checked ~ #templateNameGroup,
-#useCustomBadge:checked ~ #templateUploadGroup,
-#useCustomBadge:checked ~ #fieldMappingCard {
+#useCustomBadge:checked ~ #templateUploadGroup {
     opacity: 1;
     pointer-events: auto;
 }

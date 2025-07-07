@@ -1582,7 +1582,7 @@ async function loadBadgeTemplate(eventId) {
     }
 }
 
-// Populate badge template form with existing data
+// Populate badge template form with existing data (SIMPLIFIED VERSION)
 function populateBadgeTemplateForm(template) {
     // Set checkbox for custom badge usage
     document.getElementById('useCustomBadge').checked = template.useCustomBadge || false;
@@ -1590,26 +1590,15 @@ function populateBadgeTemplateForm(template) {
     // Set template name
     document.getElementById('templateName').value = template.templateName || '';
     
-    // Populate field mapping if available
-    const fieldMapping = template.fieldMapping || {};
+    // Load existing template image and field layout if available
+    const templateImagePath = template.templateImagePath || template.templatePath; // Support both new and legacy
+    const fieldLayout = template.fieldLayout || template.fieldMapping?.field_positions || {};
     
-    // Set display options
-    document.getElementById('showPhoto').checked = fieldMapping.show_photo !== false;
-    document.getElementById('showName').checked = fieldMapping.show_name !== false;
-    document.getElementById('showRole').checked = fieldMapping.show_role !== false;
-    document.getElementById('showCompany').checked = fieldMapping.show_company !== false;
-    document.getElementById('showBadgeNumber').checked = fieldMapping.show_badge_number !== false;
-    document.getElementById('showEventDetails').checked = fieldMapping.show_event_details !== false;
-    document.getElementById('showQRCode').checked = fieldMapping.show_qr_code !== false;
-    
-    // Set color scheme
-    document.getElementById('backgroundColor').value = fieldMapping.background_color || '#1B5E20';
-    document.getElementById('textColor').value = fieldMapping.text_color || '#FFFFFF';
-    document.getElementById('accentColor').value = fieldMapping.accent_color || '#FFD700';
-    
-    // Load existing template image and field positions if available
-    if (template.templatePath && fieldMapping.field_positions) {
-        loadExistingTemplate(template.templatePath, fieldMapping.field_positions);
+    if (templateImagePath && Object.keys(fieldLayout).length > 0) {
+        loadExistingTemplate(templateImagePath, fieldLayout);
+    } else if (templateImagePath) {
+        // Load template image even if no fields are positioned yet
+        loadExistingTemplate(templateImagePath, {});
     }
     
     // Update form visibility based on custom badge setting
@@ -1782,23 +1771,10 @@ async function saveBadgeTemplate() {
         formData.append('templateName', document.getElementById('templateName').value);
         formData.append('useCustomBadge', useCustomBadge);
         
-        // Create field mapping object - ENSURE ALL STYLING IS SAVED
-        const fieldMapping = {
-            show_photo: document.getElementById('showPhoto').checked,
-            show_name: document.getElementById('showName').checked,
-            show_role: document.getElementById('showRole').checked,
-            show_company: document.getElementById('showCompany').checked,
-            show_badge_number: document.getElementById('showBadgeNumber').checked,
-            show_event_details: document.getElementById('showEventDetails').checked,
-            show_qr_code: document.getElementById('showQRCode').checked,
-            background_color: document.getElementById('backgroundColor').value,
-            text_color: document.getElementById('textColor').value,
-            accent_color: document.getElementById('accentColor').value,
-            // Add field positions with styling
-            field_positions: templateEditor.fieldPositions
-        };
+        // Create simplified field layout object - ONLY positioned fields with styling
+        const fieldLayout = templateEditor.fieldPositions;
         
-        formData.append('fieldMapping', JSON.stringify(fieldMapping));
+        formData.append('fieldLayout', JSON.stringify(fieldLayout));
         
         showMessage('Saving badge template configuration...', 'info');
         
@@ -1825,8 +1801,8 @@ async function saveBadgeTemplate() {
         showMessage('Badge template configuration saved successfully', 'success');
         
         // Update template data for future saves
-        if (result.templatePath) {
-            templateEditor.templateDataUrl = result.templatePath;
+        if (result.templateImagePath) {
+            templateEditor.templateDataUrl = result.templateImagePath;
         }
         
     } catch (error) {

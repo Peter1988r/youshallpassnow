@@ -2734,8 +2734,42 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
 // Note: Removed redundant custom PDF endpoint - main badge/pdf endpoint now auto-detects custom templates
 
 // Set up multer for file uploads
+const { v4: uuidv4 } = require('uuid');
 
-// Use memory storage for serverless compatibility
+// Use disk storage for template images
+const templateUploadDisk = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, 'public/uploads/templates/');
+        },
+        filename: function (req, file, cb) {
+            // Generate unique filename: event-{eventId}-{uuid}.{ext}
+            const eventId = req.params.eventId || 'unknown';
+            const uniqueId = uuidv4();
+            const extension = path.extname(file.originalname).toLowerCase();
+            cb(null, `event-${eventId}-${uniqueId}${extension}`);
+        }
+    }),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: function (req, file, cb) {
+        console.log('File filter check:', { 
+            filename: file.originalname, 
+            mimetype: file.mimetype,
+            size: file.size 
+        });
+        
+        // Only allow image files
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
+    }
+});
+
+// Keep memory storage for backward compatibility (can be removed after migration)
 const templateUploadMemory = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -2883,16 +2917,16 @@ app.use('/api/admin/events/:eventId/badge-template', (req, res, next) => {
     next();
 });
 
-// Upload custom badge template for an event
+// Upload custom badge template for an event (NEW SIMPLIFIED VERSION)
 app.post('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, (req, res, next) => {
-    console.log('🔵 POST /api/admin/events/:eventId/badge-template route HIT!');
+    console.log('🔵 POST /api/admin/events/:eventId/badge-template route HIT! (NEW VERSION)');
     console.log('Request params:', req.params);
     console.log('Request URL:', req.url);
     console.log('Request method:', req.method);
     console.log('Starting file upload middleware for badge template');
     
-    // Use memory storage for serverless compatibility
-    templateUploadMemory.single('templateFile')(req, res, (err) => {
+    // Use disk storage for template images
+    templateUploadDisk.single('templateFile')(req, res, (err) => {
         if (err) {
             console.error('Upload error occurred:', err);
             console.error('Error type:', err.constructor.name);
@@ -2910,6 +2944,7 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
         console.log('File upload middleware completed successfully');
         console.log('File info:', req.file ? {
             filename: req.file.filename,
+            path: req.file.path,
             size: req.file.size,
             mimetype: req.file.mimetype
         } : 'No file uploaded');
@@ -2919,85 +2954,100 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
 }, async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { templateName, useCustomBadge, fieldMapping } = req.body;
+        const { templateName, useCustomBadge, fieldLayout } = req.body;
         
-        console.log('Badge template save request received:', {
+        console.log('Badge template save request received (NEW VERSION):', {
             eventId,
             templateName,
             useCustomBadge,
-            fieldMappingType: typeof fieldMapping,
+            fieldLayoutType: typeof fieldLayout,
             hasFile: !!req.file,
             bodyKeys: Object.keys(req.body)
         });
         
-        // Parse fieldMapping if it's a string (from form data)
-        let parsedFieldMapping;
+        // Parse fieldLayout if it's a string (from form data)
+        let parsedFieldLayout;
         try {
-            parsedFieldMapping = typeof fieldMapping === 'string' ? JSON.parse(fieldMapping) : fieldMapping;
+            parsedFieldLayout = typeof fieldLayout === 'string' ? JSON.parse(fieldLayout) : fieldLayout;
         } catch (parseError) {
-            console.error('Error parsing field mapping:', parseError);
-            parsedFieldMapping = {};
+            console.error('Error parsing field layout:', parseError);
+            parsedFieldLayout = {};
         }
 
         // Handle uploaded template file
-        let templatePath = null;
-        let templateData = null;
+        let templateImagePath = null;
         
         if (req.file) {
             console.log('Template file received:', {
-                filename: req.file.originalname,
+                filename: req.file.filename,
+                originalname: req.file.originalname,
+                path: req.file.path,
                 size: req.file.size,
-                mimetype: req.file.mimetype,
-                hasBuffer: !!req.file.buffer
+                mimetype: req.file.mimetype
             });
             
-            // Using memory storage - store file data in database
-            // Check file size to prevent memory issues
-            if (req.file.size > 10 * 1024 * 1024) { // 10MB limit
-                return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+            // Store relative path (without 'public/' prefix for web serving)
+            templateImagePath = `/uploads/templates/${req.file.filename}`;
+            
+            console.log('Template image saved to disk:', {
+                filePath: req.file.path,
+                webPath: templateImagePath,
+                size: req.file.size
+            });
+        } else {
+            // If no new file, preserve existing image path
+            const existingEvent = await query(`
+                SELECT badge_template_image_path 
+                FROM events 
+                WHERE id = $1
+            `, [eventId]);
+            
+            if (existingEvent.length > 0) {
+                templateImagePath = existingEvent[0].badge_template_image_path;
+                console.log('Preserving existing template image:', templateImagePath);
             }
-            
-            templateData = req.file.buffer.toString('base64');
-            templatePath = `data:${req.file.mimetype};base64,${templateData}`;
-            
-            console.log('Template data stored in database:', {
-                originalSize: req.file.size,
-                base64Size: templateData.length,
-                mimeType: req.file.mimetype,
-                filename: req.file.originalname
-            });
         }
 
-        // Update event with template configuration
+        // Update event with simplified template configuration
         await run(`
             UPDATE events 
             SET 
                 use_custom_badge = $1,
                 badge_template_name = $2,
-                custom_badge_field_mapping = $3,
-                custom_badge_template_path = $4,
+                badge_field_layout = $3,
+                badge_template_image_path = $4,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $5
-        `, [useCustomBadge, templateName, JSON.stringify(parsedFieldMapping), templatePath, eventId]);
+        `, [useCustomBadge, templateName, JSON.stringify(parsedFieldLayout), templateImagePath, eventId]);
         
         res.json({ 
             success: true, 
             message: 'Badge template configuration updated successfully',
-            templatePath: templatePath
+            templateImagePath: templateImagePath,
+            fieldLayout: parsedFieldLayout
         });
         
     } catch (error) {
         console.error('Error updating badge template:', error);
         
-        // No file cleanup needed for memory storage - files are only in memory
+        // Clean up uploaded file if there was an error
+        if (req.file && req.file.path) {
+            try {
+                const fs = require('fs');
+                fs.unlinkSync(req.file.path);
+                console.log('Cleaned up uploaded file after error:', req.file.path);
+            } catch (cleanupError) {
+                console.warn('Failed to cleanup file:', cleanupError.message);
+            }
+        }
         
         res.status(500).json({ error: 'Failed to update badge template: ' + error.message });
     }
 });
 
-// Get badge template configuration for an event
+// Get badge template configuration for an event (NEW SIMPLIFIED VERSION)
 app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireSuperAdmin, async (req, res) => {
-    console.log('🔵 GET /api/admin/events/:eventId/badge-template route HIT!');
+    console.log('🔵 GET /api/admin/events/:eventId/badge-template route HIT! (NEW VERSION)');
     console.log('Request params:', req.params);
     console.log('Request URL:', req.url);
     
@@ -3007,9 +3057,12 @@ app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireS
         const result = await query(`
             SELECT 
                 use_custom_badge,
+                badge_template_image_path,
+                badge_field_layout,
+                badge_template_name,
+                -- Legacy columns for migration compatibility
                 custom_badge_template_path,
-                custom_badge_field_mapping,
-                badge_template_name
+                custom_badge_field_mapping
             FROM events 
             WHERE id = $1
         `, [eventId]);
@@ -3020,11 +3073,37 @@ app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireS
         
         const template = result[0];
         
+        // Use new simplified format, fall back to legacy format if needed
+        const useCustomBadge = template.use_custom_badge || false;
+        const templateName = template.badge_template_name || '';
+        
+        // Prefer new format
+        let templateImagePath = template.badge_template_image_path;
+        let fieldLayout = template.badge_field_layout || {};
+        
+        // Fall back to legacy format for migration
+        if (!templateImagePath && template.custom_badge_template_path) {
+            templateImagePath = template.custom_badge_template_path;
+            console.log('Using legacy template path for compatibility');
+        }
+        
+        if (Object.keys(fieldLayout).length === 0 && template.custom_badge_field_mapping) {
+            // Convert legacy field mapping to new field layout format
+            const legacyMapping = template.custom_badge_field_mapping;
+            if (legacyMapping.field_positions) {
+                fieldLayout = legacyMapping.field_positions;
+                console.log('Converted legacy field mapping to new format');
+            }
+        }
+        
         res.json({
-            useCustomBadge: template.use_custom_badge || false,
-            templatePath: template.custom_badge_template_path,
-            fieldMapping: template.custom_badge_field_mapping || {},
-            templateName: template.badge_template_name
+            useCustomBadge: useCustomBadge,
+            templateImagePath: templateImagePath,
+            fieldLayout: fieldLayout,
+            templateName: templateName,
+            // For frontend compatibility during transition
+            templatePath: templateImagePath,
+            fieldMapping: { field_positions: fieldLayout }
         });
         
     } catch (error) {
