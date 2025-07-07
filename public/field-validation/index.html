@@ -60,12 +60,32 @@
                 <div class="scan-controls">
                     <button id="start-scan-btn" class="btn btn-primary">Start Scanning</button>
                     <button id="stop-scan-btn" class="btn btn-secondary" style="display: none;">Stop Scanning</button>
+                    <button id="camera-app-btn" class="btn btn-primary" style="background: #FF6B35;">📱 Use Camera App</button>
                     <button id="manual-entry-btn" class="btn btn-outline">Manual Entry</button>
                 </div>
 
                 <div class="scan-location">
                     <label for="location-input">Scan Location (Optional)</label>
                     <input type="text" id="location-input" placeholder="e.g., Main Entrance, Paddock">
+                </div>
+
+                <!-- Camera App Instructions -->
+                <div id="camera-instructions" class="camera-instructions" style="display: none;">
+                    <div class="instruction-card">
+                        <h4>📱 Using Your Camera App</h4>
+                        <ol>
+                            <li>Open your device's camera app</li>
+                            <li>Point it at the QR code on the badge</li>
+                            <li>Tap the notification or preview that appears</li>
+                            <li>Copy the QR code data from your browser</li>
+                            <li>Return here and paste it below</li>
+                        </ol>
+                        <textarea id="camera-app-data" placeholder="Paste the QR code data here..."></textarea>
+                        <div class="instruction-buttons">
+                            <button id="validate-camera-data-btn" class="btn btn-primary">Validate Data</button>
+                            <button id="hide-instructions-btn" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
