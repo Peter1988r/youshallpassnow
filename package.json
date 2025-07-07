@@ -1,6 +1,6 @@
 {
   "name": "youshallpass",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Professional event accreditation system with PDF badge generation and multi-company management",
   "main": "index.js",
   "scripts": {

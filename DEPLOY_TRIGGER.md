@@ -1,5 +1,23 @@
 # Deployment Trigger
 
+## Version 4.0.1 - Mobile QR Scanner Optimization 📱
+
+### Mobile Scanner Fixes:
+- **🎯 Enhanced QR Detection**: Dynamic scan area sizing (70% of viewport) for better mobile detection
+- **📱 iOS Safari Optimized**: Multiple fallback configurations for iPhone/iPad compatibility  
+- **🔧 Higher Sensitivity**: Increased FPS to 20 and continuous autofocus for sharp QR reading
+- **📋 Better Error Guidance**: iOS-specific instructions and alternative options
+- **🎨 Mobile-Responsive UI**: Improved scanner area sizing and video display optimization
+
+### Technical Improvements:
+- Dynamic QR box sizing based on screen dimensions  
+- Enhanced camera constraints with continuous focus mode
+- UseBarCodeDetectorIfSupported for native browser QR detection
+- Three-tier fallback system: advanced → simple → basic configuration
+- Improved mobile CSS with object-fit and responsive sizing
+
+---
+
 ## Version 4.0.0 - Complete QR Code Validation System 🎯
 
 ### Major Features Added:
