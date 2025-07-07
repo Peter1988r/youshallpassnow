@@ -41,7 +41,8 @@
     border-radius: 0.5rem;
     overflow: hidden;
     margin-bottom: 1rem;
-    min-height: 300px;
+    min-height: 350px;
+    max-height: 500px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -49,14 +50,48 @@
 
 #qr-reader {
     width: 100%;
-    max-width: 400px;
+    max-width: 500px;
     margin: 0 auto;
+    height: 100%;
 }
 
 #qr-reader video {
     width: 100% !important;
     height: auto !important;
     border-radius: 0.5rem;
+    object-fit: cover;
+}
+
+/* QR reader canvas styling */
+#qr-reader canvas {
+    border-radius: 0.5rem;
+}
+
+/* Improve QR box visibility */
+#qr-reader__dashboard_section_csr > div {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+}
+
+/* Mobile optimizations for scanner */
+@media (max-width: 768px) {
+    #scanner-area {
+        min-height: 300px;
+        max-height: 400px;
+    }
+    
+    #qr-reader {
+        max-width: 100%;
+    }
+    
+    /* Ensure video takes full width on mobile */
+    #qr-reader video {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        object-fit: cover;
+    }
 }
 
 .status-message {

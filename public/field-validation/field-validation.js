@@ -138,25 +138,117 @@ class FieldValidationApp {
 
             this.html5QrCode = new Html5Qrcode("qr-reader");
             
+            // Optimized config for mobile devices and better QR detection
             const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
+                fps: 20, // Higher FPS for better detection
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    // Dynamic qrbox sizing based on screen
+                    let minEdgePercentage = 0.7; // 70% of the smaller edge
+                    let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                    let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                    return {
+                        width: Math.min(qrboxSize, 400),
+                        height: Math.min(qrboxSize, 400)
+                    };
+                },
+                // Enhanced detection settings
+                aspectRatio: undefined, // Let the library choose optimal ratio
+                videoConstraints: {
+                    facingMode: "environment",
+                    focusMode: "continuous",
+                    advanced: [
+                        { focusMode: "continuous" },
+                        { focusDistance: { ideal: 0.3 } }
+                    ]
+                },
+                // Better algorithm settings for QR detection
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                },
+                rememberLastUsedCamera: true
             };
 
-            await this.html5QrCode.start(
-                { facingMode: "environment" }, // Use rear camera
-                config,
-                (qrCodeMessage) => {
-                    this.onScanSuccess(qrCodeMessage);
-                },
-                (errorMessage) => {
-                    // Handle scan failure (usually just no QR code found)
-                    // Don't log every scan failure as it's normal
-                }
-            );
+            // Try multiple camera configurations for iOS compatibility
+            let cameraConfig = { facingMode: "environment" };
+            
+            try {
+                await this.html5QrCode.start(
+                    cameraConfig,
+                    config,
+                    (qrCodeMessage) => {
+                        console.log('QR Code detected:', qrCodeMessage);
+                        this.onScanSuccess(qrCodeMessage);
+                    },
+                    (errorMessage) => {
+                        // Only log significant errors, not routine "no QR found" messages
+                        if (!errorMessage.includes('No QR code found') && 
+                            !errorMessage.includes('NotFoundException')) {
+                            console.warn('QR scan error:', errorMessage);
+                        }
+                    }
+                );
+                         } catch (startError) {
+                 console.warn('Failed with environment camera, trying any camera:', startError);
+                 
+                 try {
+                     // Fallback: try any available camera
+                     cameraConfig = true;
+                     await this.html5QrCode.start(
+                         cameraConfig,
+                         config,
+                         (qrCodeMessage) => {
+                             console.log('QR Code detected:', qrCodeMessage);
+                             this.onScanSuccess(qrCodeMessage);
+                         },
+                         (errorMessage) => {
+                             if (!errorMessage.includes('No QR code found') && 
+                                 !errorMessage.includes('NotFoundException')) {
+                                 console.warn('QR scan error:', errorMessage);
+                             }
+                         }
+                     );
+                 } catch (fallbackError) {
+                     console.warn('Advanced config failed, trying simple config:', fallbackError);
+                     
+                     // Final fallback: use very simple configuration for older devices
+                     const simpleConfig = {
+                         fps: 10,
+                         qrbox: 250,
+                         aspectRatio: 1.0
+                     };
+                     
+                     await this.html5QrCode.start(
+                         { facingMode: "environment" },
+                         simpleConfig,
+                         (qrCodeMessage) => {
+                             console.log('QR Code detected (simple mode):', qrCodeMessage);
+                             this.onScanSuccess(qrCodeMessage);
+                         },
+                         (errorMessage) => {
+                             if (!errorMessage.includes('No QR code found') && 
+                                 !errorMessage.includes('NotFoundException')) {
+                                 console.warn('QR scan error (simple mode):', errorMessage);
+                             }
+                         }
+                     );
+                 }
+             }
 
-            statusElement.textContent = 'Scanning for QR codes...';
+            statusElement.textContent = 'Ready to scan QR codes - Point camera at QR code';
+            
+            // Add helpful tips for mobile users
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                statusElement.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="color: #10B981; font-weight: bold; margin-bottom: 0.5rem;">📱 Scanning Active</div>
+                        <div style="font-size: 0.9rem;">Point camera at QR code</div>
+                        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #6B7280;">
+                            Tip: Hold steady, ensure good lighting
+                        </div>
+                    </div>
+                `;
+            }
+            
         } catch (error) {
             console.error('Error starting scanner:', error);
             statusElement.textContent = 'Camera access failed. Please check permissions.';
@@ -192,11 +284,18 @@ class FieldValidationApp {
             <div class="camera-permission">
                 <h3>Camera Access Required</h3>
                 <p>To scan QR codes, please allow camera access in your browser settings.</p>
-                <p>On mobile devices, you may need to:</p>
-                <ul style="text-align: left; max-width: 300px; margin: 0 auto;">
-                    <li>Refresh this page</li>
-                    <li>Check browser permissions</li>
-                    <li>Use manual entry as an alternative</li>
+                <div style="margin: 1rem 0; padding: 1rem; background: #FEF3C7; border-radius: 0.5rem; color: #92400E;">
+                    <strong>📱 For iPhone/iPad users:</strong><br>
+                    • Make sure you're using Safari browser<br>
+                    • Tap "Allow" when prompted for camera access<br>
+                    • Try refreshing the page if scanner doesn't work
+                </div>
+                <p><strong>Alternative options:</strong></p>
+                <ul style="text-align: left; max-width: 350px; margin: 0 auto;">
+                    <li>Use the "Manual Entry" button below</li>
+                    <li>Check browser camera permissions in Settings</li>
+                    <li>Try a different browser (Safari recommended for iOS)</li>
+                    <li>Refresh this page and try again</li>
                 </ul>
             </div>
         `;
