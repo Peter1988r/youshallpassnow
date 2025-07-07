@@ -2743,6 +2743,12 @@ const templateUploadDisk = multer({
             cb(null, 'public/uploads/templates/');
         },
         filename: function (req, file, cb) {
+            // Check if there's actually a file with content
+            if (!file || !file.originalname || file.size === 0) {
+                console.log('No actual file to upload, skipping filename generation');
+                return cb(null, false); // Don't save the file
+            }
+            
             // Generate unique filename: event-{eventId}-{uuid}.{ext}
             const eventId = req.params.eventId || 'unknown';
             const uniqueId = uuidv4();
@@ -2759,6 +2765,12 @@ const templateUploadDisk = multer({
             mimetype: file.mimetype,
             size: file.size 
         });
+        
+        // Skip processing if no actual file
+        if (!file || !file.originalname || file.size === 0) {
+            console.log('No actual file to process, skipping filter');
+            return cb(null, false);
+        }
         
         // Only allow image files
         if (file.mimetype.startsWith('image/')) {
