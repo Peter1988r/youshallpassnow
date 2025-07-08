@@ -109,11 +109,14 @@ body {
 }
 
 .nav-logo img {
-    height: 32px;
+    height: 64px;
 }
 
 .nav-logo-img {
-    transform: scale(1.5);
+    height: 64px;
+    width: auto;
+    border-radius: 8px;
+    transform: scale(1.2);
     transform-origin: center;
 }
 
