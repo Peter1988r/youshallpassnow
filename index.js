@@ -2962,41 +2962,57 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             
             try {
                 if (supabase) {
-                    // Supabase storage upload
-                    console.log('Using Supabase storage for template upload');
+                    // Try Supabase storage upload first
+                    console.log('Attempting Supabase storage for template upload');
                     
-                    const fileExtension = path.extname(req.file.originalname).toLowerCase();
-                    const uniqueFilename = `badge-template-event-${eventId}-${uuidv4()}${fileExtension}`;
-                    
-                    const bucketName = process.env.SUPABASE_TEMPLATES_BUCKET || 'badge-templates';
-                    console.log(`Uploading template to Supabase bucket: ${bucketName}`);
-                    
-                    const { data, error } = await supabase.storage
-                        .from(bucketName)
-                        .upload(uniqueFilename, req.file.buffer, {
-                            contentType: req.file.mimetype,
-                            upsert: false
+                    try {
+                        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+                        const uniqueFilename = `badge-template-event-${eventId}-${uuidv4()}${fileExtension}`;
+                        
+                        const bucketName = process.env.SUPABASE_TEMPLATES_BUCKET || 'badge-templates';
+                        console.log(`Uploading template to Supabase bucket: ${bucketName}`);
+                        
+                        const { data, error } = await supabase.storage
+                            .from(bucketName)
+                            .upload(uniqueFilename, req.file.buffer, {
+                                contentType: req.file.mimetype,
+                                upsert: false
+                            });
+                        
+                        if (error) {
+                            console.warn('Supabase upload failed, falling back to base64:', error.message);
+                            throw new Error(`Supabase upload failed: ${error.message}`);
+                        }
+                        
+                        console.log('Template uploaded to Supabase successfully:', data);
+                        
+                        // Get public URL for the uploaded template
+                        const { data: urlData } = supabase.storage
+                            .from(bucketName)
+                            .getPublicUrl(uniqueFilename);
+                        
+                        templateImagePath = urlData.publicUrl;
+                        
+                        console.log('Template image saved to Supabase:', {
+                            filename: uniqueFilename,
+                            publicUrl: templateImagePath,
+                            size: req.file.size
                         });
-                    
-                    if (error) {
-                        console.error('Supabase template upload error:', error);
-                        throw new Error(`Failed to upload to Supabase: ${error.message}`);
+                        
+                    } catch (supabaseError) {
+                        // Fallback to base64 if Supabase fails
+                        console.log('Supabase upload failed, using base64 fallback:', supabaseError.message);
+                        
+                        const base64Data = req.file.buffer.toString('base64');
+                        templateImagePath = `data:${req.file.mimetype};base64,${base64Data}`;
+                        
+                        console.log('Template image converted to base64 data URI (fallback):', {
+                            originalname: req.file.originalname,
+                            size: req.file.size,
+                            base64Length: base64Data.length,
+                            reason: 'Supabase upload failed'
+                        });
                     }
-                    
-                    console.log('Template uploaded to Supabase successfully:', data);
-                    
-                    // Get public URL for the uploaded template
-                    const { data: urlData } = supabase.storage
-                        .from(bucketName)
-                        .getPublicUrl(uniqueFilename);
-                    
-                    templateImagePath = urlData.publicUrl;
-                    
-                    console.log('Template image saved to Supabase:', {
-                        filename: uniqueFilename,
-                        publicUrl: templateImagePath,
-                        size: req.file.size
-                    });
                     
                 } else {
                     // Fallback to base64 encoding (serverless-compatible)
