@@ -274,12 +274,18 @@ class PDFGenerator {
                     doc.text(member.badge_number, x, y); x += colWidths[0];
                     doc.text(`${member.first_name} ${member.last_name}`, x, y); x += colWidths[1];
                     doc.text(member.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), x, y); x += colWidths[2];
-                    // Format access zones display
+                    // Format access zones display with compact format
                     let accessZonesDisplay = 'No zones';
                     if (member.access_zones && Array.isArray(member.access_zones) && member.access_zones.length > 0) {
-                        accessZonesDisplay = member.access_zones.map(zone => `Zone ${zone}`).join(', ');
+                        // Use compact format: "Zones: 1,2,3" instead of "Zone 1, Zone 2, Zone 3"
+                        accessZonesDisplay = `Zones: ${member.access_zones.join(',')}`;
+                        
+                        // If still too long, truncate with ellipsis
+                        if (accessZonesDisplay.length > 15) {
+                            accessZonesDisplay = accessZonesDisplay.substring(0, 12) + '...';
+                        }
                     }
-                    doc.text(accessZonesDisplay, x, y); x += colWidths[3];
+                    doc.text(accessZonesDisplay, x, y, { width: colWidths[3] - 5, ellipsis: true }); x += colWidths[3];
                     doc.text(member.status, x, y);
                 });
 
@@ -1526,12 +1532,18 @@ class PDFGenerator {
                     doc.text(roleName, x, currentY);
                     x += colWidths[2];
                     
-                    // Access zones
+                    // Access zones with text wrapping
                     let accessZonesDisplay = 'No zones';
                     if (member.access_zones && Array.isArray(member.access_zones) && member.access_zones.length > 0) {
-                        accessZonesDisplay = member.access_zones.map(zone => `Zone ${zone}`).join(', ');
+                        // Use compact format: "Zones: 1,2,3" instead of "Zone 1, Zone 2, Zone 3"
+                        accessZonesDisplay = `Zones: ${member.access_zones.join(',')}`;
+                        
+                        // If still too long, truncate with ellipsis
+                        if (accessZonesDisplay.length > 18) {
+                            accessZonesDisplay = accessZonesDisplay.substring(0, 15) + '...';
+                        }
                     }
-                    doc.text(accessZonesDisplay, x, currentY);
+                    doc.text(accessZonesDisplay, x, currentY, { width: colWidths[3] - 5, ellipsis: true });
                     x += colWidths[3];
                     
                     // Status with color
