@@ -1875,15 +1875,15 @@ function applyFieldStyling() {
     const fontSize = document.getElementById('fieldFontSize').value;
     const color = document.getElementById('fieldTextColor').value;
     
-    // Store styling in field position
-    if (!templateEditor.fieldPositions[fieldType]) {
-        templateEditor.fieldPositions[fieldType] = {};
-    }
-    
-    templateEditor.fieldPositions[fieldType].styling = {
-        font: font,
-        fontSize: parseInt(fontSize),
-        color: color
+    // Store styling in field position - preserve existing position data
+    const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
+    templateEditor.fieldPositions[fieldType] = {
+        ...existingFieldData,  // Preserve existing position data
+        styling: {
+            font: font,
+            fontSize: parseInt(fontSize),
+            color: color
+        }
     };
     
     // Add visual indicator to field
@@ -1907,6 +1907,7 @@ function applyFieldStyling() {
         fieldLabel.style.color = color;
     }
     
+    console.log(`Styling applied to ${fieldType}:`, templateEditor.fieldPositions[fieldType]);
     showMessage(`Styling applied to ${getFieldData(fieldType).label}`, 'success');
     closeFieldStyling();
 }
@@ -2182,13 +2183,41 @@ function createPositionedField(fieldType, x, y) {
     // Store field reference
     templateEditor.positionedFields.set(fieldType, fieldElement);
     
-    // Store position data
+    // Store position data - preserve existing styling if field already has it
+    const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
     templateEditor.fieldPositions[fieldType] = {
+        ...existingFieldData,  // Preserve existing properties like styling
         x: x,
         y: y,
         relativeX: x / bgRect.width,
         relativeY: y / bgRect.height
     };
+    
+    // Apply existing styling if available
+    const savedFieldData = templateEditor.fieldPositions[fieldType] || {};
+    if (savedFieldData.styling) {
+        fieldElement.classList.add('has-custom-styling');
+        
+        // Add styling indicator
+        let indicator = fieldElement.querySelector('.styling-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'styling-indicator';
+            indicator.textContent = 'S';
+            indicator.title = 'Custom styling applied';
+            fieldElement.appendChild(indicator);
+        }
+        
+        // Apply visual styling to field label
+        const fieldLabel = fieldElement.querySelector('.field-label');
+        if (fieldLabel) {
+            fieldLabel.style.fontFamily = savedFieldData.styling.font && savedFieldData.styling.font.includes('Bold') ? 'bold' : 'normal';
+            fieldLabel.style.fontSize = Math.min(savedFieldData.styling.fontSize || 12, 14) + 'px';
+            fieldLabel.style.color = savedFieldData.styling.color || '#000000';
+        }
+        
+        console.log(`Applied existing styling to recreated field ${fieldType}:`, savedFieldData.styling);
+    }
     
     // Setup field dragging
     setupFieldDragging(fieldElement);
@@ -2306,7 +2335,10 @@ function setupFieldDragging(fieldElement) {
         const width = fieldElement.offsetWidth;
         const height = fieldElement.offsetHeight;
         
+        // Preserve existing styling and other properties when updating position/size
+        const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
         templateEditor.fieldPositions[fieldType] = {
+            ...existingFieldData,  // Preserve existing properties like styling
             x: x,
             y: y,
             width: width,
@@ -2320,6 +2352,9 @@ function setupFieldDragging(fieldElement) {
         if (wasResizing) {
             showMessage(`${getFieldData(fieldType).label} resized to ${width}×${height}`, 'info');
         }
+        
+        // Debug: Log field data to verify styling preservation
+        console.log(`Position updated for ${fieldType}:`, templateEditor.fieldPositions[fieldType]);
         
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
