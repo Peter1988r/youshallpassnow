@@ -2687,6 +2687,8 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
                 e.use_custom_badge,
                 e.custom_badge_template_path,
                 e.custom_badge_field_mapping,
+                e.badge_template_image_path,
+                e.badge_field_layout,
                 e.badge_template_name,
                 c.name as company_name
             FROM crew_members cm
