@@ -1063,10 +1063,15 @@ function displayCrewApprovals(approvals) {
         `;
     });
     
-    tbody.innerHTML = html;
+    // Remove existing event listeners by cloning and replacing the tbody
+    const newTbody = tbody.cloneNode(false);
+    tbody.parentNode.replaceChild(newTbody, tbody);
+    
+    // Set the HTML content on the clean tbody
+    newTbody.innerHTML = html;
     
     // Add event listeners for approval actions
-    tbody.addEventListener('click', (e) => {
+    newTbody.addEventListener('click', (e) => {
         const button = e.target.closest('[data-action]');
         if (!button) return;
         
@@ -1087,7 +1092,7 @@ function displayCrewApprovals(approvals) {
     });
     
     // Add event listeners for zone checkbox changes
-    tbody.addEventListener('change', (e) => {
+    newTbody.addEventListener('change', (e) => {
         if (e.target.type === 'checkbox' && e.target.closest('.zone-checkboxes')) {
             const crewId = e.target.closest('.zone-checkboxes').dataset.crewId;
             updateCrewAccessZones(crewId);
@@ -1434,10 +1439,15 @@ function displayApprovedCrew(approvedCrew) {
         `;
     });
     
-    tbody.innerHTML = html;
+    // Remove existing event listeners by cloning and replacing the tbody
+    const newTbody = tbody.cloneNode(false);
+    tbody.parentNode.replaceChild(newTbody, tbody);
+    
+    // Set the HTML content on the clean tbody
+    newTbody.innerHTML = html;
     
     // Add event listeners for action buttons in approved crew table
-    tbody.addEventListener('click', (e) => {
+    newTbody.addEventListener('click', (e) => {
         const button = e.target.closest('[data-action]');
         if (!button) return;
         
