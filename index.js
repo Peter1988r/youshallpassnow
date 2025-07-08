@@ -2702,7 +2702,7 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         }
         
         const crewMember = crewDetails[0];
-        const pdfGenerator = require('./services/pdfGenerator');
+        // Use the global pdfGenerator instance instead of requiring inside the endpoint
         
         console.log('Generating badge for crew member:', crewMember.id, crewMember.first_name, crewMember.last_name);
         console.log('Event has custom template:', crewMember.use_custom_badge);
