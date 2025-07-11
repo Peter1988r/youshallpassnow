@@ -2363,13 +2363,7 @@ app.delete('/api/admin/events/:eventId/photo', authenticateToken, requireSuperAd
     }
 });
 
-// Test endpoint for layout (temporary)
-app.get('/api/admin/events/:eventId/layout/test', authenticateToken, requireSuperAdmin, (req, res) => {
-    console.log('Layout test endpoint hit for event:', req.params.eventId);
-    res.json({ message: 'Layout endpoint is working', eventId: req.params.eventId });
-});
-
-// Upload event layout (for super admin) - simplified version matching event photos exactly
+// Upload event layout (for super admin)
 app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdmin, (req, res) => {
     upload.single('eventLayout')(req, res, async (err) => {
         if (err) {
@@ -2390,28 +2384,9 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
                 return res.status(400).json({ error: 'No file uploaded' });
             }
             
-            console.log('Event layout received for upload:', {
-                eventId,
-                originalname: req.file.originalname,
-                mimetype: req.file.mimetype,
-                size: req.file.size
-            });
-            
             // Generate unique filename for event layout
             const fileExtension = path.extname(req.file.originalname);
             const uniqueFilename = `event-layout-${eventId}-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-            
-            // Check Supabase configuration
-            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-                console.error('Supabase configuration missing');
-                return res.status(500).json({ 
-                    error: 'Storage service not configured. Please contact administrator.',
-                    debug: {
-                        supabaseUrl: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
-                        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING'
-                    }
-                });
-            }
             
             // Upload to Supabase Storage
             const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
