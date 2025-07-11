@@ -507,12 +507,20 @@ function displayEventZones(zones) {
     
     let html = '';
     zones.forEach((zone, index) => {
+        const isDefault = zone.is_default || false;
         html += `
             <div class="zone-item" data-zone-id="${index}" data-zone-db-id="${zone.id || ''}">
                 <div class="zone-number">${zone.zone_number}</div>
                 <div class="zone-info">
                     <div class="zone-name" data-original="${zone.area_name}">${zone.area_name}</div>
                     <div class="zone-description">Zone ${zone.zone_number} • Area Access Control</div>
+                </div>
+                <div class="zone-default-setting">
+                    <label class="default-checkbox">
+                        <input type="checkbox" ${isDefault ? 'checked' : ''} onchange="toggleDefaultZone(${index}, this.checked)">
+                        <span class="checkbox-label">Default Zone</span>
+                    </label>
+                    <small class="default-help">Check to auto-assign this zone to new crew members</small>
                 </div>
                 <div class="zone-actions">
                     <button class="btn-edit-zone" onclick="editZone(${index})">
@@ -754,6 +762,47 @@ async function deleteZone(zoneIndex) {
     } catch (error) {
         console.error('Error deleting zone:', error);
         showMessage('Failed to delete zone', 'error');
+    }
+}
+
+// Toggle default zone setting
+async function toggleDefaultZone(zoneIndex, isDefault) {
+    const zone = eventZones[zoneIndex];
+    if (!zone) return;
+    
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`/api/admin/events/${eventId}/zones/${zone.id || zoneIndex}/default`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ is_default: isDefault })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update default zone setting');
+        }
+        
+        // Update local zone data
+        eventZones[zoneIndex].is_default = isDefault;
+        
+        const statusText = isDefault ? 'set as default' : 'removed from default';
+        showMessage(`Zone ${zone.zone_number} ${statusText}`, 'success');
+        
+    } catch (error) {
+        console.error('Error updating default zone:', error);
+        showMessage('Failed to update default zone setting', 'error');
+        
+        // Revert checkbox state on error
+        const checkbox = document.querySelector(`[data-zone-id="${zoneIndex}"] .default-checkbox input`);
+        if (checkbox) {
+            checkbox.checked = !isDefault;
+        }
     }
 }
 
@@ -1057,11 +1106,17 @@ function displayCrewApprovals(approvals) {
         } else {
             zoneHtml = '<div class="zone-checkboxes" data-crew-id="' + approval.id + '">';
             eventZones.forEach(zone => {
-                const isChecked = currentZones.includes(zone.zone_number);
+                // Check if zone is already assigned or if it's a default zone for new crew
+                const isCurrentlyAssigned = currentZones.includes(zone.zone_number);
+                const isDefaultZone = zone.is_default || false;
+                const shouldBeChecked = isCurrentlyAssigned || (currentZones.length === 0 && isDefaultZone);
+                
+                const defaultIndicator = isDefaultZone ? ' <span class="default-indicator" title="Default zone">⭐</span>' : '';
+                
                 zoneHtml += `
-                    <label class="zone-checkbox">
-                        <input type="checkbox" value="${zone.zone_number}" ${isChecked ? 'checked' : ''}>
-                        Zone ${zone.zone_number}
+                    <label class="zone-checkbox ${isDefaultZone ? 'default-zone' : ''}">
+                        <input type="checkbox" value="${zone.zone_number}" ${shouldBeChecked ? 'checked' : ''}>
+                        Zone ${zone.zone_number}${defaultIndicator}
                     </label>
                 `;
             });

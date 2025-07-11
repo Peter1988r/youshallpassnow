@@ -2441,6 +2441,42 @@ select[multiple] option:disabled {
     min-width: 0;
 }
 
+.zone-default-setting {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: 15px;
+}
+
+.default-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.default-checkbox input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.checkbox-label {
+    font-weight: 500;
+}
+
+.default-help {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.3;
+}
+
 .zone-name {
     font-size: 16px;
     font-weight: 600;
@@ -2586,6 +2622,12 @@ select[multiple] option:disabled {
         font-size: 14px;
     }
     
+    .zone-default-setting {
+        align-self: flex-start;
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+    
     .zone-actions {
         align-self: flex-end;
         width: 100%;
@@ -2640,6 +2682,20 @@ select[multiple] option:disabled {
 .zone-checkbox input[type="checkbox"]:checked + span {
     font-weight: 600;
     color: var(--primary-color);
+}
+
+.zone-checkbox.default-zone {
+    background: var(--primary-bg);
+    border-radius: 4px;
+    padding: 3px 6px;
+    border: 1px solid var(--primary-color);
+}
+
+.default-indicator {
+    color: var(--warning-color);
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 2px;
 }
 
 .zone-tags {

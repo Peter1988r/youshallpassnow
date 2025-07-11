@@ -2802,6 +2802,55 @@ app.delete('/api/admin/events/:eventId/zones/:zoneId', authenticateToken, requir
     }
 });
 
+// Toggle default zone setting for an event
+app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId, zoneId } = req.params;
+        const { is_default } = req.body;
+        
+        if (typeof is_default !== 'boolean') {
+            return res.status(400).json({ error: 'is_default must be a boolean' });
+        }
+        
+        // Get current zones
+        const eventResult = await query(`
+            SELECT access_zones FROM events WHERE id = $1
+        `, [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const currentZones = eventResult[0].access_zones || [];
+        
+        // Find and update the zone
+        const zoneIndex = parseInt(zoneId);
+        const targetZone = currentZones[zoneIndex];
+        
+        if (!targetZone) {
+            return res.status(404).json({ error: 'Zone not found' });
+        }
+        
+        // Update the zone's default flag
+        targetZone.is_default = is_default;
+        
+        // Update the database
+        await run(`
+            UPDATE events 
+            SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `, [JSON.stringify(currentZones), eventId]);
+        
+        res.json({
+            message: `Zone ${targetZone.zone_number} default setting updated successfully`,
+            zone: targetZone
+        });
+    } catch (error) {
+        console.error('Toggle default zone error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Get crew approvals for a specific event
 app.get('/api/admin/events/:eventId/crew-approvals', authenticateToken, async (req, res) => {
     try {
