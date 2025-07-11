@@ -185,6 +185,20 @@
                         <p>Define access zones for this event. Each zone represents a specific area with controlled access. You can create up to 21 zones per event.</p>
                     </div>
                     
+                    <!-- Event Layout Image -->
+                    <div class="overview-card">
+                        <h3>Event Layout Reference</h3>
+                        <div class="form-group">
+                            <label for="eventLayoutFile">Event Layout Image</label>
+                            <input type="file" id="eventLayoutFile" accept=".png,.jpg,.jpeg">
+                            <small class="form-help">Upload a layout image to help identify access zones. Max 5MB, JPG/PNG format.</small>
+                        </div>
+                        <div class="event-layout-preview" id="eventLayoutPreview" style="display: none;">
+                            <img id="eventLayoutPreviewImg" alt="Event Layout Preview" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <button type="button" class="btn-secondary" id="removeEventLayout" style="margin-top: 0.5rem;">Remove Layout</button>
+                        </div>
+                    </div>
+                    
                     <!-- Zone Management -->
                     <div class="zones-container">
                         <div class="zones-header">

@@ -2363,6 +2363,157 @@ app.delete('/api/admin/events/:eventId/photo', authenticateToken, requireSuperAd
     }
 });
 
+// Upload event layout (for super admin)
+app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdmin, (req, res) => {
+    upload.single('eventLayout')(req, res, async (err) => {
+        if (err) {
+            console.error('Multer error:', err);
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+            }
+            if (err.message === 'Only image files are allowed!') {
+                return res.status(400).json({ error: 'Only image files are allowed.' });
+            }
+            return res.status(500).json({ error: 'File upload failed: ' + err.message });
+        }
+        
+        try {
+            const { eventId } = req.params;
+            
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            
+            console.log('Event layout received for upload:', {
+                eventId,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            });
+            
+            // Generate unique filename for event layout
+            const fileExtension = path.extname(req.file.originalname);
+            const uniqueFilename = `event-layout-${eventId}-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+            
+            // Check Supabase configuration
+            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                console.error('Supabase configuration missing');
+                return res.status(500).json({ 
+                    error: 'Storage service not configured. Please contact administrator.',
+                    debug: {
+                        supabaseUrl: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
+                        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING'
+                    }
+                });
+            }
+            
+            // Upload to Supabase Storage
+            const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
+            console.log(`Attempting event layout upload to bucket: ${bucketName}`);
+            
+            const { data, error } = await supabase.storage
+                .from(bucketName)
+                .upload(uniqueFilename, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+            
+            if (error) {
+                console.error('Supabase storage error:', error);
+                return res.status(500).json({ 
+                    error: 'Failed to upload to storage: ' + error.message,
+                    debug: {
+                        bucket: bucketName,
+                        filename: uniqueFilename,
+                        errorCode: error.statusCode,
+                        errorMessage: error.message
+                    }
+                });
+            }
+            
+            console.log('Event layout uploaded to Supabase successfully:', data);
+            
+            // Get public URL for the uploaded file
+            const { data: urlData } = supabase.storage
+                .from(bucketName)
+                .getPublicUrl(uniqueFilename);
+            
+            // Update event record with layout path
+            await run(`
+                UPDATE events 
+                SET event_layout_path = $1, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $2
+            `, [urlData.publicUrl, eventId]);
+            
+            res.json({
+                message: 'Event layout uploaded successfully',
+                path: urlData.publicUrl,
+                filename: uniqueFilename,
+                originalName: req.file.originalname,
+                size: req.file.size,
+                bucket: bucketName
+            });
+            
+        } catch (error) {
+            console.error('Event layout upload processing error:', error);
+            res.status(500).json({ error: 'Event layout upload processing failed: ' + error.message });
+        }
+    });
+});
+
+// Remove event layout (for super admin)
+app.delete('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        
+        // Get current event layout path
+        const eventResult = await query('SELECT event_layout_path FROM events WHERE id = $1', [eventId]);
+        
+        if (eventResult.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        
+        const currentLayoutPath = eventResult[0].event_layout_path;
+        
+        // Update event record to remove layout path
+        await run(`
+            UPDATE events 
+            SET event_layout_path = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `, [eventId]);
+        
+        // If there was a layout and Supabase is configured, try to delete it from storage
+        if (currentLayoutPath && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            try {
+                // Extract filename from URL
+                const url = new URL(currentLayoutPath);
+                const pathParts = url.pathname.split('/');
+                const filename = pathParts[pathParts.length - 1];
+                
+                const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
+                
+                const { error: deleteError } = await supabase.storage
+                    .from(bucketName)
+                    .remove([filename]);
+                
+                if (deleteError) {
+                    console.warn('Failed to delete file from storage (non-critical):', deleteError);
+                }
+            } catch (storageError) {
+                console.warn('Failed to process storage deletion (non-critical):', storageError);
+            }
+        }
+        
+        res.json({
+            message: 'Event layout removed successfully'
+        });
+        
+    } catch (error) {
+        console.error('Remove event layout error:', error);
+        res.status(500).json({ error: 'Failed to remove event layout' });
+    }
+});
+
 // Cancel event (for super admin)
 app.put('/api/admin/events/:eventId/cancel', authenticateToken, requireSuperAdmin, async (req, res) => {
     try {

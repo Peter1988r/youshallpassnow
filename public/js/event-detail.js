@@ -80,6 +80,17 @@ function populateEventForm(event) {
         eventPhotoPreview.style.display = 'block';
     }
     
+    // Load event layout if available
+    if (event.event_layout_path) {
+        const eventLayoutPreviewImg = document.getElementById('eventLayoutPreviewImg');
+        const eventLayoutPreview = document.getElementById('eventLayoutPreview');
+        
+        if (eventLayoutPreviewImg && eventLayoutPreview) {
+            eventLayoutPreviewImg.src = event.event_layout_path;
+            eventLayoutPreview.style.display = 'block';
+        }
+    }
+    
     // Update status badge
     updateStatusBadge(event.status);
 }
@@ -440,6 +451,9 @@ function setupZoneManagement() {
     if (addZoneBtn) {
         addZoneBtn.addEventListener('click', showAddZoneForm);
     }
+    
+    // Setup event layout image upload
+    setupEventLayoutUpload();
 }
 
 // Global variable to store current event zones
@@ -494,17 +508,17 @@ function displayEventZones(zones) {
     let html = '';
     zones.forEach((zone, index) => {
         html += `
-            <div class="zone-item" data-zone-id="${zone.id || index}">
+            <div class="zone-item" data-zone-id="${index}" data-zone-db-id="${zone.id || ''}">
                 <div class="zone-number">${zone.zone_number}</div>
                 <div class="zone-info">
                     <div class="zone-name" data-original="${zone.area_name}">${zone.area_name}</div>
                     <div class="zone-description">Zone ${zone.zone_number} • Area Access Control</div>
                 </div>
                 <div class="zone-actions">
-                    <button class="btn-edit-zone" onclick="editZone(${zone.id || index})">
+                    <button class="btn-edit-zone" onclick="editZone(${index})">
                         ✏️ Edit
                     </button>
-                    <button class="btn-delete-zone" onclick="deleteZone(${zone.id || index})">
+                    <button class="btn-delete-zone" onclick="deleteZone(${index})">
                         🗑️ Delete
                     </button>
                 </div>
@@ -625,7 +639,7 @@ async function editZone(zoneIndex) {
     const zone = eventZones[zoneIndex];
     if (!zone) return;
     
-    const zoneItem = document.querySelector(`[data-zone-id="${zone.id || zoneIndex}"]`);
+    const zoneItem = document.querySelector(`[data-zone-id="${zoneIndex}"]`);
     const zoneNameElement = zoneItem.querySelector('.zone-name');
     const actionsElement = zoneItem.querySelector('.zone-actions');
     
@@ -2675,4 +2689,173 @@ async function handleEventPhotoRemoval() {
         showMessage('Failed to remove event photo', 'error');
     }
 }
+
+// Event layout image upload functionality
+function setupEventLayoutUpload() {
+    const eventLayoutFile = document.getElementById('eventLayoutFile');
+    const eventLayoutPreview = document.getElementById('eventLayoutPreview');
+    const eventLayoutPreviewImg = document.getElementById('eventLayoutPreviewImg');
+    const removeEventLayout = document.getElementById('removeEventLayout');
+    
+    if (!eventLayoutFile) return;
+    
+    // Handle layout file selection
+    eventLayoutFile.addEventListener('change', handleEventLayoutSelection);
+    
+    // Handle layout removal
+    if (removeEventLayout) {
+        removeEventLayout.addEventListener('click', handleEventLayoutRemoval);
+    }
+    
+    // Note: existing layout will be loaded when populateEventForm is called
+}
+
+// Handle event layout file selection
+async function handleEventLayoutSelection(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+        showMessage('Please select an image file', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        showMessage('Image file size must be less than 5MB', 'error');
+        return;
+    }
+    
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const eventLayoutPreviewImg = document.getElementById('eventLayoutPreviewImg');
+        const eventLayoutPreview = document.getElementById('eventLayoutPreview');
+        
+        eventLayoutPreviewImg.src = e.target.result;
+        eventLayoutPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload layout
+    await uploadEventLayout(file);
+}
+
+// Upload event layout to server
+async function uploadEventLayout(file) {
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    const indicator = document.getElementById('autoSaveIndicator');
+    
+    try {
+        // Show uploading indicator
+        indicator.textContent = 'Uploading layout...';
+        indicator.classList.add('show', 'saving');
+        
+        const formData = new FormData();
+        formData.append('eventLayout', file);
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/layout`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to upload event layout');
+        }
+        
+        const result = await response.json();
+        
+        // Show success indicator
+        indicator.textContent = 'Layout uploaded';
+        indicator.classList.remove('saving');
+        
+        // Hide indicator after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+        
+        showMessage('Event layout uploaded successfully', 'success');
+        console.log('✅ Event layout uploaded successfully');
+        
+    } catch (error) {
+        console.error('Error uploading event layout:', error);
+        
+        // Show error indicator
+        indicator.textContent = 'Upload failed';
+        indicator.classList.remove('saving');
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        
+        // Hide indicator after 3 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+            indicator.style.background = '';
+        }, 3000);
+        
+        showMessage('Failed to upload event layout', 'error');
+    }
+}
+
+// Handle event layout removal
+async function handleEventLayoutRemoval() {
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    const indicator = document.getElementById('autoSaveIndicator');
+    
+    try {
+        // Show removing indicator
+        indicator.textContent = 'Removing layout...';
+        indicator.classList.add('show', 'saving');
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/layout`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to remove event layout');
+        }
+        
+        // Hide preview
+        const eventLayoutPreview = document.getElementById('eventLayoutPreview');
+        const eventLayoutFile = document.getElementById('eventLayoutFile');
+        
+        eventLayoutPreview.style.display = 'none';
+        eventLayoutFile.value = '';
+        
+        // Show success indicator
+        indicator.textContent = 'Layout removed';
+        indicator.classList.remove('saving');
+        
+        // Hide indicator after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+        
+        showMessage('Event layout removed successfully', 'success');
+        console.log('✅ Event layout removed successfully');
+        
+    } catch (error) {
+        console.error('Error removing event layout:', error);
+        
+        // Show error indicator
+        indicator.textContent = 'Remove failed';
+        indicator.classList.remove('saving');
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        
+        // Hide indicator after 3 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+            indicator.style.background = '';
+        }, 3000);
+        
+        showMessage('Failed to remove event layout', 'error');
+    }
+}
+
 

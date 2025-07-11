@@ -131,6 +131,15 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Add event layout column to events table
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='event_layout_path') THEN
+                    ALTER TABLE events ADD COLUMN event_layout_path TEXT;
+                END IF;
+            END $$;
+        `);
+
         // Crew members table
         await client.query(`
             CREATE TABLE IF NOT EXISTS crew_members (
