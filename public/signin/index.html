@@ -557,52 +557,5 @@
         localStorage.removeItem('theme');
     </script>
     
-    <!-- Debug script -->
-    <script>
-        console.log('Signin page loaded');
-        
-        // Test if form exists
-        const form = document.getElementById('signinForm');
-        console.log('Form found:', !!form);
-        
-        if (form) {
-            // Add a simple test listener
-            form.addEventListener('submit', (e) => {
-                console.log('Form submitted!');
-                e.preventDefault();
-                
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                
-                console.log('Email:', email);
-                console.log('Password:', password);
-                
-                // Test the API call
-                fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email, password })
-                })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    if (data.token) {
-                        alert('Login successful! Token: ' + data.token.substring(0, 20) + '...');
-                    } else {
-                        alert('Login failed: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert('Network error: ' + error.message);
-                });
-            });
-        }
-    </script>
 </body>
 </html> 
