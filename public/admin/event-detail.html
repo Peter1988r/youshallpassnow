@@ -125,6 +125,20 @@
                             </div>
                         </div>
 
+                        <!-- Event Photo -->
+                        <div class="overview-card">
+                            <h3>Event Photo</h3>
+                            <div class="form-group">
+                                <label for="eventPhotoFile">Event Photo</label>
+                                <input type="file" id="eventPhotoFile" accept=".png,.jpg,.jpeg">
+                                <small class="form-help">Upload an event photo to display on the events page. Max 5MB, JPG/PNG format.</small>
+                            </div>
+                            <div class="event-photo-preview" id="eventPhotoPreview" style="display: none;">
+                                <img id="eventPhotoPreviewImg" alt="Event Photo Preview" style="max-width: 300px; max-height: 200px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <button type="button" class="btn-secondary" id="removeEventPhoto" style="margin-top: 0.5rem;">Remove Photo</button>
+                            </div>
+                        </div>
+
                         <!-- Event Status -->
                         <div class="overview-card">
                             <h3>Event Status</h3>

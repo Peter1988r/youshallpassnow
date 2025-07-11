@@ -71,6 +71,15 @@ function populateEventForm(event) {
     document.getElementById('eventDescription').value = event.description || '';
     document.getElementById('eventStatusSelect').value = event.status || 'active';
     
+    // Load event photo if available
+    if (event.event_photo_path) {
+        const eventPhotoPreviewImg = document.getElementById('eventPhotoPreviewImg');
+        const eventPhotoPreview = document.getElementById('eventPhotoPreview');
+        
+        eventPhotoPreviewImg.src = event.event_photo_path;
+        eventPhotoPreview.style.display = 'block';
+    }
+    
     // Update status badge
     updateStatusBadge(event.status);
 }
@@ -263,6 +272,9 @@ function setupEventListeners() {
     // Auto-save functionality
     setupAutoSave();
     setupZoneManagement();
+    
+    // Event photo upload functionality
+    setupEventPhotoUpload();
 }
 
 // Tab switching function
@@ -2495,3 +2507,172 @@ function updateFieldPalette(zones) {
     // Re-setup drag and drop for new fields
     setupDragAndDrop();
 }
+
+// Event photo upload functionality
+function setupEventPhotoUpload() {
+    const eventPhotoFile = document.getElementById('eventPhotoFile');
+    const eventPhotoPreview = document.getElementById('eventPhotoPreview');
+    const eventPhotoPreviewImg = document.getElementById('eventPhotoPreviewImg');
+    const removeEventPhoto = document.getElementById('removeEventPhoto');
+    
+    if (!eventPhotoFile) return;
+    
+    // Handle photo file selection
+    eventPhotoFile.addEventListener('change', handleEventPhotoSelection);
+    
+    // Handle photo removal
+    if (removeEventPhoto) {
+        removeEventPhoto.addEventListener('click', handleEventPhotoRemoval);
+    }
+    
+    // Note: existing photo will be loaded when populateEventForm is called
+}
+
+// Handle event photo file selection
+async function handleEventPhotoSelection(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+        showMessage('Please select an image file', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        showMessage('Image file size must be less than 5MB', 'error');
+        return;
+    }
+    
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const eventPhotoPreviewImg = document.getElementById('eventPhotoPreviewImg');
+        const eventPhotoPreview = document.getElementById('eventPhotoPreview');
+        
+        eventPhotoPreviewImg.src = e.target.result;
+        eventPhotoPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload photo
+    await uploadEventPhoto(file);
+}
+
+// Upload event photo to server
+async function uploadEventPhoto(file) {
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    const indicator = document.getElementById('autoSaveIndicator');
+    
+    try {
+        // Show uploading indicator
+        indicator.textContent = 'Uploading photo...';
+        indicator.classList.add('show', 'saving');
+        
+        const formData = new FormData();
+        formData.append('eventPhoto', file);
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/photo`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to upload event photo');
+        }
+        
+        const result = await response.json();
+        
+        // Show success indicator
+        indicator.textContent = 'Photo uploaded';
+        indicator.classList.remove('saving');
+        
+        // Hide indicator after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+        
+        showMessage('Event photo uploaded successfully', 'success');
+        console.log('✅ Event photo uploaded successfully');
+        
+    } catch (error) {
+        console.error('Error uploading event photo:', error);
+        
+        // Show error indicator
+        indicator.textContent = 'Upload failed';
+        indicator.classList.remove('saving');
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        
+        // Hide indicator after 3 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+            indicator.style.background = '';
+        }, 3000);
+        
+        showMessage('Failed to upload event photo', 'error');
+    }
+}
+
+// Handle event photo removal
+async function handleEventPhotoRemoval() {
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    const indicator = document.getElementById('autoSaveIndicator');
+    
+    try {
+        // Show removing indicator
+        indicator.textContent = 'Removing photo...';
+        indicator.classList.add('show', 'saving');
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/events/${eventId}/photo`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to remove event photo');
+        }
+        
+        // Hide preview
+        const eventPhotoPreview = document.getElementById('eventPhotoPreview');
+        const eventPhotoFile = document.getElementById('eventPhotoFile');
+        
+        eventPhotoPreview.style.display = 'none';
+        eventPhotoFile.value = '';
+        
+        // Show success indicator
+        indicator.textContent = 'Photo removed';
+        indicator.classList.remove('saving');
+        
+        // Hide indicator after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+        
+        showMessage('Event photo removed successfully', 'success');
+        console.log('✅ Event photo removed successfully');
+        
+    } catch (error) {
+        console.error('Error removing event photo:', error);
+        
+        // Show error indicator
+        indicator.textContent = 'Remove failed';
+        indicator.classList.remove('saving');
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        
+        // Hide indicator after 3 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+            indicator.style.background = '';
+        }, 3000);
+        
+        showMessage('Failed to remove event photo', 'error');
+    }
+}
+

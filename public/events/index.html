@@ -17,23 +17,25 @@
     
     <!-- Inline styles for fallback -->
     <style>
-        /* Base styles */
+        /* Base styles - Dark Theme */
         body {
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
-            color: #374151;
+            color: var(--text-primary);
             margin: 0;
             padding: 0;
+            background-color: var(--bg-primary);
         }
         
         /* Navigation */
         .navbar {
-            background-color: #FFFFFF;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: var(--navbar-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             position: fixed;
             width: 100%;
             top: 0;
             z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
         }
         
         .nav-container {
@@ -68,12 +70,17 @@
         
         .nav-links a {
             text-decoration: none;
-            color: #1F2937;
+            color: var(--text-primary);
             font-weight: 500;
+            transition: color 0.3s ease;
         }
         
         .nav-links a.active {
-            color: #4F46E5;
+            color: var(--primary-color);
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary-color);
         }
         
         /* Button styles */
@@ -88,23 +95,26 @@
         }
         
         .btn-primary {
-            background-color: #4F46E5;
-            color: #FFFFFF;
+            background-color: var(--primary-color);
+            color: white;
             border: none;
         }
         
         .btn-primary:hover {
-            background-color: #4338CA;
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
         }
         
         .btn-secondary {
-            background-color: #FFFFFF;
-            color: #1F2937;
-            border: 2px solid #1F2937;
+            background: transparent;
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
         }
         
         .btn-secondary:hover {
-            background-color: #F3F4F6;
+            background-color: var(--bg-tertiary);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
         }
         
         /* Main content */
@@ -122,7 +132,7 @@
         
         .events-header h1 {
             font-size: 3rem;
-            color: #1F2937;
+            color: var(--text-primary);
             margin-bottom: 2rem;
         }
         
@@ -136,15 +146,17 @@
         
         .search-input, .filter-select {
             padding: 12px 16px;
-            border: 2px solid #E5E7EB;
+            border: 2px solid var(--input-border);
             border-radius: 8px;
             font-size: 1rem;
             min-width: 200px;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
         
         .search-input:focus, .filter-select:focus {
             outline: none;
-            border-color: #4F46E5;
+            border-color: var(--primary-color);
         }
         
         /* Events grid */
@@ -157,16 +169,17 @@
         }
         
         .event-card {
-            background: #FFFFFF;
+            background: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px var(--shadow);
             overflow: hidden;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid var(--border-color);
         }
         
         .event-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
         }
         
         .event-image {
@@ -199,18 +212,18 @@
         
         .event-content h3 {
             font-size: 1.5rem;
-            color: #1F2937;
+            color: var(--text-primary);
             margin-bottom: 0.5rem;
         }
         
         .event-location {
-            color: #6B7280;
+            color: var(--text-secondary);
             font-weight: 500;
             margin-bottom: 1rem;
         }
         
         .event-description {
-            color: #374151;
+            color: var(--text-secondary);
             margin-bottom: 1.5rem;
             line-height: 1.6;
         }
@@ -245,10 +258,11 @@
         
         /* Footer */
         footer {
-            background-color: #1F2937;
-            color: #FFFFFF;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
             padding: 4rem 2rem 2rem;
             margin-top: 4rem;
+            border-top: 1px solid var(--border-color);
         }
         
         .footer-container {
@@ -268,10 +282,15 @@
         }
         
         .footer-section a {
-            color: #F3F4F6;
+            color: var(--text-secondary);
             text-decoration: none;
             display: block;
             margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+        
+        .footer-section a:hover {
+            color: var(--primary-color);
         }
         
         /* Responsive */
@@ -417,8 +436,8 @@
                     statusClass = 'upcoming';
                 }
                 
-                // Use placeholder image
-                const eventImage = '/assets/images/logo.jpg';
+                // Use event photo if available, fallback to logo
+                const eventImage = event.event_photo_path || '/assets/YSPlogoV2.png';
                 
                 eventsHTML += `
                     <div class="event-card">
@@ -482,7 +501,7 @@
         .loading-message, .no-events, .error-message {
             text-align: center;
             padding: 3rem;
-            color: #6B7280;
+            color: var(--text-secondary);
             font-size: 1.1rem;
             grid-column: 1 / -1;
         }
@@ -511,5 +530,13 @@
             color: #6B7280;
         }
     </style>
+    
+    <!-- Force dark mode permanently -->
+    <script>
+        // Force dark mode permanently
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark-mode');
+        localStorage.removeItem('theme');
+    </script>
 </body>
 </html> 
