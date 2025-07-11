@@ -8,8 +8,10 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 
-// Load environment variables first
-require('dotenv').config();
+// Load environment variables first (only in development)
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
 
 // Import Supabase after loading env vars
 const { createClient } = require('@supabase/supabase-js');
