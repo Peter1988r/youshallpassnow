@@ -2379,35 +2379,16 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
         
         try {
             const { eventId } = req.params;
-            console.log('🔍 Starting event layout upload for event:', eventId);
-            
             if (!req.file) {
-                console.log('❌ No file uploaded');
                 return res.status(400).json({ error: 'No file uploaded' });
             }
-            
-            console.log('✅ File received:', {
-                originalname: req.file.originalname,
-                mimetype: req.file.mimetype,
-                size: req.file.size
-            });
             
             // Generate unique filename for event layout
             const fileExtension = path.extname(req.file.originalname);
             const uniqueFilename = `event-layout-${eventId}-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-            console.log('📁 Generated filename:', uniqueFilename);
-            
-            // Check Supabase client
-            if (!supabase) {
-                console.log('❌ Supabase client not initialized');
-                return res.status(500).json({ error: 'Storage service not available' });
-            }
             
             // Upload to Supabase Storage
             const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
-            console.log(`🔄 Attempting event layout upload to bucket: ${bucketName}`);
-            
-            console.log('🔄 Calling Supabase upload...');
             const { data, error } = await supabase.storage
                 .from(bucketName)
                 .upload(uniqueFilename, req.file.buffer, {
@@ -2416,21 +2397,11 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
                 });
             
             if (error) {
-                console.error('❌ Supabase storage error:', error);
+                console.error('Supabase storage error:', error);
                 return res.status(500).json({ 
-                    error: 'Failed to upload to storage: ' + error.message,
-                    debug: {
-                        bucket: bucketName,
-                        filename: uniqueFilename,
-                        errorCode: error.statusCode,
-                        errorMessage: error.message
-                    }
+                    error: 'Failed to upload to storage: ' + error.message
                 });
             }
-            
-            console.log('✅ Supabase upload successful:', data);
-            
-            console.log('Event layout uploaded to Supabase successfully:', data);
             
             // Get public URL for the uploaded file
             const { data: urlData } = supabase.storage
@@ -2454,13 +2425,8 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
             });
             
         } catch (error) {
-            console.error('💥 Event layout upload processing error:', error);
-            console.error('Error stack:', error.stack);
-            res.status(500).json({ 
-                error: 'Event layout upload processing failed: ' + error.message,
-                stack: error.stack,
-                timestamp: new Date().toISOString()
-            });
+            console.error('Event layout upload processing error:', error);
+            res.status(500).json({ error: 'Event layout upload processing failed: ' + error.message });
         }
     });
 });

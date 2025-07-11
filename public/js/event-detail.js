@@ -2764,9 +2764,7 @@ async function uploadEventLayout(file) {
         });
         
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server error:', response.status, errorText);
-            throw new Error(`Failed to upload event layout: ${response.status} - ${errorText}`);
+            throw new Error('Failed to upload event layout');
         }
         
         const result = await response.json();
