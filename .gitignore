@@ -76,3 +76,6 @@ Thumbs.db
 *.tmp
 *.temp 
 .vercel
+
+# Vercel deployment config (contains sensitive environment variables)
+vercel.json
