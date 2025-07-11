@@ -2365,6 +2365,7 @@ app.delete('/api/admin/events/:eventId/photo', authenticateToken, requireSuperAd
 
 // Upload event layout (for super admin)
 app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdmin, (req, res) => {
+    console.log('Layout upload endpoint hit for event:', req.params.eventId);
     upload.single('eventLayout')(req, res, async (err) => {
         if (err) {
             console.error('Multer error:', err);

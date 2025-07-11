@@ -2755,6 +2755,9 @@ async function uploadEventLayout(file) {
         formData.append('eventLayout', file);
         
         const token = localStorage.getItem('token');
+        console.log('Uploading layout for event:', eventId);
+        console.log('File size:', file.size, 'File type:', file.type);
+        
         const response = await fetch(`/api/admin/events/${eventId}/layout`, {
             method: 'POST',
             headers: {
@@ -2763,8 +2766,12 @@ async function uploadEventLayout(file) {
             body: formData
         });
         
+        console.log('Upload response status:', response.status);
+        
         if (!response.ok) {
-            throw new Error('Failed to upload event layout');
+            const errorData = await response.text();
+            console.error('Upload error response:', errorData);
+            throw new Error(`Failed to upload event layout: ${response.status} - ${errorData}`);
         }
         
         const result = await response.json();
