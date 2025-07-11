@@ -114,7 +114,7 @@ app.get('/api/debug/db-ping', async (req, res) => {
         const envCheck = {
             DATABASE_URL_exists: !!process.env.DATABASE_URL,
             DATABASE_URL_length: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0,
-            DATABASE_URL_preview: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'MISSING',
+            DATABASE_URL_full: process.env.DATABASE_URL || 'MISSING', // Show full URL temporarily for debugging
             NODE_ENV: process.env.NODE_ENV,
             SUPABASE_URL_exists: !!process.env.SUPABASE_URL,
             JWT_SECRET_exists: !!process.env.JWT_SECRET
