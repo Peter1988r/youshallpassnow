@@ -6,7 +6,30 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
+});
+
+// Add connection error handling and detailed logging
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
+});
+
+// Test connection on startup
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('Error acquiring client', err.stack);
+    } else {
+        console.log('Database pool connected successfully');
+        client.query('SELECT NOW()', (err, result) => {
+            release();
+            if (err) {
+                console.error('Error executing query', err.stack);
+            } else {
+                console.log('Database query test successful:', result.rows[0]);
+            }
+        });
+    }
 });
 
 // Initialize database tables
@@ -400,12 +423,24 @@ const initDatabase = async () => {
 // Helper function to run queries
 const query = async (sql, params = []) => {
     try {
+        console.log('🔍 Attempting database query:', sql.substring(0, 100) + '...');
+        console.log('🔍 DATABASE_URL present:', !!process.env.DATABASE_URL);
+        console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+        
         const client = await pool.connect();
+        console.log('✅ Database client connected successfully');
+        
         const result = await client.query(sql, params);
         client.release();
+        
+        console.log('✅ Query executed successfully, rows returned:', result.rows.length);
         return result.rows;
     } catch (error) {
-        console.error('Query error:', error);
+        console.error('❌ Query error details:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         throw error;
     }
 };
