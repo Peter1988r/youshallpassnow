@@ -2835,17 +2835,17 @@ app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, r
         const currentZones = eventResult[0].access_zones || [];
         console.log('Current zones:', currentZones);
         
-        // Find and update the zone
-        const zoneIndex = parseInt(zoneId);
-        console.log('Zone index:', zoneIndex);
+        // Find zone by ID (same logic as delete operation)
+        const zoneIndex = currentZones.findIndex(zone => String(zone.id) === String(zoneId));
+        console.log('Zone index found:', zoneIndex);
+        
+        if (zoneIndex === -1) {
+            console.error('Zone not found with ID:', zoneId);
+            return res.status(404).json({ error: 'Zone not found' });
+        }
         
         const targetZone = currentZones[zoneIndex];
         console.log('Target zone:', targetZone);
-        
-        if (!targetZone) {
-            console.error('Zone not found at index:', zoneIndex);
-            return res.status(404).json({ error: 'Zone not found' });
-        }
         
         // Update the zone's default flag
         targetZone.is_default = is_default;

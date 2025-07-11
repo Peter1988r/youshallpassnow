@@ -783,7 +783,8 @@ async function toggleDefaultZone(zoneIndex, isDefault) {
             zone,
             eventId,
             isDefault,
-            zoneId: zone.id || zoneIndex
+            zoneId: zone.id || zoneIndex,
+            hasZoneId: !!zone.id
         });
         
         const response = await fetch(`/api/admin/events/${eventId}/zones/${zone.id || zoneIndex}/default`, {
