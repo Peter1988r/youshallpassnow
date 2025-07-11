@@ -2616,14 +2616,17 @@ app.get('/api/admin/events/:eventId/zones', authenticateToken, requireSuperAdmin
         
         // Parse zones from JSONB or return empty array
         const zones = eventResult[0].access_zones || [];
+        console.log('Raw zones from database:', JSON.stringify(zones, null, 2));
         
-        // Add IDs for frontend management if they don't exist
+        // Add IDs for frontend management if they don't exist and preserve all properties
         const zonesWithIds = zones.map((zone, index) => ({
             id: zone.id || index,
             zone_number: zone.zone_number,
-            area_name: zone.area_name
+            area_name: zone.area_name,
+            is_default: zone.is_default || false
         }));
         
+        console.log('Processed zones for frontend:', JSON.stringify(zonesWithIds, null, 2));
         res.json(zonesWithIds);
     } catch (error) {
         console.error('Get event zones error:', error);
@@ -2859,6 +2862,7 @@ app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, r
         `, [JSON.stringify(currentZones), eventId]);
         
         console.log('Database updated successfully');
+        console.log('Saved zones to database:', JSON.stringify(currentZones, null, 2));
         
         res.json({
             message: `Zone ${targetZone.zone_number} default setting updated successfully`,
