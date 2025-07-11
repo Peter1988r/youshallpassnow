@@ -230,8 +230,17 @@ async function loadEventsTab() {
                               status === 'ongoing' ? 'ongoing' : 
                               status === 'ended' ? 'ended' : 'cancelled';
             
+            // Use event photo if available, fallback to logo
+            const eventImage = event.event_photo_path || '/assets/YSPlogoV2.png';
+            
             html += `
                 <div class="event-card" data-event-id="${event.id}">
+                    <div class="event-card-image">
+                        <img src="${eventImage}" alt="${event.name}" onerror="this.src='/assets/YSPlogoV2.png'">
+                        <div class="event-card-status-overlay">
+                            <span class="status-badge ${statusClass}">${status}</span>
+                        </div>
+                    </div>
                     <div class="event-card-header">
                         <h3>${event.name}</h3>
                         <div class="event-card-location">📍 ${event.location}</div>
@@ -241,9 +250,6 @@ async function loadEventsTab() {
                     </div>
                     <div class="event-card-body">
                         <div class="event-card-company">🏢 ${event.company_names || 'No Companies Assigned'}</div>
-                        <div class="event-card-status">
-                            <span class="status-badge ${statusClass}">${status}</span>
-                        </div>
                     </div>
                 </div>
             `;

@@ -107,10 +107,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const colorVariant = `variant-${(index % 5) + 1}`;
             const eventIcon = getEventIcon(event.name);
             
+            // Use event photo if available, fallback to gradient with icon
+            const eventImage = event.event_photo_path || null;
+            
+            let headerContent;
+            if (eventImage) {
+                headerContent = `
+                    <div class="event-card-image">
+                        <img src="${eventImage}" alt="${event.name}" onerror="this.parentNode.innerHTML='<div class=&quot;event-card-header ${colorVariant}&quot;><div class=&quot;event-card-icon&quot;>${eventIcon}</div></div>'">
+                    </div>
+                `;
+            } else {
+                headerContent = `
+                    <div class="event-card-header ${colorVariant}">
+                        <div class="event-card-icon">${eventIcon}</div>
+                    </div>
+                `;
+            }
+            
             eventCard.innerHTML = `
-                <div class="event-card-header ${colorVariant}">
-                    <div class="event-card-icon">${eventIcon}</div>
-                </div>
+                ${headerContent}
                 <div class="event-info">
                     <h3>${event.name}</h3>
                     <p>${event.location}</p>
