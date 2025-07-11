@@ -105,6 +105,111 @@ app.get('/test-static', (req, res) => {
     });
 });
 
+// Database ping endpoint for debugging
+app.get('/api/debug/db-ping', async (req, res) => {
+    try {
+        console.log('🔵 DATABASE PING TEST STARTING...');
+        
+        // Environment check
+        const envCheck = {
+            DATABASE_URL_exists: !!process.env.DATABASE_URL,
+            DATABASE_URL_length: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0,
+            DATABASE_URL_preview: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'MISSING',
+            NODE_ENV: process.env.NODE_ENV,
+            SUPABASE_URL_exists: !!process.env.SUPABASE_URL,
+            JWT_SECRET_exists: !!process.env.JWT_SECRET
+        };
+        
+        console.log('🔍 Environment check:', envCheck);
+        
+        // Test 1: Simple connection test
+        console.log('🔍 Test 1: Simple connection...');
+        const { Pool } = require('pg');
+        const testPool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            connectionTimeoutMillis: 10000,
+        });
+        
+        const client = await testPool.connect();
+        console.log('✅ Test 1: Connection successful');
+        
+        // Test 2: Simple query
+        console.log('🔍 Test 2: Simple query...');
+        const timeResult = await client.query('SELECT NOW() as current_time');
+        console.log('✅ Test 2: Query successful:', timeResult.rows[0]);
+        
+        // Test 3: Check if tables exist
+        console.log('🔍 Test 3: Check tables...');
+        const tablesResult = await client.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+        `);
+        console.log('✅ Test 3: Tables found:', tablesResult.rows.length);
+        
+        // Test 4: Check users table
+        console.log('🔍 Test 4: Check users...');
+        const usersResult = await client.query('SELECT COUNT(*) as user_count FROM users');
+        console.log('✅ Test 4: Users count:', usersResult.rows[0]);
+        
+        client.release();
+        await testPool.end();
+        
+        res.json({
+            success: true,
+            message: 'Database connection successful',
+            environment: envCheck,
+            tests: {
+                connection: true,
+                simple_query: timeResult.rows[0],
+                tables_count: tablesResult.rows.length,
+                tables: tablesResult.rows.map(r => r.table_name),
+                users_count: usersResult.rows[0].user_count
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ DATABASE PING FAILED:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            position: error.position,
+            internalPosition: error.internalPosition,
+            internalQuery: error.internalQuery,
+            where: error.where,
+            schema: error.schema,
+            table: error.table,
+            column: error.column,
+            dataType: error.dataType,
+            constraint: error.constraint,
+            file: error.file,
+            line: error.line,
+            routine: error.routine,
+            stack: error.stack
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Database connection failed',
+            error: {
+                message: error.message,
+                code: error.code,
+                detail: error.detail,
+                hint: error.hint
+            },
+            environment: {
+                DATABASE_URL_exists: !!process.env.DATABASE_URL,
+                DATABASE_URL_preview: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'MISSING',
+                NODE_ENV: process.env.NODE_ENV
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Test endpoint to check demo users
 app.get('/test-users', async (req, res) => {
     try {
