@@ -3493,39 +3493,6 @@ app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireS
     }
 });
 
-// Cleanup events endpoint - delete ALL events
-app.post('/api/admin/cleanup-events', authenticateToken, requireSuperAdmin, async (req, res) => {
-    try {
-        console.log('Starting event cleanup - deleting ALL events...');
-        
-        // First, delete all crew members associated with events
-        const crewResult = await run('DELETE FROM crew_members');
-        console.log(`Deleted ${crewResult.rowCount} crew members`);
-        
-        // Delete all event-company associations
-        const eventCompaniesResult = await run('DELETE FROM event_companies');
-        console.log(`Deleted ${eventCompaniesResult.rowCount} event-company associations`);
-        
-        // Delete ALL events
-        const eventsResult = await run('DELETE FROM events');
-        console.log(`Deleted ${eventsResult.rowCount} events`);
-        
-        // Show remaining events (should be 0)
-        const remainingEvents = await query('SELECT id, name, status FROM events ORDER BY created_at ASC');
-        console.log('Remaining events:', remainingEvents.length);
-        
-        res.json({
-            message: 'ALL events deleted successfully',
-            deletedEvents: eventsResult.rowCount,
-            remainingEvents: remainingEvents
-        });
-        
-    } catch (error) {
-        console.error('Error during cleanup:', error);
-        res.status(500).json({ error: 'Cleanup failed', details: error.message });
-    }
-});
-
 // Get approved crew members for events with company filter
 app.get('/api/admin/events/:eventId/approved-crew', authenticateToken, async (req, res) => {
     try {

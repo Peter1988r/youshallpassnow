@@ -32,32 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRoleEventListeners();
     
     // Setup migration button
-    const migrateDbBtn = document.getElementById('migrateDbBtn');
-    if (migrateDbBtn) {
-        migrateDbBtn.addEventListener('click', async () => {
-            if (confirm('This will update the database schema to fix the roles table. Continue?')) {
-                try {
-                    const token = localStorage.getItem('token');
-                    const response = await fetch('/api/admin/migrate', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'Migration failed');
-                    }
-                    
-                    showMessage('Database schema updated successfully!', 'success');
-                    loadDashboardData(); // Reload to show updated roles
-                } catch (error) {
-                    showMessage('Migration failed: ' + error.message, 'error');
-                }
-            }
-        });
-    }
     
     console.log('Admin page initialization complete');
 });
@@ -405,7 +379,6 @@ function setupEventListeners() {
     const addRoleBtn = document.getElementById('addRoleBtn');
     const generateReportBtn = document.getElementById('generateReportBtn');
     const signOutBtn = document.getElementById('signOutBtn');
-    const cleanupEventsBtn = document.getElementById('cleanupEventsBtn');
     
     // Close buttons
     const closeModals = document.querySelectorAll('.close-modal');
@@ -457,9 +430,6 @@ function setupEventListeners() {
     }
     if (signOutBtn) {
         signOutBtn.addEventListener('click', signOut);
-    }
-    if (cleanupEventsBtn) {
-        cleanupEventsBtn.addEventListener('click', cleanupEvents);
     }
     
     closeModals.forEach(btn => {
@@ -1171,49 +1141,6 @@ function showMessage(message, type = 'info') {
 // Edit event function
 function editEvent(eventId) {
     window.location.href = `/admin/event-detail?id=${eventId}`;
-}
-
-// Cleanup events function
-async function cleanupEvents() {
-    if (!confirm('⚠️ WARNING: This will delete ALL events completely. This action cannot be undone!\n\nAre you sure you want to delete ALL events?')) {
-        return;
-    }
-    
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/cleanup-events', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            showMessage(`✅ ${result.message} (${result.deletedEvents} events deleted)`, 'success');
-            console.log('Deleted events:', result.deletedEvents);
-            
-            // Refresh the events tab
-            await loadEventsTab();
-            
-            // Show remaining events in console
-            setTimeout(() => {
-                console.log('📋 Remaining events after cleanup:', result.remainingEvents.length);
-                if (result.remainingEvents.length > 0) {
-                    console.log('⚠️ Warning: Some events still remain:', result.remainingEvents);
-                }
-            }, 1000);
-            
-        } else {
-            const error = await response.json();
-            showMessage(`❌ Cleanup failed: ${error.error || 'Unknown error'}`, 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error during cleanup:', error);
-        showMessage(`❌ Error: ${error.message}`, 'error');
-    }
 }
 
 // Load roles for company select
