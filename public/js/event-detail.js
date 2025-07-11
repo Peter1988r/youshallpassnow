@@ -2707,6 +2707,12 @@ function setupEventLayoutUpload() {
         removeEventLayout.addEventListener('click', handleEventLayoutRemoval);
     }
     
+    // Add test button functionality
+    const testLayoutEndpoint = document.getElementById('testLayoutEndpoint');
+    if (testLayoutEndpoint) {
+        testLayoutEndpoint.addEventListener('click', testLayoutEndpointConnectivity);
+    }
+    
     // Note: existing layout will be loaded when populateEventForm is called
 }
 
@@ -2862,6 +2868,36 @@ async function handleEventLayoutRemoval() {
         }, 3000);
         
         showMessage('Failed to remove event layout', 'error');
+    }
+}
+
+// Test layout endpoint connectivity
+async function testLayoutEndpointConnectivity() {
+    const eventId = new URLSearchParams(window.location.search).get('id');
+    const token = localStorage.getItem('token');
+    
+    try {
+        console.log('Testing layout endpoint connectivity...');
+        const response = await fetch(`/api/admin/events/${eventId}/layout/test`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        console.log('Test response status:', response.status);
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Test successful:', result);
+            showMessage('Layout endpoint is working!', 'success');
+        } else {
+            const errorText = await response.text();
+            console.error('Test failed:', response.status, errorText);
+            showMessage(`Layout endpoint test failed: ${response.status}`, 'error');
+        }
+    } catch (error) {
+        console.error('Test error:', error);
+        showMessage('Layout endpoint test error: ' + error.message, 'error');
     }
 }
 

@@ -2363,6 +2363,12 @@ app.delete('/api/admin/events/:eventId/photo', authenticateToken, requireSuperAd
     }
 });
 
+// Test endpoint for layout (temporary)
+app.get('/api/admin/events/:eventId/layout/test', authenticateToken, requireSuperAdmin, (req, res) => {
+    console.log('Layout test endpoint hit for event:', req.params.eventId);
+    res.json({ message: 'Layout endpoint is working', eventId: req.params.eventId });
+});
+
 // Upload event layout (for super admin)
 app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdmin, (req, res) => {
     console.log('Layout upload endpoint hit for event:', req.params.eventId);
