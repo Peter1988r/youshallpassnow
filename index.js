@@ -2403,6 +2403,11 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
             const uniqueFilename = `event-layout-${eventId}-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
             
             // Check Supabase configuration
+            console.log('Checking Supabase configuration for layout upload...');
+            console.log('Supabase URL:', process.env.SUPABASE_URL ? 'SET' : 'MISSING');
+            console.log('Service Key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING');
+            console.log('Supabase instance:', supabase ? 'INITIALIZED' : 'NOT INITIALIZED');
+            
             if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
                 console.error('Supabase configuration missing');
                 return res.status(500).json({ 
@@ -2414,9 +2419,45 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
                 });
             }
             
+            if (!supabase) {
+                console.error('Supabase client not initialized');
+                return res.status(500).json({ 
+                    error: 'Storage client not initialized. Please contact administrator.',
+                });
+            }
+            
             // Upload to Supabase Storage
             const bucketName = process.env.SUPABASE_PHOTOS_BUCKET || 'crew-photos';
             console.log(`Attempting event layout upload to bucket: ${bucketName}`);
+            console.log(`Filename: ${uniqueFilename}`);
+            console.log(`File size: ${req.file.size} bytes`);
+            console.log(`Content type: ${req.file.mimetype}`);
+            
+            // First, check if bucket exists
+            try {
+                const { data: buckets, error: bucketListError } = await supabase.storage.listBuckets();
+                console.log('Available buckets:', buckets?.map(b => b.name));
+                
+                if (bucketListError) {
+                    console.error('Error listing buckets:', bucketListError);
+                }
+                
+                const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+                console.log(`Bucket ${bucketName} exists:`, bucketExists);
+                
+                if (!bucketExists) {
+                    console.log(`Bucket ${bucketName} does not exist. Available buckets:`, buckets?.map(b => b.name));
+                    return res.status(500).json({ 
+                        error: `Storage bucket '${bucketName}' not found`,
+                        debug: {
+                            availableBuckets: buckets?.map(b => b.name) || [],
+                            requestedBucket: bucketName
+                        }
+                    });
+                }
+            } catch (bucketCheckError) {
+                console.error('Error checking bucket existence:', bucketCheckError);
+            }
             
             const { data, error } = await supabase.storage
                 .from(bucketName)
@@ -2425,15 +2466,23 @@ app.post('/api/admin/events/:eventId/layout', authenticateToken, requireSuperAdm
                     upsert: false
                 });
             
+            console.log('Supabase upload result:', { data, error });
+            
             if (error) {
-                console.error('Supabase storage error:', error);
+                console.error('Supabase storage error details:', {
+                    message: error.message,
+                    statusCode: error.statusCode,
+                    error: error.error,
+                    path: error.path
+                });
                 return res.status(500).json({ 
                     error: 'Failed to upload to storage: ' + error.message,
                     debug: {
                         bucket: bucketName,
                         filename: uniqueFilename,
                         errorCode: error.statusCode,
-                        errorMessage: error.message
+                        errorMessage: error.message,
+                        errorDetails: error
                     }
                 });
             }
