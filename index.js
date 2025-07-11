@@ -1316,6 +1316,7 @@ app.get('/api/company/events', authenticateToken, async (req, res) => {
                 e.end_date,
                 e.description,
                 e.status,
+                e.event_photo_path,
                 e.created_at
             FROM events e
             INNER JOIN event_companies ec ON e.id = ec.event_id
@@ -1337,6 +1338,7 @@ app.get('/api/company/events', authenticateToken, async (req, res) => {
                     end_date,
                     description,
                     status,
+                    event_photo_path,
                     created_at
                 FROM events
                 WHERE company_id = $1
