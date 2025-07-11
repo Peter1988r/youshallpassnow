@@ -202,7 +202,7 @@ app.get('/api/debug/db-ping', async (req, res) => {
             },
             environment: {
                 DATABASE_URL_exists: !!process.env.DATABASE_URL,
-                DATABASE_URL_preview: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'MISSING',
+                DATABASE_URL_full: process.env.DATABASE_URL || 'MISSING',
                 NODE_ENV: process.env.NODE_ENV
             },
             timestamp: new Date().toISOString()
