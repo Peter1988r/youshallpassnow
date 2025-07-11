@@ -2808,7 +2808,15 @@ app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, r
         const { eventId, zoneId } = req.params;
         const { is_default } = req.body;
         
+        console.log('Toggle default zone request:', {
+            eventId,
+            zoneId,
+            is_default,
+            body: req.body
+        });
+        
         if (typeof is_default !== 'boolean') {
+            console.error('Invalid is_default value:', is_default, typeof is_default);
             return res.status(400).json({ error: 'is_default must be a boolean' });
         }
         
@@ -2817,22 +2825,31 @@ app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, r
             SELECT access_zones FROM events WHERE id = $1
         `, [eventId]);
         
+        console.log('Event result:', eventResult);
+        
         if (eventResult.length === 0) {
+            console.error('Event not found:', eventId);
             return res.status(404).json({ error: 'Event not found' });
         }
         
         const currentZones = eventResult[0].access_zones || [];
+        console.log('Current zones:', currentZones);
         
         // Find and update the zone
         const zoneIndex = parseInt(zoneId);
+        console.log('Zone index:', zoneIndex);
+        
         const targetZone = currentZones[zoneIndex];
+        console.log('Target zone:', targetZone);
         
         if (!targetZone) {
+            console.error('Zone not found at index:', zoneIndex);
             return res.status(404).json({ error: 'Zone not found' });
         }
         
         // Update the zone's default flag
         targetZone.is_default = is_default;
+        console.log('Updated zone:', targetZone);
         
         // Update the database
         await run(`
@@ -2840,6 +2857,8 @@ app.put('/api/admin/events/:eventId/zones/:zoneId/default', authenticateToken, r
             SET access_zones = $1, updated_at = CURRENT_TIMESTAMP
             WHERE id = $2
         `, [JSON.stringify(currentZones), eventId]);
+        
+        console.log('Database updated successfully');
         
         res.json({
             message: `Zone ${targetZone.zone_number} default setting updated successfully`,

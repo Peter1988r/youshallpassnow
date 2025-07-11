@@ -768,12 +768,23 @@ async function deleteZone(zoneIndex) {
 // Toggle default zone setting
 async function toggleDefaultZone(zoneIndex, isDefault) {
     const zone = eventZones[zoneIndex];
-    if (!zone) return;
+    if (!zone) {
+        console.error('Zone not found at index:', zoneIndex);
+        return;
+    }
     
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
         const token = localStorage.getItem('token');
+        
+        console.log('Toggling default zone:', {
+            zoneIndex,
+            zone,
+            eventId,
+            isDefault,
+            zoneId: zone.id || zoneIndex
+        });
         
         const response = await fetch(`/api/admin/events/${eventId}/zones/${zone.id || zoneIndex}/default`, {
             method: 'PUT',
@@ -784,9 +795,16 @@ async function toggleDefaultZone(zoneIndex, isDefault) {
             body: JSON.stringify({ is_default: isDefault })
         });
         
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
-            throw new Error('Failed to update default zone setting');
+            const errorText = await response.text();
+            console.error('Server error:', response.status, errorText);
+            throw new Error(`Failed to update default zone setting: ${response.status} - ${errorText}`);
         }
+        
+        const result = await response.json();
+        console.log('Success result:', result);
         
         // Update local zone data
         eventZones[zoneIndex].is_default = isDefault;
