@@ -324,56 +324,10 @@
         </section>
 
         <!-- Events Grid -->
-        <section class="events-grid">
-            <!-- Formula E Event -->
-            <div class="event-card">
-                <div class="event-image">
-                    <img src="/assets/images/formula-e.jpg" alt="Formula E">
-                    <span class="event-date">MAR 15-16, 2024</span>
-                </div>
-                <div class="event-content">
-                    <h3>Formula E World Championship</h3>
-                    <p class="event-location">São Paulo, Brazil</p>
-                    <p class="event-description">Experience the future of racing at the São Paulo E-Prix. Witness electric racing at its finest in the heart of Brazil.</p>
-                    <div class="event-footer">
-                        <span class="event-status">Registration Open</span>
-                        <button class="btn-primary">Apply Now</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Extreme E Event -->
-            <div class="event-card">
-                <div class="event-image">
-                    <img src="/assets/images/extreme-e.jpg" alt="Extreme E">
-                    <span class="event-date">APR 3-4, 2024</span>
-                </div>
-                <div class="event-content">
-                    <h3>Extreme E Desert X Prix</h3>
-                    <p class="event-location">Saudi Arabia</p>
-                    <p class="event-description">Watch electric SUVs battle it out in the desert. Sustainable racing meets extreme conditions.</p>
-                    <div class="event-footer">
-                        <span class="event-status">Coming Soon</span>
-                        <button class="btn-secondary">Notify Me</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- E1 Series Event -->
-            <div class="event-card">
-                <div class="event-image">
-                    <img src="/assets/images/e1-series.jpg" alt="E1 Series">
-                    <span class="event-date">MAY 20-21, 2024</span>
-                </div>
-                <div class="event-content">
-                    <h3>E1 Series Championship</h3>
-                    <p class="event-location">Venice, Italy</p>
-                    <p class="event-description">The world's first electric powerboat racing series comes to Venice. Revolutionary marine racing technology in action.</p>
-                    <div class="event-footer">
-                        <span class="event-status">Early Access</span>
-                        <button class="btn-primary">Register Interest</button>
-                    </div>
-                </div>
+        <section class="events-grid" id="eventsGrid">
+            <!-- Events will be loaded dynamically -->
+            <div class="loading-message">
+                <p>Loading events...</p>
             </div>
         </section>
     </main>
@@ -409,5 +363,153 @@
 
     <!-- Main JavaScript -->
     <script src="/js/main.js"></script>
+    
+    <!-- Events Page JavaScript -->
+    <script>
+        // Load real events from API
+        async function loadEvents() {
+            try {
+                const response = await fetch('/api/events');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch events');
+                }
+                
+                const events = await response.json();
+                displayEvents(events);
+            } catch (error) {
+                console.error('Error loading events:', error);
+                showErrorMessage('Failed to load events. Please try again later.');
+            }
+        }
+
+        // Display events in the grid
+        function displayEvents(events) {
+            const eventsGrid = document.getElementById('eventsGrid');
+            
+            if (events.length === 0) {
+                eventsGrid.innerHTML = '<div class="no-events"><p>No events available at this time.</p></div>';
+                return;
+            }
+
+            let eventsHTML = '';
+            events.forEach(event => {
+                const startDate = new Date(event.start_date);
+                const endDate = new Date(event.end_date);
+                const isOngoing = new Date() >= startDate && new Date() <= endDate;
+                const isPast = new Date() > endDate;
+                const isFuture = new Date() < startDate;
+                
+                // Format dates
+                const dateRange = formatEventDates(startDate, endDate);
+                
+                // Determine status
+                let statusText = 'Registration Open';
+                let statusClass = 'registration-open';
+                
+                if (isPast) {
+                    statusText = 'Event Completed';
+                    statusClass = 'completed';
+                } else if (isOngoing) {
+                    statusText = 'Event Ongoing';
+                    statusClass = 'ongoing';
+                } else if (isFuture) {
+                    statusText = 'Upcoming';
+                    statusClass = 'upcoming';
+                }
+                
+                // Use placeholder image
+                const eventImage = '/assets/images/logo.jpg';
+                
+                eventsHTML += `
+                    <div class="event-card">
+                        <div class="event-image">
+                            <img src="${eventImage}" alt="${event.name}" onerror="this.style.display='none'">
+                            <span class="event-date">${dateRange}</span>
+                        </div>
+                        <div class="event-content">
+                            <h3>${event.name}</h3>
+                            <p class="event-location">${event.location}</p>
+                            <p class="event-description">${event.description || 'Professional event accreditation and access control.'}</p>
+                            <div class="event-footer">
+                                <span class="event-status ${statusClass}">${statusText}</span>
+                                <button class="btn-primary" onclick="redirectToSignin()">Apply for Access</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            eventsGrid.innerHTML = eventsHTML;
+        }
+
+        // Format event dates
+        function formatEventDates(startDate, endDate) {
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            const start = startDate.toLocaleDateString('en-US', options).toUpperCase();
+            
+            if (startDate.toDateString() === endDate.toDateString()) {
+                return start;
+            }
+            
+            const end = endDate.toLocaleDateString('en-US', options).toUpperCase();
+            return `${start} - ${end}`;
+        }
+
+        // Show error message
+        function showErrorMessage(message) {
+            const eventsGrid = document.getElementById('eventsGrid');
+            eventsGrid.innerHTML = `
+                <div class="error-message">
+                    <p>${message}</p>
+                    <button onclick="loadEvents()" class="btn-primary">Retry</button>
+                </div>
+            `;
+        }
+
+        // Redirect to sign in page
+        function redirectToSignin() {
+            window.location.href = '/signin';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEvents();
+        });
+    </script>
+    
+    <!-- Additional styles for dynamic content -->
+    <style>
+        .loading-message, .no-events, .error-message {
+            text-align: center;
+            padding: 3rem;
+            color: #6B7280;
+            font-size: 1.1rem;
+            grid-column: 1 / -1;
+        }
+        
+        .error-message button {
+            margin-top: 1rem;
+        }
+        
+        .event-status.registration-open {
+            background-color: #D1FAE5;
+            color: #065F46;
+        }
+        
+        .event-status.upcoming {
+            background-color: #DBEAFE;
+            color: #1E40AF;
+        }
+        
+        .event-status.ongoing {
+            background-color: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .event-status.completed {
+            background-color: #F3F4F6;
+            color: #6B7280;
+        }
+    </style>
 </body>
 </html> 
