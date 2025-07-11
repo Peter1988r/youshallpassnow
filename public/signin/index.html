@@ -238,65 +238,6 @@
             color: #764ba2;
         }
         
-        /* Social auth */
-        .auth-divider {
-            margin: 2rem 0;
-            text-align: center;
-            position: relative;
-        }
-        
-        .auth-divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.3), transparent);
-        }
-        
-        .auth-divider span {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            padding: 0 1.5rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            border-radius: 20px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-        }
-        
-        .social-auth {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .btn-social {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 12px;
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 12px;
-            background: rgba(30, 41, 59, 0.3);
-            color: var(--text-primary);
-            text-decoration: none;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-social:hover {
-            border-color: var(--primary-color);
-            background: rgba(30, 41, 59, 0.5);
-            transform: translateY(-1px);
-        }
-        
-        .btn-social img {
-            width: 20px;
-            height: 20px;
-        }
         
         /* Auth footer */
         .auth-footer {
@@ -367,51 +308,6 @@
             color: var(--text-secondary);
         }
         
-        .demo-credentials {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-            border-radius: 12px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            backdrop-filter: blur(10px);
-        }
-        
-        .demo-credentials h4 {
-            margin: 0 0 1rem 0;
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .credential-group {
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            background: rgba(30, 41, 59, 0.3);
-            border-radius: 8px;
-            border: 1px solid rgba(102, 126, 234, 0.1);
-        }
-        
-        .credential-group:last-child {
-            margin-bottom: 0;
-        }
-        
-        .credential-group strong {
-            color: var(--text-primary);
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        
-        .credential-group p {
-            margin: 0.25rem 0;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-family: 'Courier New', monospace;
-        }
     </style>
 </head>
 <body>
@@ -478,41 +374,8 @@
                 <div class="form-group">
                     <button type="submit" class="btn-primary btn-block">Sign In</button>
                 </div>
-                
-                <!-- Demo Credentials -->
-                <div class="demo-credentials">
-                    <h4>Demo Credentials</h4>
-                    <div class="credential-group">
-                        <strong>Super Admin:</strong>
-                        <p>Email: admin@youshallpass.com</p>
-                        <p>Password: admin123</p>
-                    </div>
-                    <div class="credential-group">
-                        <strong>Company Admin:</strong>
-                        <p>Email: company@demo.youshallpass.com</p>
-                        <p>Password: company123</p>
-                    </div>
-                </div>
 
-                <div class="auth-divider">
-                    <span>Or continue with</span>
-                </div>
-
-                <div class="social-auth">
-                    <button type="button" class="btn-social btn-google">
-                        <img src="/assets/images/google-icon.svg" alt="Google">
-                        Google
-                    </button>
-                    <button type="button" class="btn-social btn-microsoft">
-                        <img src="/assets/images/microsoft-icon.svg" alt="Microsoft">
-                        Microsoft
-                    </button>
-                </div>
             </form>
-
-            <div class="auth-footer">
-                <p>Don't have an account? <a href="/signup">Sign up</a></p>
-            </div>
         </div>
     </main>
 
