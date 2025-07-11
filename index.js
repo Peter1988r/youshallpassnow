@@ -112,14 +112,16 @@ app.get('/api/debug/db-ping', async (req, res) => {
     try {
         console.log('🔵 DATABASE PING TEST STARTING...');
         
-        // Environment check
+        // Environment check - Test ALL environment variables
         const envCheck = {
             DATABASE_URL_exists: !!process.env.DATABASE_URL,
-            DATABASE_URL_length: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0,
-            DATABASE_URL_full: process.env.DATABASE_URL || 'MISSING', // Show full URL temporarily for debugging
+            DATABASE_URL_full: process.env.DATABASE_URL || 'MISSING',
             NODE_ENV: process.env.NODE_ENV,
+            JWT_SECRET_exists: !!process.env.JWT_SECRET,
+            JWT_SECRET_preview: process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 20) + '...' : 'MISSING',
             SUPABASE_URL_exists: !!process.env.SUPABASE_URL,
-            JWT_SECRET_exists: !!process.env.JWT_SECRET
+            SUPABASE_URL_full: process.env.SUPABASE_URL || 'MISSING',
+            ALL_ENV_VARS: Object.keys(process.env).filter(key => key.startsWith('DATABASE') || key.startsWith('SUPABASE') || key.startsWith('JWT'))
         };
         
         console.log('🔍 Environment check:', envCheck);
