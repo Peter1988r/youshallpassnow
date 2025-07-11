@@ -120,24 +120,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
-    // Add demo credentials helper (remove in production)
-    const authBox = document.querySelector('.auth-box');
-    if (authBox) {
-        const demoHelper = document.createElement('div');
-        demoHelper.style.cssText = `
-            margin-top: 20px;
-            padding: 12px;
-            background-color: #f3f4f6;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #6b7280;
-            text-align: center;
-        `;
-        demoHelper.innerHTML = `
-            <strong>Demo Credentials:</strong><br>
-            <strong>Super Admin:</strong> admin@youshallpass.com / admin123<br>
-            <strong>Company Admin:</strong> company@demo.youshallpass.com / company123
-        `;
-        authBox.appendChild(demoHelper);
-    }
 }); 
