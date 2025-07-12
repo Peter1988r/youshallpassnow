@@ -1,0 +1,6 @@
+    <script>
+        // Force dark mode permanently
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark-mode');
+        localStorage.removeItem('theme');
+    </script>

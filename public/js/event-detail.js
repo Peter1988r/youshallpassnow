@@ -13,6 +13,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Check user role and hide badge template features for non-Super Admins
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        const user = JSON.parse(userStr);
+        if (!user.is_super_admin) {
+            // Hide badge template tab and section for Company Admins
+            const badgeTemplateTab = document.querySelector('[data-tab="badge-template"]');
+            const badgeTemplateSection = document.querySelector('[data-tab="badge-template"].tab-panel');
+            
+            if (badgeTemplateTab) {
+                badgeTemplateTab.style.display = 'none';
+            }
+            if (badgeTemplateSection) {
+                badgeTemplateSection.style.display = 'none';
+            }
+            
+            console.log('Badge template features hidden for Company Admin');
+        }
+    }
+
     // Get event ID from URL
     const urlParams = new URLSearchParams(window.location.search);
     const eventId = urlParams.get('id');
@@ -1672,6 +1692,19 @@ async function printBadge(crewId) {
 // Load badge template configuration for the event
 async function loadBadgeTemplate(eventId) {
     try {
+        // Check if user is super admin before attempting to load badge template
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            console.log('No user found in localStorage');
+            return;
+        }
+        
+        const user = JSON.parse(userStr);
+        if (!user.is_super_admin) {
+            console.log('Badge template access restricted to Super Admins only');
+            return;
+        }
+        
         const token = localStorage.getItem('token');
         const response = await fetch(`/api/admin/events/${eventId}/badge-template`, {
             headers: {
@@ -1841,6 +1874,19 @@ function updateBadgeTemplateFormVisibility() {
 // Save badge template configuration - FIX FOR MULTIPLE PDF ISSUE
 async function saveBadgeTemplate() {
     try {
+        // Check if user is super admin before attempting to save badge template
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            showMessage('Authentication required', 'error');
+            return;
+        }
+        
+        const user = JSON.parse(userStr);
+        if (!user.is_super_admin) {
+            showMessage('Badge template management is restricted to Super Admins only', 'error');
+            return;
+        }
+        
         const eventId = new URLSearchParams(window.location.search).get('id');
         const token = localStorage.getItem('token');
         
