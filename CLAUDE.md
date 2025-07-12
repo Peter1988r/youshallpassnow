@@ -287,3 +287,104 @@ const events = await query('SELECT * FROM events');
 6. **Field validation**: Test mobile interface and camera integration
 7. **Production deployment**: Request permission, commit, verify on live site
 8. **User role testing**: Test with Super Admin, Company Admin, and Field Admin roles
+
+---
+
+## Lessons Learned - Production Deployment Issues (Session: Jan 2025)
+
+### Critical Production Readiness Issues Found
+
+#### 🚨 **Database Connection Issues - Root Causes & Solutions**
+
+**Problem**: Database connection failures in production despite correct credentials
+**Attempts**: Multiple environment variable updates, fresh Vercel projects, credential rotation
+**Root Cause**: Multiple layers of credential override causing confusion
+
+**Key Learnings**:
+1. **Hardcoded credentials in vercel.json override dashboard settings** - Always check vercel.json for env vars
+2. **dotenv conflicts with Vercel environment variables** - Disable dotenv in production with `if (process.env.NODE_ENV !== 'production')`
+3. **Connection string format matters** - Pooled vs direct connection have different hostnames:
+   - Direct: `postgresql://postgres:pass@db.project.supabase.co:5432/postgres`
+   - Pooled: `postgresql://postgres:pass@aws-region.pooler.supabase.com:6543/postgres`
+4. **DNS resolution issues** - Some Supabase hostnames (db.project.supabase.co) may not resolve properly
+5. **Environment variable caching** - Vercel can cache old values; requires complete project recreation in extreme cases
+
+**Debugging Strategy**:
+- Add debug endpoint to show actual environment variables being used
+- Test DNS resolution manually: `nslookup hostname`
+- Check git history for hardcoded credentials
+- Verify environment variable scope (Production vs Preview vs Development)
+
+#### 🔒 **Security Vulnerabilities - Critical Findings**
+
+**Major Security Issues Discovered**:
+1. **Debug endpoints exposed in production** - `/test-users`, `/test-db`, `/init-db`, `/fix-tables` exposed sensitive data
+2. **Hardcoded default passwords** - admin123/company123 still in database schema
+3. **Security headers disabled** - Helmet middleware commented out, permissive CSP
+4. **Information disclosure** - Detailed error messages revealing internal structure
+
+**Security Audit Process**:
+- Systematic search for hardcoded credentials across all files
+- Review of all API endpoints for debug/test routes
+- Check for proper security header implementation
+- Verify error handling doesn't leak sensitive information
+
+#### 🛠 **Deployment Process Issues**
+
+**Shell Environment Problems**:
+- Shell snapshot file corruption: `/var/folders/.../claude-shell-snapshot-xxxx`
+- Persistent across multiple sessions
+- Workaround: Manual git commands while using file editing tools
+
+**Vercel Deployment Issues**:
+- Environment variables not updating despite UI changes
+- Function cache persistence requiring complete project recreation
+- Build cache conflicts with environment variable updates
+
+### Best Practices Established
+
+#### 🔍 **Pre-Production Security Checklist**
+1. **Remove all debug endpoints** - Search for patterns: `/test-*`, `/debug-*`, `/init-*`, `/fix-*`
+2. **Verify environment variables** - Check vercel.json for hardcoded values
+3. **Enable security headers** - Ensure Helmet is enabled with proper CSP
+4. **Change default passwords** - Never deploy with hardcoded admin credentials
+5. **Test database connections** - Use proper connection string format for environment
+6. **Audit error handling** - Ensure production errors don't expose internals
+
+#### 🚀 **Deployment Strategy**
+1. **Create debug endpoints temporarily** for troubleshooting complex issues
+2. **Use systematic approach** to isolate problems (environment → code → platform)
+3. **Document exact error messages** for faster diagnosis
+4. **Keep production and development environments clearly separated**
+5. **Always test fresh deployments** immediately after major changes
+
+#### 🔧 **Environment Management**
+1. **Never use dotenv in production** - Only for local development
+2. **Verify DNS resolution** for external service hostnames
+3. **Use pooled connections** when direct connections fail
+4. **Maintain separate environment variable documentation**
+5. **Test environment variable changes** with debug endpoints before removing them
+
+#### 🛡 **Security Hardening Process**
+1. **Scan for exposed credentials** using multiple search patterns
+2. **Remove debug functionality** completely from production builds
+3. **Implement proper error handling** that doesn't leak information
+4. **Enable all security headers** with appropriate CSP policies
+5. **Audit authentication flows** for weak defaults or hardcoded values
+
+### Resolution Timeline Pattern
+
+**Typical Issue Resolution Flow**:
+1. **Initial symptoms** - Generic error messages or connection failures
+2. **Environment investigation** - Check variables, DNS, credentials
+3. **Code audit** - Search for hardcoded values or conflicts
+4. **Platform issues** - Vercel caching, deployment problems
+5. **Nuclear options** - Complete project recreation if caching persists
+6. **Security audit** - Comprehensive review of production readiness
+
+**Time-Saving Tips**:
+- Always check vercel.json first for hardcoded environment variables
+- Use debug endpoints early to see actual runtime values
+- Test DNS resolution manually before debugging connection issues
+- Search entire codebase for old credentials when rotating secrets
+- Document exact error messages and solutions for future reference
