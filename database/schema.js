@@ -136,6 +136,23 @@ const initDatabase = async () => {
             END $$;
         `);
 
+        // Add original template image dimensions for accurate coordinate scaling
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='badge_template_original_width') THEN
+                    ALTER TABLE events ADD COLUMN badge_template_original_width INTEGER;
+                END IF;
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='badge_template_original_height') THEN
+                    ALTER TABLE events ADD COLUMN badge_template_original_height INTEGER;
+                END IF;
+            END $$;
+        `);
+
         // Add access zones column to events table
         await client.query(`
             DO $$ BEGIN

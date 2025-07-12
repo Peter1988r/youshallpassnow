@@ -381,6 +381,10 @@ class PDFGenerator {
             // Support both new and legacy template image paths
             const templateImagePath = event.badge_template_image_path || event.custom_badge_template_path;
             
+            // Get original template dimensions for accurate scaling
+            const originalWidth = event.badge_template_original_width;
+            const originalHeight = event.badge_template_original_height;
+            
             console.log('Creating custom badge with positions:', {
                 crewMemberId: crewMember.id,
                 crewMemberName: `${crewMember.first_name} ${crewMember.last_name}`,
@@ -388,13 +392,17 @@ class PDFGenerator {
                 newFormat: !!event.badge_template_image_path,
                 fieldCount: Object.keys(fieldPositions).length,
                 fieldTypes: Object.keys(fieldPositions),
-                badgeSize: { width: badgeWidth, height: badgeHeight }
+                badgeSize: { width: badgeWidth, height: badgeHeight },
+                originalDimensions: { width: originalWidth, height: originalHeight }
             });
+
+            // Calculate image scaling for coordinate adjustments
+            const imageScaling = this.calculateImageScaling(originalWidth, originalHeight, badgeWidth, badgeHeight);
 
             // Load background image if template path exists
             if (templateImagePath) {
                 console.log('Loading background image from:', templateImagePath.startsWith('http') ? 'Supabase URL' : 'local/data URI');
-                await this.loadBackgroundImage(doc, templateImagePath, badgeWidth, badgeHeight);
+                await this.loadBackgroundImage(doc, templateImagePath, badgeWidth, badgeHeight, originalWidth, originalHeight);
             } else {
                 console.log('No template path provided, using background color');
                 // Create a simple background if no image is provided
@@ -407,7 +415,7 @@ class PDFGenerator {
             // Position and render each field based on stored coordinates
             console.log('Rendering positioned fields...');
             for (const [fieldType, position] of Object.entries(fieldPositions)) {
-                await this.renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight);
+                await this.renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight, imageScaling);
             }
 
             console.log('Custom badge creation completed successfully');
@@ -418,10 +426,62 @@ class PDFGenerator {
         }
     }
 
+    // Calculate image scaling to maintain aspect ratio
+    calculateImageScaling(originalWidth, originalHeight, targetWidth, targetHeight) {
+        if (!originalWidth || !originalHeight) {
+            // No original dimensions available, stretch to fill
+            return {
+                width: targetWidth,
+                height: targetHeight,
+                x: 0,
+                y: 0,
+                scaleX: 1,
+                scaleY: 1
+            };
+        }
+
+        const originalAspect = originalWidth / originalHeight;
+        const targetAspect = targetWidth / targetHeight;
+
+        let scaledWidth, scaledHeight, x = 0, y = 0;
+
+        if (originalAspect > targetAspect) {
+            // Image is wider than target - fit to width
+            scaledWidth = targetWidth;
+            scaledHeight = targetWidth / originalAspect;
+            y = (targetHeight - scaledHeight) / 2; // Center vertically
+        } else {
+            // Image is taller than target - fit to height
+            scaledHeight = targetHeight;
+            scaledWidth = targetHeight * originalAspect;
+            x = (targetWidth - scaledWidth) / 2; // Center horizontally
+        }
+
+        return {
+            width: scaledWidth,
+            height: scaledHeight,
+            x: x,
+            y: y,
+            scaleX: scaledWidth / targetWidth,
+            scaleY: scaledHeight / targetHeight
+        };
+    }
+
     // Load background image for custom template
-    async loadBackgroundImage(doc, imagePath, badgeWidth, badgeHeight) {
+    async loadBackgroundImage(doc, imagePath, badgeWidth, badgeHeight, originalWidth = null, originalHeight = null) {
         try {
             console.log('Loading background image from path:', imagePath?.substring(0, 50) + '...');
+            
+            // Calculate proper scaling
+            const scaling = this.calculateImageScaling(originalWidth, originalHeight, badgeWidth, badgeHeight);
+            
+            console.log('Image scaling calculation:', {
+                original: { width: originalWidth, height: originalHeight },
+                target: { width: badgeWidth, height: badgeHeight },
+                scaled: { width: scaling.width, height: scaling.height },
+                position: { x: scaling.x, y: scaling.y },
+                scaleFactors: { x: scaling.scaleX, y: scaling.scaleY }
+            });
             
             // Check if it's a data URI (base64 encoded image)
             if (imagePath.startsWith('data:')) {
@@ -435,9 +495,9 @@ class PDFGenerator {
                     
                     const imageBuffer = Buffer.from(base64Data, 'base64');
                     
-                    doc.image(imageBuffer, 0, 0, { 
-                        width: badgeWidth, 
-                        height: badgeHeight 
+                    doc.image(imageBuffer, scaling.x, scaling.y, { 
+                        width: scaling.width, 
+                        height: scaling.height 
                     });
                     console.log('Background image loaded successfully from data URI');
                     return;
@@ -463,9 +523,9 @@ class PDFGenerator {
                         response.on('end', () => {
                             try {
                                 const imageBuffer = Buffer.concat(chunks);
-                                doc.image(imageBuffer, 0, 0, { 
-                                    width: badgeWidth, 
-                                    height: badgeHeight 
+                                doc.image(imageBuffer, scaling.x, scaling.y, { 
+                                    width: scaling.width, 
+                                    height: scaling.height 
                                 });
                                 resolve();
                             } catch (error) {
@@ -488,9 +548,9 @@ class PDFGenerator {
                 console.log('Loading background image from:', fullImagePath);
                 
                 if (fs.existsSync(fullImagePath)) {
-                    doc.image(fullImagePath, 0, 0, { 
-                        width: badgeWidth, 
-                        height: badgeHeight 
+                    doc.image(fullImagePath, scaling.x, scaling.y, { 
+                        width: scaling.width, 
+                        height: scaling.height 
                     });
                     console.log('Background image loaded successfully');
                 } else {
@@ -504,15 +564,37 @@ class PDFGenerator {
     }
 
     // Render a positioned field on the badge
-    async renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight) {
+    async renderPositionedField(doc, fieldType, position, crewMember, event, badgeWidth, badgeHeight, imageScaling = null) {
         try {
-            // Convert relative position to absolute position
-            const x = position.relativeX * badgeWidth;
-            const y = position.relativeY * badgeHeight;
+            // Convert relative position to absolute position with image scaling adjustment
+            let x, y, fieldWidth, fieldHeight;
             
-            // Get field dimensions (use custom size if available)
-            const fieldWidth = position.relativeWidth ? position.relativeWidth * badgeWidth : 80;
-            const fieldHeight = position.relativeHeight ? position.relativeHeight * badgeHeight : 35;
+            if (imageScaling && imageScaling.scaleX !== 1 && imageScaling.scaleY !== 1) {
+                // Adjust coordinates for scaled and centered background image
+                x = (position.relativeX * imageScaling.width) + imageScaling.x;
+                y = (position.relativeY * imageScaling.height) + imageScaling.y;
+                
+                // Adjust field dimensions
+                fieldWidth = position.relativeWidth ? (position.relativeWidth * imageScaling.width) : 80;
+                fieldHeight = position.relativeHeight ? (position.relativeHeight * imageScaling.height) : 35;
+                
+                console.log(`Field ${fieldType} scaled coordinates:`, {
+                    originalRelative: { x: position.relativeX, y: position.relativeY },
+                    imageScaling: imageScaling,
+                    adjustedAbsolute: { x, y, width: fieldWidth, height: fieldHeight }
+                });
+            } else {
+                // No scaling or legacy mode - use full badge dimensions
+                x = position.relativeX * badgeWidth;
+                y = position.relativeY * badgeHeight;
+                fieldWidth = position.relativeWidth ? position.relativeWidth * badgeWidth : 80;
+                fieldHeight = position.relativeHeight ? position.relativeHeight * badgeHeight : 35;
+                
+                console.log(`Field ${fieldType} legacy coordinates:`, {
+                    relativePos: { x: position.relativeX, y: position.relativeY },
+                    absolutePos: { x, y, width: fieldWidth, height: fieldHeight }
+                });
+            }
 
             console.log(`Rendering field ${fieldType} at position:`, {
                 relativeX: position.relativeX,

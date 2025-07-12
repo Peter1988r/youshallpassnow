@@ -3065,7 +3065,7 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
 }, async (req, res) => {
     try {
         const { eventId } = req.params;
-        const { templateName, useCustomBadge, fieldLayout } = req.body;
+        const { templateName, useCustomBadge, fieldLayout, originalWidth, originalHeight } = req.body;
         
         console.log('Badge template save request received (NEW VERSION):', {
             eventId,
@@ -3073,6 +3073,8 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             useCustomBadge,
             fieldLayoutType: typeof fieldLayout,
             hasFile: !!req.file,
+            originalWidth,
+            originalHeight,
             bodyKeys: Object.keys(req.body)
         });
         
@@ -3185,7 +3187,11 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
             }
         }
 
-        // Update event with simplified template configuration
+        // Parse original dimensions
+        const parsedOriginalWidth = originalWidth ? parseInt(originalWidth) : null;
+        const parsedOriginalHeight = originalHeight ? parseInt(originalHeight) : null;
+
+        // Update event with simplified template configuration including original dimensions
         await run(`
             UPDATE events 
             SET 
@@ -3193,9 +3199,11 @@ app.post('/api/admin/events/:eventId/badge-template', authenticateToken, require
                 badge_template_name = $2,
                 badge_field_layout = $3,
                 badge_template_image_path = $4,
+                badge_template_original_width = $5,
+                badge_template_original_height = $6,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $5
-        `, [useCustomBadge, templateName, JSON.stringify(parsedFieldLayout), templateImagePath, eventId]);
+            WHERE id = $7
+        `, [useCustomBadge, templateName, JSON.stringify(parsedFieldLayout), templateImagePath, parsedOriginalWidth, parsedOriginalHeight, eventId]);
         
         res.json({ 
             success: true, 
@@ -3229,6 +3237,8 @@ app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireS
                 badge_template_image_path,
                 badge_field_layout,
                 badge_template_name,
+                badge_template_original_width,
+                badge_template_original_height,
                 -- Legacy columns for migration compatibility
                 custom_badge_template_path,
                 custom_badge_field_mapping
@@ -3270,6 +3280,8 @@ app.get('/api/admin/events/:eventId/badge-template', authenticateToken, requireS
             templateImagePath: templateImagePath,
             fieldLayout: fieldLayout,
             templateName: templateName,
+            originalWidth: template.badge_template_original_width,
+            originalHeight: template.badge_template_original_height,
             // For frontend compatibility during transition
             templatePath: templateImagePath,
             fieldMapping: { field_positions: fieldLayout }

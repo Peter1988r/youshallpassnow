@@ -1733,6 +1733,16 @@ function populateBadgeTemplateForm(template) {
     // Set template name
     document.getElementById('templateName').value = template.templateName || '';
     
+    // Store original image dimensions if available
+    if (template.originalWidth && template.originalHeight) {
+        templateEditor.originalWidth = template.originalWidth;
+        templateEditor.originalHeight = template.originalHeight;
+        console.log('Restored original dimensions from database:', {
+            originalWidth: templateEditor.originalWidth,
+            originalHeight: templateEditor.originalHeight
+        });
+    }
+    
     // Load existing template image and field layout if available
     const templateImagePath = template.templateImagePath || template.templatePath; // Support both new and legacy
     const fieldLayout = template.fieldLayout || template.fieldMapping?.field_positions || {};
@@ -1790,21 +1800,65 @@ function restoreFieldPositions(fieldPositions) {
         
         // Restore each positioned field
         for (const [fieldType, position] of Object.entries(fieldPositions)) {
-            // Use absolute coordinates if available, otherwise convert from relative
-            const x = position.x || (position.relativeX * templateEditor.backgroundImage.offsetWidth);
-            const y = position.y || (position.relativeY * templateEditor.backgroundImage.offsetHeight);
+            // Convert relative coordinates back to display coordinates using original dimensions
+            let x, y;
+            
+            if (position.x && position.y) {
+                // Use absolute coordinates if available
+                x = position.x;
+                y = position.y;
+            } else if (templateEditor.originalWidth && templateEditor.originalHeight) {
+                // Convert from relative using original dimensions for accuracy
+                const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+                const scaleX = bgRect.width / templateEditor.originalWidth;
+                const scaleY = bgRect.height / templateEditor.originalHeight;
+                
+                x = (position.relativeX * templateEditor.originalWidth) * scaleX;
+                y = (position.relativeY * templateEditor.originalHeight) * scaleY;
+                
+                console.log('Restored field position using original dimensions:', {
+                    fieldType,
+                    relativePos: { x: position.relativeX, y: position.relativeY },
+                    originalDimensions: { width: templateEditor.originalWidth, height: templateEditor.originalHeight },
+                    displayDimensions: { width: bgRect.width, height: bgRect.height },
+                    scale: { x: scaleX, y: scaleY },
+                    restoredPos: { x, y }
+                });
+            } else {
+                // Fallback to display dimensions (less accurate)
+                x = position.relativeX * templateEditor.backgroundImage.offsetWidth;
+                y = position.relativeY * templateEditor.backgroundImage.offsetHeight;
+                console.warn('Restored field position using display dimensions (less accurate) - original dimensions not available');
+            }
             
             const fieldElement = createPositionedField(fieldType, x, y);
             
             // Restore field size if available
-            if (position.width && position.height) {
-                fieldElement.style.width = position.width + 'px';
-                fieldElement.style.height = position.height + 'px';
+            let width, height;
+            if (position.relativeWidth && position.relativeHeight && templateEditor.originalWidth && templateEditor.originalHeight) {
+                // Convert relative size using original dimensions for accuracy
+                const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+                const scaleX = bgRect.width / templateEditor.originalWidth;
+                const scaleY = bgRect.height / templateEditor.originalHeight;
                 
-                // Update size display
+                width = (position.relativeWidth * templateEditor.originalWidth) * scaleX;
+                height = (position.relativeHeight * templateEditor.originalHeight) * scaleY;
+                
+                fieldElement.style.width = width + 'px';
+                fieldElement.style.height = height + 'px';
+            } else if (position.width && position.height) {
+                // Use absolute size as fallback
+                width = position.width;
+                height = position.height;
+                fieldElement.style.width = width + 'px';
+                fieldElement.style.height = height + 'px';
+            }
+            
+            // Update size display
+            if (width && height) {
                 const sizeElement = fieldElement.querySelector('.field-size');
                 if (sizeElement) {
-                    sizeElement.textContent = `${position.width}×${position.height}`;
+                    sizeElement.textContent = `${Math.round(width)}×${Math.round(height)}`;
                 }
             }
             
@@ -1924,6 +1978,16 @@ async function saveBadgeTemplate() {
         // Add other form data
         formData.append('templateName', document.getElementById('templateName').value);
         formData.append('useCustomBadge', useCustomBadge);
+        
+        // Add original image dimensions if available (for new uploads)
+        if (templateEditor.originalWidth && templateEditor.originalHeight) {
+            formData.append('originalWidth', templateEditor.originalWidth);
+            formData.append('originalHeight', templateEditor.originalHeight);
+            console.log('Including original dimensions:', {
+                originalWidth: templateEditor.originalWidth,
+                originalHeight: templateEditor.originalHeight
+            });
+        }
         
         // Create simplified field layout object - ONLY positioned fields with styling
         const fieldLayout = templateEditor.fieldPositions;
@@ -2148,6 +2212,16 @@ async function handleTemplateUpload(event) {
         // Create and load image
         const img = new Image();
         img.onload = function() {
+            // Store original image dimensions for accurate coordinate scaling
+            templateEditor.originalWidth = img.naturalWidth;
+            templateEditor.originalHeight = img.naturalHeight;
+            
+            console.log('Template image loaded:', {
+                originalWidth: templateEditor.originalWidth,
+                originalHeight: templateEditor.originalHeight,
+                fileSize: file.size
+            });
+            
             displayTemplateBackground(img, imageUrl);
             showMessage('Template loaded successfully', 'success');
         };
@@ -2320,6 +2394,7 @@ function createPositionedField(fieldType, x, y) {
         <span class="field-icon">${fieldData.icon}</span>
         <span class="field-label">${fieldData.label}</span>
         <span class="field-size">80×35</span>
+        <span class="field-coordinates" style="font-size: 10px; color: #666; display: block;">0,0</span>
         <div class="field-buttons">
             <button class="style-field" onclick="showFieldStyling(this.closest('.positioned-field'))" title="Style field">🎨</button>
             <button class="remove-field" onclick="removePositionedField('${fieldType}')" title="Remove field">×</button>
@@ -2341,13 +2416,44 @@ function createPositionedField(fieldType, x, y) {
     
     // Store position data - preserve existing styling if field already has it
     const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
+    
+    // Calculate relative coordinates using original image dimensions for accuracy
+    let relativeX, relativeY;
+    if (templateEditor.originalWidth && templateEditor.originalHeight) {
+        // Use original dimensions to ensure PDF matches editor positioning
+        const scaleX = templateEditor.originalWidth / bgRect.width;
+        const scaleY = templateEditor.originalHeight / bgRect.height;
+        relativeX = (x * scaleX) / templateEditor.originalWidth;
+        relativeY = (y * scaleY) / templateEditor.originalHeight;
+        
+        console.log('Coordinate calculation using original dimensions:', {
+            displayPos: { x, y },
+            displaySize: { width: bgRect.width, height: bgRect.height },
+            originalSize: { width: templateEditor.originalWidth, height: templateEditor.originalHeight },
+            scale: { x: scaleX, y: scaleY },
+            relativePos: { x: relativeX, y: relativeY }
+        });
+    } else {
+        // Fallback to display dimensions (less accurate)
+        relativeX = x / bgRect.width;
+        relativeY = y / bgRect.height;
+        console.warn('Using display dimensions for coordinates (less accurate) - original dimensions not available');
+    }
+    
     templateEditor.fieldPositions[fieldType] = {
         ...existingFieldData,  // Preserve existing properties like styling
         x: x,
         y: y,
-        relativeX: x / bgRect.width,
-        relativeY: y / bgRect.height
+        relativeX: relativeX,
+        relativeY: relativeY
     };
+
+    // Update coordinate display
+    const coordElement = fieldElement.querySelector('.field-coordinates');
+    if (coordElement) {
+        coordElement.textContent = `${Math.round(x)},${Math.round(y)} (${(relativeX * 100).toFixed(1)}%,${(relativeY * 100).toFixed(1)}%)`;
+        coordElement.title = `Display: ${Math.round(x)},${Math.round(y)} | Relative: ${relativeX.toFixed(3)},${relativeY.toFixed(3)}`;
+    }
     
     // Apply existing styling if available
     const savedFieldData = templateEditor.fieldPositions[fieldType] || {};
@@ -2491,6 +2597,33 @@ function setupFieldDragging(fieldElement) {
         const width = fieldElement.offsetWidth;
         const height = fieldElement.offsetHeight;
         
+        // Calculate relative coordinates using original image dimensions for accuracy
+        let relativeX, relativeY, relativeWidth, relativeHeight;
+        if (templateEditor.originalWidth && templateEditor.originalHeight) {
+            // Use original dimensions to ensure PDF matches editor positioning
+            const scaleX = templateEditor.originalWidth / bgRect.width;
+            const scaleY = templateEditor.originalHeight / bgRect.height;
+            relativeX = (x * scaleX) / templateEditor.originalWidth;
+            relativeY = (y * scaleY) / templateEditor.originalHeight;
+            relativeWidth = (width * scaleX) / templateEditor.originalWidth;
+            relativeHeight = (height * scaleY) / templateEditor.originalHeight;
+            
+            console.log('Updated coordinate calculation using original dimensions:', {
+                displayPos: { x, y, width, height },
+                displaySize: { width: bgRect.width, height: bgRect.height },
+                originalSize: { width: templateEditor.originalWidth, height: templateEditor.originalHeight },
+                scale: { x: scaleX, y: scaleY },
+                relativePos: { x: relativeX, y: relativeY, width: relativeWidth, height: relativeHeight }
+            });
+        } else {
+            // Fallback to display dimensions (less accurate)
+            relativeX = x / bgRect.width;
+            relativeY = y / bgRect.height;
+            relativeWidth = width / bgRect.width;
+            relativeHeight = height / bgRect.height;
+            console.warn('Using display dimensions for coordinate update (less accurate) - original dimensions not available');
+        }
+
         // Preserve existing styling and other properties when updating position/size
         const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
         templateEditor.fieldPositions[fieldType] = {
@@ -2499,11 +2632,23 @@ function setupFieldDragging(fieldElement) {
             y: y,
             width: width,
             height: height,
-            relativeX: x / bgRect.width,
-            relativeY: y / bgRect.height,
-            relativeWidth: width / bgRect.width,
-            relativeHeight: height / bgRect.height
+            relativeX: relativeX,
+            relativeY: relativeY,
+            relativeWidth: relativeWidth,
+            relativeHeight: relativeHeight
         };
+
+        // Update coordinate and size display
+        const coordElement = fieldElement.querySelector('.field-coordinates');
+        if (coordElement) {
+            coordElement.textContent = `${Math.round(x)},${Math.round(y)} (${(relativeX * 100).toFixed(1)}%,${(relativeY * 100).toFixed(1)}%)`;
+            coordElement.title = `Display: ${Math.round(x)},${Math.round(y)} | Relative: ${relativeX.toFixed(3)},${relativeY.toFixed(3)}`;
+        }
+
+        const sizeElement = fieldElement.querySelector('.field-size');
+        if (sizeElement) {
+            sizeElement.textContent = `${width}×${height}`;
+        }
         
         if (wasResizing) {
             showMessage(`${getFieldData(fieldType).label} resized to ${width}×${height}`, 'info');
