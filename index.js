@@ -87,103 +87,14 @@ app.use(limiter);
 app.use(express.static('public'));
 app.use('/badges', express.static(path.join(__dirname, 'public/badges')));
 
-// Explicit routes for test pages
-app.get('/test.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/test.html'));
-});
+// Test page routes removed for production security
 
-app.get('/debug.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/debug.html'));
-});
-
-// Debug route to test static file serving
-app.get('/test-static', (req, res) => {
-    res.json({
-        message: 'Static file serving test',
-        publicPath: path.join(__dirname, 'public'),
-        assetsPath: path.join(__dirname, 'public/assets'),
-        files: require('fs').readdirSync(path.join(__dirname, 'public/assets/images'))
-    });
-});
-
-// Debug endpoint removed for production security
-
-// Debug endpoints removed for production security
-
-// All debug endpoints removed for production security
+// Static file test route removed for production security
 
 // ===== PRODUCTION SECURITY: All debug endpoints removed =====
-// Removed endpoints: /test-users, /test-db, /init-db, /fix-tables, /check-db-tables, /test-static
+// Removed endpoints: /test-users, /test-db, /init-db, /fix-tables, /check-db-tables, 
+// /test-static, /test.html, /debug.html, /create-missing-tables
 // These endpoints exposed sensitive data and database manipulation capabilities
-
-// Check database tables endpoint
-app.get('/check-db-tables', async (req, res) => {
-    try {
-        console.log('Checking database tables...');
-        
-        const tables = await query(`
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            ORDER BY table_name
-        `);
-        
-        const tableNames = tables.map(t => t.table_name);
-        console.log('Found tables:', tableNames);
-        
-        // Check if companies table exists and has data
-        let companiesCount = 0;
-        if (tableNames.includes('companies')) {
-            const countResult = await query('SELECT COUNT(*) as count FROM companies');
-            companiesCount = countResult[0].count;
-        }
-        
-        res.json({
-            message: 'Database tables check completed',
-            tables: tableNames,
-            companiesCount: companiesCount,
-            hasCompaniesTable: tableNames.includes('companies'),
-            hasCompanyRolesTable: tableNames.includes('company_roles')
-        });
-    } catch (error) {
-        console.error('Database tables check error:', error);
-        res.status(500).json({ 
-            error: 'Database tables check failed', 
-            details: error.message
-        });
-    }
-});
-
-// Create missing tables endpoint
-app.post('/create-missing-tables', async (req, res) => {
-    try {
-        console.log('Creating missing tables...');
-        
-        // Create company_roles table if it doesn't exist
-        await query(`
-            CREATE TABLE IF NOT EXISTS company_roles (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-                role_name TEXT NOT NULL,
-                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(company_id, role_name)
-            )
-        `);
-        
-        console.log('company_roles table created successfully');
-        
-        res.json({
-            message: 'Missing tables created successfully',
-            createdTables: ['company_roles']
-        });
-    } catch (error) {
-        console.error('Create missing tables error:', error);
-        res.status(500).json({ 
-            error: 'Failed to create missing tables', 
-            details: error.message
-        });
-    }
-});
 
 // JWT Secret (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
