@@ -2394,8 +2394,9 @@ function handleDrop(event) {
     const y = event.clientY - bgRect.top;
     
     // Auto-center horizontally: center the field properly in the background image
-    // Calculate the center of the background image and adjust for field positioning
-    x = bgRect.width / 2;
+    // Account for default field width to truly center the field
+    const defaultFieldWidth = 80;
+    x = (bgRect.width / 2) - (defaultFieldWidth / 2);
     
     // Ensure drop is within background image bounds
     if (x < 0 || y < 0 || x > bgRect.width || y > bgRect.height) {
@@ -2581,17 +2582,50 @@ function setupFieldDragging(fieldElement) {
     let isResizing = false;
     let startX, startY, startLeft, startTop, startWidth, startHeight;
     
+    // Add mouse move listener to show resize cursor
+    fieldElement.addEventListener('mousemove', (e) => {
+        if (isDragging || isResizing) return;
+        
+        const rect = fieldElement.getBoundingClientRect();
+        const edgeThreshold = 12;
+        
+        const isNearRightEdge = (e.clientX > rect.right - edgeThreshold);
+        const isNearBottomEdge = (e.clientY > rect.bottom - edgeThreshold);
+        const isNearLeftEdge = (e.clientX < rect.left + edgeThreshold);
+        const isNearTopEdge = (e.clientY < rect.top + edgeThreshold);
+        
+        if (isNearRightEdge || isNearLeftEdge) {
+            fieldElement.style.cursor = 'ew-resize';
+        } else if (isNearTopEdge || isNearBottomEdge) {
+            fieldElement.style.cursor = 'ns-resize';
+        } else {
+            fieldElement.style.cursor = 'move';
+        }
+    });
+    
+    fieldElement.addEventListener('mouseleave', () => {
+        fieldElement.style.cursor = 'move';
+    });
+    
     fieldElement.addEventListener('mousedown', (e) => {
         if (e.target.classList.contains('remove-field') || e.target.classList.contains('style-field')) return;
         
         const rect = fieldElement.getBoundingClientRect();
-        const isNearBottomRight = (e.clientX > rect.right - 12) && (e.clientY > rect.bottom - 12);
+        const edgeThreshold = 12;
         
-        if (isNearBottomRight) {
+        // Check if near any edge for resizing
+        const isNearRightEdge = (e.clientX > rect.right - edgeThreshold);
+        const isNearBottomEdge = (e.clientY > rect.bottom - edgeThreshold);
+        const isNearLeftEdge = (e.clientX < rect.left + edgeThreshold);
+        const isNearTopEdge = (e.clientY < rect.top + edgeThreshold);
+        
+        if (isNearRightEdge || isNearBottomEdge || isNearLeftEdge || isNearTopEdge) {
             // Start resizing
             isResizing = true;
             startX = e.clientX;
             startY = e.clientY;
+            startLeft = parseInt(fieldElement.style.left);
+            startTop = parseInt(fieldElement.style.top);
             startWidth = fieldElement.offsetWidth;
             startHeight = fieldElement.offsetHeight;
         } else {
@@ -2627,8 +2661,17 @@ function setupFieldDragging(fieldElement) {
             const newWidth = Math.max(80, startWidth + deltaX);
             const newHeight = Math.max(35, startHeight + deltaY);
             
+            // Center-based resizing: adjust position to keep field centered
+            const widthChange = newWidth - startWidth;
+            const heightChange = newHeight - startHeight;
+            
+            const currentLeft = parseInt(fieldElement.style.left);
+            const currentTop = parseInt(fieldElement.style.top);
+            
             fieldElement.style.width = newWidth + 'px';
             fieldElement.style.height = newHeight + 'px';
+            fieldElement.style.left = (currentLeft - widthChange / 2) + 'px';
+            fieldElement.style.top = (currentTop - heightChange / 2) + 'px';
             
             // Update size display
             const sizeElement = fieldElement.querySelector('.field-size');
