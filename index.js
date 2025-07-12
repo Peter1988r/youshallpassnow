@@ -60,7 +60,7 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            scriptSrc: ["'self'"],
+            scriptSrc: ["'self'", "'sha256-Tts/1SPznKqC6oT6QmVCB48rzh7RBtfnDiZSTnWjVeQ='"],
             imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"],
             connectSrc: ["'self'", "https://*.supabase.co"],
             objectSrc: ["'none'"],
