@@ -2810,7 +2810,7 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
         const { crewId } = req.params;
         const { eventId } = req.query;
         
-        // Get crew member details with event custom badge configuration
+        // Get crew member details with event custom badge configuration including original dimensions
         const crewDetails = await query(`
             SELECT 
                 cm.*,
@@ -2824,6 +2824,8 @@ app.get('/api/admin/crew/:crewId/badge/pdf', authenticateToken, requireSuperAdmi
                 e.badge_template_image_path,
                 e.badge_field_layout,
                 e.badge_template_name,
+                e.badge_template_original_width,
+                e.badge_template_original_height,
                 c.name as company_name
             FROM crew_members cm
             JOIN events e ON cm.event_id = e.id

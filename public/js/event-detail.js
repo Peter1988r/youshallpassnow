@@ -1957,11 +1957,15 @@ async function saveBadgeTemplate() {
         
         if (useCustomBadge && !templateEditor.backgroundImage) {
             showMessage('Please upload a template image before saving', 'warning');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Template';
             return;
         }
         
         if (useCustomBadge && Object.keys(templateEditor.fieldPositions).length === 0) {
             showMessage('Please position at least one field on the template before saving', 'warning');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Template';
             return;
         }
         
@@ -2010,9 +2014,22 @@ async function saveBadgeTemplate() {
             console.error('Server error response:', {
                 status: response.status,
                 statusText: response.statusText,
-                responseText: errorText
+                responseText: errorText,
+                url: response.url,
+                headers: Object.fromEntries(response.headers.entries())
             });
-            throw new Error(`Failed to save badge template configuration: ${errorText}`);
+            
+            // Show more specific error message
+            let errorMessage = errorText;
+            if (response.status === 403) {
+                errorMessage = 'Access denied: Badge template management requires Super Admin privileges';
+            } else if (response.status === 413) {
+                errorMessage = 'Template file too large. Maximum size is 10MB';
+            } else if (response.status === 500) {
+                errorMessage = 'Server error while saving template. Please check console for details.';
+            }
+            
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
@@ -2048,7 +2065,7 @@ function setupBadgeTemplateListeners() {
     document.getElementById('saveBadgeTemplate').addEventListener('click', saveBadgeTemplate);
     
     // Preview template buttons
-    document.getElementById('previewCustomBadge').addEventListener('click', previewBadgeTemplate);
+    document.getElementById('previewCustomBadge').addEventListener('click', previewTemplateDesign);
     
     // Styling panel buttons
     document.getElementById('applyFieldStyling').addEventListener('click', applyFieldStyling);
@@ -2171,7 +2188,7 @@ function initializeTemplateEditor() {
     
     // Setup toolbar buttons
     document.getElementById('resetFieldPositions').addEventListener('click', resetFieldPositions);
-    document.getElementById('previewBadge').addEventListener('click', previewBadgeTemplate);
+    document.getElementById('previewBadge').addEventListener('click', previewBadgeWithData);
     
     // Load zones only once
     const eventId = new URLSearchParams(window.location.search).get('id');
@@ -2695,8 +2712,47 @@ function updateCanvasRect() {
     templateEditor.canvasRect = templateEditor.canvas.getBoundingClientRect();
 }
 
-// Preview badge template
-async function previewBadgeTemplate() {
+// Preview template design (just the template with field positions)
+async function previewTemplateDesign() {
+    try {
+        if (!templateEditor.backgroundImage) {
+            showMessage('Please upload a template image first', 'warning');
+            return;
+        }
+        
+        if (Object.keys(templateEditor.fieldPositions).length === 0) {
+            showMessage('Please position at least one field on the template', 'warning');
+            return;
+        }
+        
+        // Create a visual preview of the template design
+        const fieldCount = Object.keys(templateEditor.fieldPositions).length;
+        const fieldList = Object.keys(templateEditor.fieldPositions).map(field => {
+            const data = getFieldData(field);
+            const pos = templateEditor.fieldPositions[field];
+            return `${data.label} (${Math.round(pos.x)},${Math.round(pos.y)})`;
+        }).join(', ');
+        
+        showMessage(`Template Preview: ${fieldCount} fields positioned - ${fieldList}`, 'success');
+        
+        // Could be extended to show an actual visual preview in a modal
+        console.log('Template Design Preview:', {
+            backgroundImage: templateEditor.backgroundImage.src,
+            fieldPositions: templateEditor.fieldPositions,
+            originalDimensions: {
+                width: templateEditor.originalWidth,
+                height: templateEditor.originalHeight
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error generating template design preview:', error);
+        showMessage('Failed to generate template design preview: ' + error.message, 'error');
+    }
+}
+
+// Preview badge with real crew data
+async function previewBadgeWithData() {
     try {
         if (!templateEditor.backgroundImage) {
             showMessage('Please upload a template image first', 'warning');
@@ -2710,17 +2766,62 @@ async function previewBadgeTemplate() {
         
         showMessage('Generating badge preview...', 'info');
         
-        // For now, show positioned fields info
-        const fieldCount = Object.keys(templateEditor.fieldPositions).length;
-        const fieldList = Object.keys(templateEditor.fieldPositions).map(field => 
-            getFieldData(field).label
-        ).join(', ');
+        const eventId = new URLSearchParams(window.location.search).get('id');
+        const token = localStorage.getItem('token');
         
-        showMessage(`Preview: ${fieldCount} fields positioned (${fieldList})`, 'success');
+        // Get first crew member for preview (or create a sample one)
+        const response = await fetch(`/api/admin/events/${eventId}/crew`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch crew members for preview');
+        }
+        
+        const crewMembers = await response.json();
+        
+        if (crewMembers.length === 0) {
+            showMessage('No crew members available for preview. Add crew members first.', 'warning');
+            return;
+        }
+        
+        // Use first crew member for preview
+        const previewCrewId = crewMembers[0].id;
+        
+        // Generate badge PDF for preview
+        const badgeResponse = await fetch(`/api/admin/crew/${previewCrewId}/badge/pdf?eventId=${eventId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!badgeResponse.ok) {
+            throw new Error('Failed to generate badge preview');
+        }
+        
+        // Get the PDF blob and create object URL
+        const blob = await badgeResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Open in new window for preview
+        const previewWindow = window.open(url, '_blank', 'width=600,height=800');
+        
+        if (previewWindow) {
+            showMessage('Badge preview opened in new window', 'success');
+        } else {
+            showMessage('Please allow pop-ups to preview badges', 'error');
+        }
+        
+        // Cleanup after some time
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 30000); // 30 seconds
         
     } catch (error) {
         console.error('Error generating template preview:', error);
-        showMessage('Failed to generate template preview', 'error');
+        showMessage('Failed to generate template preview: ' + error.message, 'error');
     }
 }
 
