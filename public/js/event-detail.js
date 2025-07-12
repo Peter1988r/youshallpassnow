@@ -2769,26 +2769,49 @@ async function previewBadgeWithData() {
         const eventId = new URLSearchParams(window.location.search).get('id');
         const token = localStorage.getItem('token');
         
-        // Get first crew member for preview (or create a sample one)
-        const response = await fetch(`/api/admin/events/${eventId}/crew`, {
+        // Get first crew member for preview (try approved crew first, then all crew)
+        let response = await fetch(`/api/admin/events/${eventId}/approved-crew`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
         if (!response.ok) {
-            throw new Error('Failed to fetch crew members for preview');
+            console.log('Approved crew fetch failed, trying all crew members...');
+            // Fallback to all crew members if approved-crew endpoint fails
+            response = await fetch(`/api/events/${eventId}/crew`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+        }
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Crew fetch error:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorText: errorText,
+                eventId: eventId
+            });
+            throw new Error(`Failed to fetch crew members for preview: ${response.status} ${response.statusText}`);
         }
         
         const crewMembers = await response.json();
         
-        if (crewMembers.length === 0) {
-            showMessage('No crew members available for preview. Add crew members first.', 'warning');
+        if (!crewMembers || crewMembers.length === 0) {
+            showMessage('No crew members found for preview. Please add crew members to the event first via the "Crew Management" tab, then try the preview again.', 'warning');
             return;
         }
         
         // Use first crew member for preview
         const previewCrewId = crewMembers[0].id;
+        
+        console.log('Using crew member for preview:', {
+            id: crewMembers[0].id,
+            name: `${crewMembers[0].first_name} ${crewMembers[0].last_name}`,
+            totalCrew: crewMembers.length
+        });
         
         // Generate badge PDF for preview
         const badgeResponse = await fetch(`/api/admin/crew/${previewCrewId}/badge/pdf?eventId=${eventId}`, {
