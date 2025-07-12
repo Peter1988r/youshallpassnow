@@ -2523,12 +2523,15 @@ function createPositionedField(fieldType, x, y) {
         </div>
     `;
     
-    // Position relative to background image
+    // Position relative to background image with PDF alignment compensation
     const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
     const canvasRect = templateEditor.canvas.getBoundingClientRect();
     
-    fieldElement.style.left = (bgRect.left - canvasRect.left + x) + 'px';
-    fieldElement.style.top = (bgRect.top - canvasRect.top + y) + 'px';
+    // Apply visual offset to better match PDF output
+    const visualOffset = getVisualAlignmentOffset(fieldType);
+    
+    fieldElement.style.left = (bgRect.left - canvasRect.left + x + visualOffset.x) + 'px';
+    fieldElement.style.top = (bgRect.top - canvasRect.top + y + visualOffset.y) + 'px';
     
     // Add to canvas
     templateEditor.canvas.appendChild(fieldElement);
@@ -2657,6 +2660,70 @@ function getFieldData(fieldType) {
     return fieldData[fieldType] || { icon: '❓', label: 'Unknown' };
 }
 
+// Get visual alignment offset to better match PDF output
+function getVisualAlignmentOffset(fieldType) {
+    // These offsets compensate for the difference between CSS positioning and PDFKit text rendering
+    // Values determined through visual calibration with actual PDF output
+    
+    const offsets = {
+        // Text fields need adjustment for PDFKit text baseline and centering differences
+        'name': { x: -8, y: -4 },           // Names typically need left and up adjustment
+        'role': { x: -8, y: -4 },           // Roles same as names
+        'company': { x: -8, y: -4 },        // Company same as names  
+        'badge_number': { x: -8, y: -4 },   // Badge numbers same as text
+        'access_zones': { x: -8, y: -4 },   // Access zones same as text
+        
+        // Photo fields might need different adjustment
+        'photo': { x: 0, y: 0 },            // Photos typically don't need text baseline adjustment
+        
+        // QR codes might need different adjustment  
+        'qr_code': { x: 0, y: 0 },          // QR codes don't need text adjustment
+        
+        // Zone fields same as text
+        'zone_': { x: -8, y: -4 }           // Zone fields same as text (will be matched by startsWith)
+    };
+    
+    // Check for temporary overrides (for calibration)
+    if (window.visualAlignmentOverrides && window.visualAlignmentOverrides[fieldType]) {
+        return window.visualAlignmentOverrides[fieldType];
+    }
+    
+    // Check for zone fields
+    if (fieldType.startsWith('zone_')) {
+        return offsets.zone_;
+    }
+    
+    // Return specific offset or default for text fields
+    return offsets[fieldType] || { x: -8, y: -4 };
+}
+
+// Helper function to calibrate visual alignment (for debugging/fine-tuning)
+function calibrateVisualAlignment(fieldType, offsetX, offsetY) {
+    console.log(`Calibrating ${fieldType}: setting offset to x:${offsetX}, y:${offsetY}`);
+    
+    // Update the offset temporarily (this would need to be persistent in a real implementation)
+    window.visualAlignmentOverrides = window.visualAlignmentOverrides || {};
+    window.visualAlignmentOverrides[fieldType] = { x: offsetX, y: offsetY };
+    
+    // If there's a selected field of this type, update its position immediately
+    if (selectedField && selectedField.dataset.field === fieldType) {
+        const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+        const canvasRect = templateEditor.canvas.getBoundingClientRect();
+        
+        // Get current logical position
+        const currentOffset = getVisualAlignmentOffset(fieldType);
+        const currentX = parseInt(selectedField.style.left) - (bgRect.left - canvasRect.left) - currentOffset.x;
+        const currentY = parseInt(selectedField.style.top) - (bgRect.top - canvasRect.top) - currentOffset.y;
+        
+        // Apply new visual position
+        const newOffset = { x: offsetX, y: offsetY };
+        selectedField.style.left = (bgRect.left - canvasRect.left + currentX + newOffset.x) + 'px';
+        selectedField.style.top = (bgRect.top - canvasRect.top + currentY + newOffset.y) + 'px';
+        
+        console.log(`Updated visual position for ${fieldType}`);
+    }
+}
+
 // Global variable to track selected field for keyboard controls
 let selectedField = null;
 
@@ -2779,8 +2846,10 @@ function setupFieldDragging(fieldElement) {
         const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
         const canvasRect = templateEditor.canvas.getBoundingClientRect();
         
-        const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left);
-        const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top);
+        // Remove visual offset to get the actual logical position
+        const visualOffset = getVisualAlignmentOffset(fieldType);
+        const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left) - visualOffset.x;
+        const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top) - visualOffset.y;
         const width = fieldElement.offsetWidth;
         const height = fieldElement.offsetHeight;
         
@@ -2878,8 +2947,10 @@ function updateFieldPosition(fieldElement) {
     const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
     const canvasRect = templateEditor.canvas.getBoundingClientRect();
     
-    const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left);
-    const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top);
+    // Remove visual offset to get the actual logical position
+    const visualOffset = getVisualAlignmentOffset(fieldType);
+    const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left) - visualOffset.x;
+    const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top) - visualOffset.y;
     
     // Calculate relative coordinates using original image dimensions for accuracy
     let relativeX, relativeY;
