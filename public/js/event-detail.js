@@ -2309,8 +2309,8 @@ function displayTemplateBackground(img, imageUrl) {
     canvas.appendChild(bgImg);
     templateEditor.backgroundImage = bgImg;
     
-    // Add rulers and size indicator
-    addTemplateRulers();
+    // Add size indicator only
+    addCanvasSizeIndicator();
     
     // Update canvas rect for positioning
     updateCanvasRect();
@@ -2393,8 +2393,9 @@ function handleDrop(event) {
     let x = event.clientX - bgRect.left;
     const y = event.clientY - bgRect.top;
     
-    // Auto-center horizontally: move x to center of background image
-    x = bgRect.width / 2;
+    // Auto-center horizontally: account for field width and center properly
+    const fieldWidth = 80; // Default field width
+    x = (bgRect.width / 2) - (fieldWidth / 2);
     
     // Ensure drop is within background image bounds
     if (x < 0 || y < 0 || x > bgRect.width || y > bgRect.height) {
@@ -2538,87 +2539,19 @@ function createPositionedField(fieldType, x, y) {
     return fieldElement;
 }
 
-// Add rulers and size indicator to template canvas
-function addTemplateRulers() {
+// Add size indicator to template canvas
+function addCanvasSizeIndicator() {
     const container = document.querySelector('.template-canvas-container');
-    const canvas = templateEditor.canvas;
-    if (!container || !canvas) return;
+    if (!container) return;
     
-    // Remove existing rulers and indicator
-    container.querySelectorAll('.ruler-horizontal, .ruler-vertical, .canvas-size-indicator').forEach(el => el.remove());
+    // Remove existing indicator
+    container.querySelectorAll('.canvas-size-indicator').forEach(el => el.remove());
     
     // Add size indicator
     const sizeIndicator = document.createElement('div');
     sizeIndicator.className = 'canvas-size-indicator';
     sizeIndicator.textContent = 'A5 Portrait (420×595px) • 14.8×21.0cm';
     container.appendChild(sizeIndicator);
-    
-    // Get canvas position relative to container
-    const containerRect = container.getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
-    const canvasLeft = canvasRect.left - containerRect.left;
-    const canvasTop = canvasRect.top - containerRect.top;
-    
-    // Create rulers aligned with the actual canvas
-    const rulers = [
-        { class: 'ruler-horizontal ruler-top', orientation: 'horizontal', top: canvasTop - 25 },
-        { class: 'ruler-horizontal ruler-bottom', orientation: 'horizontal', top: canvasTop + 595 + 5 },
-        { class: 'ruler-vertical ruler-left', orientation: 'vertical', left: canvasLeft - 25 },
-        { class: 'ruler-vertical ruler-right', orientation: 'vertical', left: canvasLeft + 420 + 5 }
-    ];
-    
-    rulers.forEach(rulerConfig => {
-        const ruler = document.createElement('div');
-        ruler.className = rulerConfig.class;
-        
-        if (rulerConfig.orientation === 'horizontal') {
-            ruler.style.top = rulerConfig.top + 'px';
-            ruler.style.left = canvasLeft + 'px';
-            
-            // Add horizontal marks every cm (approx 28.35 pixels per cm at 72 DPI)
-            const cmInPixels = 28.35;
-            const totalCm = Math.floor(420 / cmInPixels);
-            
-            for (let i = 0; i <= totalCm; i++) {
-                const mark = document.createElement('div');
-                mark.className = 'ruler-mark';
-                mark.style.left = (i * cmInPixels) + 'px';
-                ruler.appendChild(mark);
-                
-                if (i % 2 === 0) {  // Label every 2cm
-                    const label = document.createElement('div');
-                    label.className = 'ruler-label';
-                    label.textContent = i + 'cm';
-                    label.style.left = (i * cmInPixels) + 'px';
-                    ruler.appendChild(label);
-                }
-            }
-        } else {
-            ruler.style.left = rulerConfig.left + 'px';
-            ruler.style.top = canvasTop + 'px';
-            
-            // Add vertical marks every cm
-            const cmInPixels = 28.35;
-            const totalCm = Math.floor(595 / cmInPixels);
-            
-            for (let i = 0; i <= totalCm; i++) {
-                const mark = document.createElement('div');
-                mark.className = 'ruler-mark';
-                mark.style.top = (i * cmInPixels) + 'px';
-                ruler.appendChild(mark);
-                
-                if (i % 2 === 0) {  // Label every 2cm
-                    const label = document.createElement('div');
-                    label.className = 'ruler-label';
-                    label.textContent = i + 'cm';
-                    label.style.top = (i * cmInPixels) + 'px';
-                    ruler.appendChild(label);
-                }
-            }
-        }
-        
-        container.appendChild(ruler);
-    });
 }
 
 // Get field data
