@@ -53,23 +53,22 @@ const pdfGenerator = require('./services/pdfGenerator');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Security middleware - Remove all CSP headers to allow Supabase images
-app.use((req, res, next) => {
-    // Remove any existing CSP headers
-    res.removeHeader('Content-Security-Policy');
-    res.removeHeader('Content-Security-Policy-Report-Only');
-    
-    // Set permissive CSP that allows everything
-    res.setHeader('Content-Security-Policy', "img-src * blob: data: 'self'; default-src *; style-src * 'unsafe-inline'; script-src * 'unsafe-inline';");
-    
-    console.log('CSP Headers set:', res.getHeaders()['content-security-policy']);
-    next();
-});
-
-// Keep helmet disabled for now
-// app.use(helmet({
-//     contentSecurityPolicy: false,
-// }));
+// Security middleware - Enable Helmet with custom CSP for Supabase
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"],
+            connectSrc: ["'self'", "https://*.supabase.co"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true
@@ -109,140 +108,13 @@ app.get('/test-static', (req, res) => {
 
 // Debug endpoint removed for production security
 
-// Test endpoint to check demo users
-app.get('/test-users', async (req, res) => {
-    try {
-        console.log('Testing database connection...');
-        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-        console.log('NODE_ENV:', process.env.NODE_ENV);
-        
-        const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
-        res.json({
-            message: 'Demo users check',
-            totalUsers: users.length,
-            users: users
-        });
-    } catch (error) {
-        console.error('Error checking users:', error);
-        res.status(500).json({ 
-            error: 'Database error', 
-            details: error.message,
-            code: error.code,
-            hint: error.hint
-        });
-    }
-});
+// Debug endpoints removed for production security
 
-// Simple database connection test
-app.get('/test-db', async (req, res) => {
-    try {
-        console.log('Testing basic database connection...');
-        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-        console.log('NODE_ENV:', process.env.NODE_ENV);
-        
-        // Test basic connection
-        const result = await query('SELECT NOW() as current_time, version() as db_version');
-        
-        res.json({
-            message: 'Database connection successful',
-            currentTime: result[0].current_time,
-            dbVersion: result[0].db_version,
-            env: {
-                nodeEnv: process.env.NODE_ENV,
-                hasDatabaseUrl: !!process.env.DATABASE_URL
-            }
-        });
-    } catch (error) {
-        console.error('Database connection test failed:', error);
-        res.status(500).json({ 
-            error: 'Database connection failed', 
-            details: error.message,
-            code: error.code,
-            hint: error.hint,
-            env: {
-                nodeEnv: process.env.NODE_ENV,
-                hasDatabaseUrl: !!process.env.DATABASE_URL
-            }
-        });
-    }
-});
+// All debug endpoints removed for production security
 
-// Initialize database endpoint (for testing)
-app.post('/init-db', async (req, res) => {
-    try {
-        console.log('Manual database initialization requested');
-        console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-        console.log('NODE_ENV:', process.env.NODE_ENV);
-        
-        await initDatabase();
-        console.log('Database initialization completed');
-        
-        // Also create the missing company_roles table
-        try {
-            await query(`
-                CREATE TABLE IF NOT EXISTS company_roles (
-                    id SERIAL PRIMARY KEY,
-                    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-                    role_name TEXT NOT NULL,
-                    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(company_id, role_name)
-                )
-            `);
-            console.log('company_roles table created successfully');
-        } catch (tableError) {
-            console.log('company_roles table already exists or error:', tableError.message);
-        }
-        
-        // Check if users were created
-        const users = await query('SELECT id, email, first_name, last_name, role, is_super_admin FROM users');
-        
-        res.json({
-            message: 'Database initialized successfully',
-            totalUsers: users.length,
-            users: users
-        });
-    } catch (error) {
-        console.error('Database initialization error:', error);
-        res.status(500).json({ 
-            error: 'Database initialization failed', 
-            details: error.message,
-            code: error.code,
-            hint: error.hint
-        });
-    }
-});
-
-// Simple endpoint to create missing tables (GET method)
-app.get('/fix-tables', async (req, res) => {
-    try {
-        console.log('Creating missing tables via GET endpoint...');
-        
-        // Create company_roles table if it doesn't exist
-        await query(`
-            CREATE TABLE IF NOT EXISTS company_roles (
-                id SERIAL PRIMARY KEY,
-                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-                role_name TEXT NOT NULL,
-                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(company_id, role_name)
-            )
-        `);
-        
-        console.log('company_roles table created successfully');
-        
-        res.json({
-            message: 'Missing tables created successfully',
-            createdTables: ['company_roles'],
-            status: 'success'
-        });
-    } catch (error) {
-        console.error('Create missing tables error:', error);
-        res.status(500).json({ 
-            error: 'Failed to create missing tables', 
-            details: error.message
-        });
-    }
-});
+// ===== PRODUCTION SECURITY: All debug endpoints removed =====
+// Removed endpoints: /test-users, /test-db, /init-db, /fix-tables, /check-db-tables, /test-static
+// These endpoints exposed sensitive data and database manipulation capabilities
 
 // Check database tables endpoint
 app.get('/check-db-tables', async (req, res) => {
