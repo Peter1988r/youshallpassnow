@@ -2072,19 +2072,19 @@ select[multiple] option:disabled {
 }
 
 .ruler-top {
-    top: 15px;
+    /* Position set dynamically by JavaScript */
 }
 
 .ruler-bottom {
-    bottom: 15px;
+    /* Position set dynamically by JavaScript */
 }
 
 .ruler-left {
-    left: 15px;
+    /* Position set dynamically by JavaScript */
 }
 
 .ruler-right {
-    right: 15px;
+    /* Position set dynamically by JavaScript */
 }
 
 .ruler-mark {

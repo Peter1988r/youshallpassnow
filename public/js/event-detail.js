@@ -2092,11 +2092,13 @@ function showFieldStyling(fieldElement) {
         document.getElementById('fieldFont').value = fieldPosition.styling.font || 'Helvetica';
         document.getElementById('fieldFontSize').value = fieldPosition.styling.fontSize || 12;
         document.getElementById('fieldTextColor').value = fieldPosition.styling.color || '#000000';
+        document.getElementById('fieldAlignment').value = fieldPosition.styling.alignment || 'center';
     } else {
         // Reset to defaults
         document.getElementById('fieldFont').value = 'Helvetica';
         document.getElementById('fieldFontSize').value = '12';
         document.getElementById('fieldTextColor').value = '#000000';
+        document.getElementById('fieldAlignment').value = 'center';
     }
     
     panel.style.display = 'block';
@@ -2111,6 +2113,7 @@ function applyFieldStyling() {
     const font = document.getElementById('fieldFont').value;
     const fontSize = document.getElementById('fieldFontSize').value;
     const color = document.getElementById('fieldTextColor').value;
+    const alignment = document.getElementById('fieldAlignment').value;
     
     // Store styling in field position - preserve existing position data
     const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
@@ -2119,7 +2122,8 @@ function applyFieldStyling() {
         styling: {
             font: font,
             fontSize: parseInt(fontSize),
-            color: color
+            color: color,
+            alignment: alignment
         }
     };
     
@@ -2143,6 +2147,12 @@ function applyFieldStyling() {
         fieldLabel.style.fontSize = Math.min(parseInt(fontSize), 14) + 'px';
         fieldLabel.style.color = color;
     }
+    
+    // Apply alignment to the field element itself
+    currentStyledField.style.textAlign = alignment;
+    currentStyledField.style.justifyContent = 
+        alignment === 'left' ? 'flex-start' : 
+        alignment === 'right' ? 'flex-end' : 'center';
     
     console.log(`Styling applied to ${fieldType}:`, templateEditor.fieldPositions[fieldType]);
     showMessage(`Styling applied to ${getFieldData(fieldType).label}`, 'success');
@@ -2501,7 +2511,18 @@ function createPositionedField(fieldType, x, y) {
             fieldLabel.style.color = savedFieldData.styling.color || '#000000';
         }
         
+        // Apply alignment to the field element
+        const alignment = savedFieldData.styling.alignment || 'center';
+        fieldElement.style.textAlign = alignment;
+        fieldElement.style.justifyContent = 
+            alignment === 'left' ? 'flex-start' : 
+            alignment === 'right' ? 'flex-end' : 'center';
+        
         console.log(`Applied existing styling to recreated field ${fieldType}:`, savedFieldData.styling);
+    } else {
+        // Apply default center alignment to new fields
+        fieldElement.style.textAlign = 'center';
+        fieldElement.style.justifyContent = 'center';
     }
     
     // Setup field dragging
@@ -2520,7 +2541,8 @@ function createPositionedField(fieldType, x, y) {
 // Add rulers and size indicator to template canvas
 function addTemplateRulers() {
     const container = document.querySelector('.template-canvas-container');
-    if (!container) return;
+    const canvas = templateEditor.canvas;
+    if (!container || !canvas) return;
     
     // Remove existing rulers and indicator
     container.querySelectorAll('.ruler-horizontal, .ruler-vertical, .canvas-size-indicator').forEach(el => el.remove());
@@ -2531,12 +2553,18 @@ function addTemplateRulers() {
     sizeIndicator.textContent = 'A5 Portrait (420×595px) • 14.8×21.0cm';
     container.appendChild(sizeIndicator);
     
-    // Create rulers
+    // Get canvas position relative to container
+    const containerRect = container.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasLeft = canvasRect.left - containerRect.left;
+    const canvasTop = canvasRect.top - containerRect.top;
+    
+    // Create rulers aligned with the actual canvas
     const rulers = [
-        { class: 'ruler-horizontal ruler-top', orientation: 'horizontal' },
-        { class: 'ruler-horizontal ruler-bottom', orientation: 'horizontal' },
-        { class: 'ruler-vertical ruler-left', orientation: 'vertical' },
-        { class: 'ruler-vertical ruler-right', orientation: 'vertical' }
+        { class: 'ruler-horizontal ruler-top', orientation: 'horizontal', top: canvasTop - 25 },
+        { class: 'ruler-horizontal ruler-bottom', orientation: 'horizontal', top: canvasTop + 595 + 5 },
+        { class: 'ruler-vertical ruler-left', orientation: 'vertical', left: canvasLeft - 25 },
+        { class: 'ruler-vertical ruler-right', orientation: 'vertical', left: canvasLeft + 420 + 5 }
     ];
     
     rulers.forEach(rulerConfig => {
@@ -2544,6 +2572,9 @@ function addTemplateRulers() {
         ruler.className = rulerConfig.class;
         
         if (rulerConfig.orientation === 'horizontal') {
+            ruler.style.top = rulerConfig.top + 'px';
+            ruler.style.left = canvasLeft + 'px';
+            
             // Add horizontal marks every cm (approx 28.35 pixels per cm at 72 DPI)
             const cmInPixels = 28.35;
             const totalCm = Math.floor(420 / cmInPixels);
@@ -2563,6 +2594,9 @@ function addTemplateRulers() {
                 }
             }
         } else {
+            ruler.style.left = rulerConfig.left + 'px';
+            ruler.style.top = canvasTop + 'px';
+            
             // Add vertical marks every cm
             const cmInPixels = 28.35;
             const totalCm = Math.floor(595 / cmInPixels);
