@@ -617,6 +617,7 @@ class PDFGenerator {
             const textColor = customStyling.color || globalTextColor;
             const fontSize = customStyling.fontSize || Math.min(16, fieldHeight * 0.5);
             const fontFamily = customStyling.font || 'Helvetica';
+            const alignment = customStyling.alignment || 'center'; // Default to center
 
             // Set field-specific font properties
             doc.fillColor(textColor);
@@ -631,7 +632,8 @@ class PDFGenerator {
                         fontSize: fontSize,
                         font: fontFamily,
                         color: textColor,
-                        maxWidth: fieldWidth
+                        maxWidth: fieldWidth,
+                        alignment: alignment
                     });
                     break;
                 
@@ -641,7 +643,8 @@ class PDFGenerator {
                         fontSize: fontSize,
                         font: fontFamily,
                         color: textColor,
-                        maxWidth: fieldWidth
+                        maxWidth: fieldWidth,
+                        alignment: alignment
                     });
                     break;
                 
@@ -651,7 +654,8 @@ class PDFGenerator {
                             fontSize: fontSize,
                             font: fontFamily,
                             color: customStyling.color || accentColor,
-                            maxWidth: fieldWidth
+                            maxWidth: fieldWidth,
+                            alignment: alignment
                         });
                     }
                     break;
@@ -662,7 +666,8 @@ class PDFGenerator {
                             fontSize: fontSize,
                             font: fontFamily,
                             color: textColor,
-                            maxWidth: fieldWidth
+                            maxWidth: fieldWidth,
+                            alignment: alignment
                         });
                     }
                     break;
@@ -676,7 +681,8 @@ class PDFGenerator {
                         fontSize: fontSize,
                         font: fontFamily,
                         color: customStyling.color || accentColor,
-                        maxWidth: fieldWidth
+                        maxWidth: fieldWidth,
+                        alignment: alignment
                     });
                     break;
                 
@@ -688,7 +694,8 @@ class PDFGenerator {
                             fontSize: fontSize,
                             font: fontFamily,
                             color: customStyling.color || accentColor,
-                            maxWidth: fieldWidth
+                            maxWidth: fieldWidth,
+                            alignment: alignment
                         });
                     } else {
                         console.warn(`Unknown field type: ${fieldType}`);
@@ -707,11 +714,12 @@ class PDFGenerator {
         const font = options.font || 'Helvetica';
         const color = options.color || '#000000';
         const maxWidth = options.maxWidth || 200;
+        const alignment = options.alignment || 'center'; // Default to center like the editor
 
         doc.fontSize(fontSize)
            .font(font)
            .fillColor(color)
-           .text(text, x, y, { width: maxWidth });
+           .text(text, x, y, { width: maxWidth, align: alignment });
     }
 
     // Render a photo field

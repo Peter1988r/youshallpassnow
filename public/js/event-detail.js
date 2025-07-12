@@ -2393,9 +2393,9 @@ function handleDrop(event) {
     let x = event.clientX - bgRect.left;
     const y = event.clientY - bgRect.top;
     
-    // Auto-center horizontally: account for field width and center properly
-    const fieldWidth = 80; // Default field width
-    x = (bgRect.width / 2) - (fieldWidth / 2);
+    // Auto-center horizontally: center the field properly in the background image
+    // Calculate the center of the background image and adjust for field positioning
+    x = bgRect.width / 2;
     
     // Ensure drop is within background image bounds
     if (x < 0 || y < 0 || x > bgRect.width || y > bgRect.height) {
