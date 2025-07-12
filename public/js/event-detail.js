@@ -2065,7 +2065,6 @@ function setupBadgeTemplateListeners() {
     document.getElementById('saveBadgeTemplate').addEventListener('click', saveBadgeTemplate);
     
     // Preview template buttons
-    document.getElementById('previewCustomBadge').addEventListener('click', previewTemplateDesign);
     
     // Styling panel buttons
     document.getElementById('applyFieldStyling').addEventListener('click', applyFieldStyling);
@@ -3006,45 +3005,6 @@ function resetFieldPositions() {
 // Update canvas rect for positioning calculations
 function updateCanvasRect() {
     templateEditor.canvasRect = templateEditor.canvas.getBoundingClientRect();
-}
-
-// Preview template design (just the template with field positions)
-async function previewTemplateDesign() {
-    try {
-        if (!templateEditor.backgroundImage) {
-            showMessage('Please upload a template image first', 'warning');
-            return;
-        }
-        
-        if (Object.keys(templateEditor.fieldPositions).length === 0) {
-            showMessage('Please position at least one field on the template', 'warning');
-            return;
-        }
-        
-        // Create a visual preview of the template design
-        const fieldCount = Object.keys(templateEditor.fieldPositions).length;
-        const fieldList = Object.keys(templateEditor.fieldPositions).map(field => {
-            const data = getFieldData(field);
-            const pos = templateEditor.fieldPositions[field];
-            return `${data.label} (${Math.round(pos.x)},${Math.round(pos.y)})`;
-        }).join(', ');
-        
-        showMessage(`Template Preview: ${fieldCount} fields positioned - ${fieldList}`, 'success');
-        
-        // Could be extended to show an actual visual preview in a modal
-        console.log('Template Design Preview:', {
-            backgroundImage: templateEditor.backgroundImage.src,
-            fieldPositions: templateEditor.fieldPositions,
-            originalDimensions: {
-                width: templateEditor.originalWidth,
-                height: templateEditor.originalHeight
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error generating template design preview:', error);
-        showMessage('Failed to generate template design preview: ' + error.message, 'error');
-    }
 }
 
 // Preview badge with real crew data
