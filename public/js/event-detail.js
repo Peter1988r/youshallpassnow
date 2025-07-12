@@ -2428,8 +2428,6 @@ function createPositionedField(fieldType, x, y) {
     fieldElement.innerHTML = `
         <span class="field-icon">${fieldData.icon}</span>
         <span class="field-label">${fieldData.label}</span>
-        <span class="field-size">80×35</span>
-        <span class="field-coordinates" style="font-size: 10px; color: #666; display: block;">0,0</span>
         <div class="field-buttons">
             <button class="style-field" onclick="showFieldStyling(this.closest('.positioned-field'))" title="Style field">🎨</button>
             <button class="remove-field" onclick="removePositionedField('${fieldType}')" title="Remove field">×</button>
@@ -2483,12 +2481,6 @@ function createPositionedField(fieldType, x, y) {
         relativeY: relativeY
     };
 
-    // Update coordinate display
-    const coordElement = fieldElement.querySelector('.field-coordinates');
-    if (coordElement) {
-        coordElement.textContent = `${Math.round(x)},${Math.round(y)} (${(relativeX * 100).toFixed(1)}%,${(relativeY * 100).toFixed(1)}%)`;
-        coordElement.title = `Display: ${Math.round(x)},${Math.round(y)} | Relative: ${relativeX.toFixed(3)},${relativeY.toFixed(3)}`;
-    }
     
     // Apply existing styling if available
     const savedFieldData = templateEditor.fieldPositions[fieldType] || {};
@@ -2665,19 +2657,10 @@ function setupFieldDragging(fieldElement) {
             const widthChange = newWidth - startWidth;
             const heightChange = newHeight - startHeight;
             
-            const currentLeft = parseInt(fieldElement.style.left);
-            const currentTop = parseInt(fieldElement.style.top);
-            
             fieldElement.style.width = newWidth + 'px';
             fieldElement.style.height = newHeight + 'px';
-            fieldElement.style.left = (currentLeft - widthChange / 2) + 'px';
-            fieldElement.style.top = (currentTop - heightChange / 2) + 'px';
-            
-            // Update size display
-            const sizeElement = fieldElement.querySelector('.field-size');
-            if (sizeElement) {
-                sizeElement.textContent = `${newWidth}×${newHeight}`;
-            }
+            fieldElement.style.left = (startLeft - widthChange / 2) + 'px';
+            fieldElement.style.top = (startTop - heightChange / 2) + 'px';
         }
     }
     
