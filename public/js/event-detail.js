@@ -2299,6 +2299,9 @@ function displayTemplateBackground(img, imageUrl) {
     canvas.appendChild(bgImg);
     templateEditor.backgroundImage = bgImg;
     
+    // Add rulers and size indicator
+    addTemplateRulers();
+    
     // Update canvas rect for positioning
     updateCanvasRect();
 }
@@ -2377,8 +2380,11 @@ function handleDrop(event) {
     const canvasRect = templateEditor.canvas.getBoundingClientRect();
     const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
     
-    const x = event.clientX - bgRect.left;
+    let x = event.clientX - bgRect.left;
     const y = event.clientY - bgRect.top;
+    
+    // Auto-center horizontally: move x to center of background image
+    x = bgRect.width / 2;
     
     // Ensure drop is within background image bounds
     if (x < 0 || y < 0 || x > bgRect.width || y > bgRect.height) {
@@ -2509,6 +2515,76 @@ function createPositionedField(fieldType, x, y) {
     showMessage(`${fieldData.label} field positioned`, 'success');
     
     return fieldElement;
+}
+
+// Add rulers and size indicator to template canvas
+function addTemplateRulers() {
+    const container = document.querySelector('.template-canvas-container');
+    if (!container) return;
+    
+    // Remove existing rulers and indicator
+    container.querySelectorAll('.ruler-horizontal, .ruler-vertical, .canvas-size-indicator').forEach(el => el.remove());
+    
+    // Add size indicator
+    const sizeIndicator = document.createElement('div');
+    sizeIndicator.className = 'canvas-size-indicator';
+    sizeIndicator.textContent = 'A5 Portrait (420×595px) • 14.8×21.0cm';
+    container.appendChild(sizeIndicator);
+    
+    // Create rulers
+    const rulers = [
+        { class: 'ruler-horizontal ruler-top', orientation: 'horizontal' },
+        { class: 'ruler-horizontal ruler-bottom', orientation: 'horizontal' },
+        { class: 'ruler-vertical ruler-left', orientation: 'vertical' },
+        { class: 'ruler-vertical ruler-right', orientation: 'vertical' }
+    ];
+    
+    rulers.forEach(rulerConfig => {
+        const ruler = document.createElement('div');
+        ruler.className = rulerConfig.class;
+        
+        if (rulerConfig.orientation === 'horizontal') {
+            // Add horizontal marks every cm (approx 28.35 pixels per cm at 72 DPI)
+            const cmInPixels = 28.35;
+            const totalCm = Math.floor(420 / cmInPixels);
+            
+            for (let i = 0; i <= totalCm; i++) {
+                const mark = document.createElement('div');
+                mark.className = 'ruler-mark';
+                mark.style.left = (i * cmInPixels) + 'px';
+                ruler.appendChild(mark);
+                
+                if (i % 2 === 0) {  // Label every 2cm
+                    const label = document.createElement('div');
+                    label.className = 'ruler-label';
+                    label.textContent = i + 'cm';
+                    label.style.left = (i * cmInPixels) + 'px';
+                    ruler.appendChild(label);
+                }
+            }
+        } else {
+            // Add vertical marks every cm
+            const cmInPixels = 28.35;
+            const totalCm = Math.floor(595 / cmInPixels);
+            
+            for (let i = 0; i <= totalCm; i++) {
+                const mark = document.createElement('div');
+                mark.className = 'ruler-mark';
+                mark.style.top = (i * cmInPixels) + 'px';
+                ruler.appendChild(mark);
+                
+                if (i % 2 === 0) {  // Label every 2cm
+                    const label = document.createElement('div');
+                    label.className = 'ruler-label';
+                    label.textContent = i + 'cm';
+                    label.style.top = (i * cmInPixels) + 'px';
+                    ruler.appendChild(label);
+                }
+            }
+        }
+        
+        container.appendChild(ruler);
+    });
 }
 
 // Get field data
