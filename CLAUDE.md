@@ -388,3 +388,155 @@ const events = await query('SELECT * FROM events');
 - Test DNS resolution manually before debugging connection issues
 - Search entire codebase for old credentials when rotating secrets
 - Document exact error messages and solutions for future reference
+
+---
+
+## Pre-Launch Security Show Stoppers
+
+**Status: CURRENTLY USING DEMO CREDENTIALS FOR TESTING**
+**Action: Address these issues before production launch**
+
+### 🚨 **CRITICAL - LAUNCH BLOCKERS** (Fix Before Launch)
+
+#### 1. Hardcoded Default Passwords - CRITICAL
+**Current State**: Demo credentials active for testing
+**Locations**:
+- `database/schema.js:346` - Super Admin: `admin123`
+- `database/schema.js:372` - Company Admin: `company123` 
+- `database/schema.js:381` - Field Admin: `admin123`
+- `index.js:1450` - API company creation: `admin123`
+- `public/debug.html:180` - Debug interface: `admin123`
+
+**Security Strategy for Production**:
+
+```bash
+# Required Environment Variables
+JWT_SECRET=randomly-generated-64-char-string
+QR_SECRET_KEY=another-random-64-char-string
+INITIAL_SUPER_ADMIN_EMAIL=your-admin@company.com
+INITIAL_SUPER_ADMIN_PASSWORD=secure-random-password
+INITIAL_FIELD_ADMIN_PASSWORD=another-secure-password
+DEFAULT_COMPANY_ADMIN_PASSWORD=secure-random-password
+```
+
+**Password Security Implementation**:
+```javascript
+// Secure password storage (bcrypt hashing)
+// 1. Environment variables provide initial passwords
+// 2. bcrypt.hashSync() creates secure hashes
+// 3. Only hashes stored in database (users.password_hash)
+// 4. bcrypt.compareSync() verifies login attempts
+// 5. Force password change on first login (recommended)
+
+// Example implementation:
+const adminPassword = bcrypt.hashSync(process.env.INITIAL_SUPER_ADMIN_PASSWORD || 'temp-dev-only', 10);
+// Store adminPassword hash in database, not plain text
+
+// Verification on login:
+const isValid = bcrypt.compareSync(userEnteredPassword, storedHashFromDB);
+```
+
+**Force Password Change System** (Recommended):
+1. Generate random temporary passwords
+2. Mark accounts as `password_change_required: true`
+3. Force password change on first login
+4. This way no permanent passwords stored in environment variables
+
+#### 2. Weak Cryptographic Secrets - CRITICAL
+**Current Issues**:
+- `JWT_SECRET` defaults to `'your-secret-key-change-in-production'` (index.js:100)
+- `QR_SECRET_KEY` defaults to `'default-secret-key-change-in-production'` (services/pdfGenerator.js:723)
+
+**Fix Strategy**:
+```javascript
+// Add startup validation in production
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key-change-in-production') {
+    throw new Error('JWT_SECRET must be set in production');
+  }
+  if (!process.env.QR_SECRET_KEY || process.env.QR_SECRET_KEY === 'default-secret-key-change-in-production') {
+    throw new Error('QR_SECRET_KEY must be set in production');
+  }
+}
+```
+
+#### 3. Debug Endpoints Exposing Data - CRITICAL
+**Remove Before Launch**:
+- `index.js:1939` - `/debug-env` (exposes environment variables)
+- `index.js:3573` - `/debug-public` (exposes database structure)
+- `index.js:3541` - `/test-companies` (exposes company data)
+- `public/debug.html` - Entire debug interface with hardcoded credentials
+
+**Implementation Strategy**:
+```javascript
+// Environment-based debug routes
+if (process.env.NODE_ENV !== 'production') {
+  // Only load debug routes in development
+  app.get('/debug-env', ...);
+  app.get('/debug-public', ...);
+}
+```
+
+### ⚠️ **HIGH PRIORITY** (Fix Within 24 Hours of Launch)
+
+#### 4. Information Disclosure in Error Messages
+**Issue**: Detailed error messages leak internal structure
+**Locations**: Multiple locations in `index.js` (lines 213, 759, 880)
+**Fix**: Implement generic error responses for production
+
+#### 5. Production Debug Files
+**Issue**: `public/debug.html` accessible in production with hardcoded credentials
+**Fix**: Remove from production build or add authentication gate
+
+#### 6. Field Admin Authentication Security
+**Issue**: Field admin uses same weak default password, tokens in localStorage
+**Fix**: Implement stronger field admin auth, use httpOnly cookies
+
+### 🔶 **MEDIUM PRIORITY** (Fix Within 1 Week)
+
+#### 7. CORS Configuration
+**Issue**: CORS origin defaults to localhost, may not be configured for production
+**Fix**: Set explicit CORS origins for production environment
+
+#### 8. Field Token Storage
+**Issue**: Field authentication tokens stored in localStorage (client-side)
+**Fix**: Move to httpOnly cookies for better security
+
+### **Environment Variable Security Checklist**
+
+**For Vercel Production**:
+1. Set all required environment variables in Vercel Dashboard
+2. **Critical**: Check `vercel.json` doesn't override with hardcoded values
+3. Verify variables scope (Production vs Preview vs Development)
+4. Test with debug endpoint before removing debug functionality
+
+**For Local Development**:
+1. Use `.env` file (already gitignored)
+2. Only loads when `NODE_ENV !== 'production'`
+3. Keep demo credentials for testing until ready for production
+
+**Security Validation**:
+```javascript
+// Recommended startup check
+const requiredSecrets = ['JWT_SECRET', 'QR_SECRET_KEY', 'DATABASE_URL'];
+const missingSecrets = requiredSecrets.filter(secret => !process.env[secret]);
+
+if (process.env.NODE_ENV === 'production' && missingSecrets.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingSecrets.join(', ')}`);
+}
+```
+
+### **Pre-Launch Security Audit Checklist**
+
+- [ ] All hardcoded passwords removed/changed
+- [ ] Strong secrets configured in environment variables  
+- [ ] Debug endpoints removed from production
+- [ ] Error messages sanitized for production
+- [ ] `debug.html` removed from production build
+- [ ] Field authentication strengthened
+- [ ] CORS properly configured for production domain
+- [ ] Security headers verified (Helmet enabled)
+- [ ] Environment variable validation implemented
+- [ ] Password change enforcement implemented (recommended)
+
+**Current Status**: Demo credentials active for testing - **NOT PRODUCTION READY**
