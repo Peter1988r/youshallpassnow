@@ -2673,11 +2673,11 @@ function getVisualAlignmentOffset(fieldType) {
         'badge_number': { x: -8, y: -4 },   // Badge numbers same as text
         'access_zones': { x: -8, y: -4 },   // Access zones same as text
         
-        // Photo fields might need different adjustment
-        'photo': { x: 0, y: 0 },            // Photos typically don't need text baseline adjustment
+        // Photo fields need same adjustment as text fields
+        'photo': { x: -8, y: -4 },          // Photos need left and up adjustment
         
-        // QR codes might need different adjustment  
-        'qr_code': { x: 0, y: 0 },          // QR codes don't need text adjustment
+        // QR codes need same adjustment as text fields  
+        'qr_code': { x: -8, y: -4 },        // QR codes need left and up adjustment
         
         // Zone fields same as text
         'zone_': { x: -8, y: -4 }           // Zone fields same as text (will be matched by startsWith)
