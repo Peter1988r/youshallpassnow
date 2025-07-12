@@ -2200,6 +2200,16 @@ function initializeTemplateEditor() {
     document.getElementById('resetFieldPositions').addEventListener('click', resetFieldPositions);
     document.getElementById('previewBadge').addEventListener('click', previewBadgeWithData);
     
+    // Setup keyboard controls for field movement
+    setupKeyboardControls();
+    
+    // Setup canvas click to deselect fields
+    canvas.addEventListener('click', (e) => {
+        if (e.target === canvas) {
+            deselectField();
+        }
+    });
+    
     // Load zones only once
     const eventId = new URLSearchParams(window.location.search).get('id');
     if (eventId && !templateEditor.zonesLoaded) {
@@ -2208,6 +2218,85 @@ function initializeTemplateEditor() {
     }
     
     templateEditor.listenersAttached = true;
+}
+
+// Setup keyboard controls for precise field movement
+function setupKeyboardControls() {
+    // Only attach once to avoid duplicate listeners
+    if (document.keyboardControlsAttached) return;
+    
+    document.addEventListener('keydown', (e) => {
+        // Only handle arrow keys when a field is selected and we're in the template editor
+        if (!selectedField || !templateEditor.canvas) return;
+        
+        // Check if we're focused on an input/textarea to avoid interfering with normal typing
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            e.preventDefault(); // Prevent page scrolling
+            
+            // Use Shift for faster movement (10px instead of 1px)
+            const step = e.shiftKey ? 10 : 1;
+            moveSelectedFieldWithStep(e.key, step);
+        }
+        
+        // Escape to deselect
+        if (e.key === 'Escape') {
+            deselectField();
+        }
+    });
+    
+    document.keyboardControlsAttached = true;
+}
+
+// Move selected field with custom step size
+function moveSelectedFieldWithStep(direction, step) {
+    if (!selectedField || !templateEditor.backgroundImage) return;
+    
+    const currentLeft = parseInt(selectedField.style.left);
+    const currentTop = parseInt(selectedField.style.top);
+    
+    let newLeft = currentLeft;
+    let newTop = currentTop;
+    
+    switch (direction) {
+        case 'ArrowUp':
+            newTop = currentTop - step;
+            break;
+        case 'ArrowDown':
+            newTop = currentTop + step;
+            break;
+        case 'ArrowLeft':
+            newLeft = currentLeft - step;
+            break;
+        case 'ArrowRight':
+            newLeft = currentLeft + step;
+            break;
+    }
+    
+    // Check bounds relative to background image
+    const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+    const canvasRect = templateEditor.canvas.getBoundingClientRect();
+    const bgLeft = bgRect.left - canvasRect.left;
+    const bgTop = bgRect.top - canvasRect.top;
+    const bgRight = bgLeft + bgRect.width;
+    const bgBottom = bgTop + bgRect.height;
+    
+    const fieldWidth = selectedField.offsetWidth;
+    const fieldHeight = selectedField.offsetHeight;
+    
+    // Keep field within background image bounds
+    if (newLeft >= bgLeft && newLeft + fieldWidth <= bgRight) {
+        selectedField.style.left = newLeft + 'px';
+    }
+    if (newTop >= bgTop && newTop + fieldHeight <= bgBottom) {
+        selectedField.style.top = newTop + 'px';
+    }
+    
+    // Update field position data
+    updateFieldPosition(selectedField);
 }
 
 // Handle template file upload
@@ -2568,6 +2657,9 @@ function getFieldData(fieldType) {
     return fieldData[fieldType] || { icon: '❓', label: 'Unknown' };
 }
 
+// Global variable to track selected field for keyboard controls
+let selectedField = null;
+
 // Setup field dragging for repositioning and resizing
 function setupFieldDragging(fieldElement) {
     let isDragging = false;
@@ -2599,8 +2691,17 @@ function setupFieldDragging(fieldElement) {
         fieldElement.style.cursor = 'move';
     });
     
+    // Add click handler for field selection
+    fieldElement.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-field') || e.target.classList.contains('style-field')) return;
+        selectField(fieldElement);
+        e.stopPropagation();
+    });
+    
     fieldElement.addEventListener('mousedown', (e) => {
         if (e.target.classList.contains('remove-field') || e.target.classList.contains('style-field')) return;
+        
+        selectField(fieldElement);
         
         const rect = fieldElement.getBoundingClientRect();
         const edgeThreshold = 12;
@@ -2746,6 +2847,61 @@ function setupFieldDragging(fieldElement) {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
     }
+}
+
+// Field selection for keyboard controls
+function selectField(fieldElement) {
+    // Remove selection from previously selected field
+    if (selectedField) {
+        selectedField.classList.remove('selected');
+    }
+    
+    // Select the new field
+    selectedField = fieldElement;
+    fieldElement.classList.add('selected');
+    
+    console.log(`Selected field: ${fieldElement.dataset.field}`);
+}
+
+// Deselect field
+function deselectField() {
+    if (selectedField) {
+        selectedField.classList.remove('selected');
+        selectedField = null;
+    }
+}
+
+
+// Update field position data after keyboard movement
+function updateFieldPosition(fieldElement) {
+    const fieldType = fieldElement.dataset.field;
+    const bgRect = templateEditor.backgroundImage.getBoundingClientRect();
+    const canvasRect = templateEditor.canvas.getBoundingClientRect();
+    
+    const x = parseInt(fieldElement.style.left) - (bgRect.left - canvasRect.left);
+    const y = parseInt(fieldElement.style.top) - (bgRect.top - canvasRect.top);
+    
+    // Calculate relative coordinates using original image dimensions for accuracy
+    let relativeX, relativeY;
+    if (templateEditor.originalWidth && templateEditor.originalHeight) {
+        const scaleX = templateEditor.originalWidth / bgRect.width;
+        const scaleY = templateEditor.originalHeight / bgRect.height;
+        relativeX = (x * scaleX) / templateEditor.originalWidth;
+        relativeY = (y * scaleY) / templateEditor.originalHeight;
+    } else {
+        relativeX = x / bgRect.width;
+        relativeY = y / bgRect.height;
+    }
+    
+    // Update stored position
+    const existingFieldData = templateEditor.fieldPositions[fieldType] || {};
+    templateEditor.fieldPositions[fieldType] = {
+        ...existingFieldData,
+        x: x,
+        y: y,
+        relativeX: relativeX,
+        relativeY: relativeY
+    };
 }
 
 // Remove positioned field

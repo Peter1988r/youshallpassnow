@@ -2188,9 +2188,11 @@ select[multiple] option:disabled {
 }
 
 .positioned-field.selected {
-    background: rgba(76, 175, 80, 0.2);
-    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.25);
+    border: 2px solid #4CAF50;
     color: #2E7D32;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3), 0 4px 12px rgba(76, 175, 80, 0.2);
+    transform: scale(1.02);
 }
 
 .positioned-field.dragging {
