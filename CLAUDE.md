@@ -540,3 +540,310 @@ if (process.env.NODE_ENV === 'production' && missingSecrets.length > 0) {
 - [ ] Password change enforcement implemented (recommended)
 
 **Current Status**: Demo credentials active for testing - **NOT PRODUCTION READY**
+
+---
+
+## Email Notification System - Expansion Plan
+
+### Current State Analysis
+
+**Existing Email Infrastructure**:
+- User email addresses stored in database (`companies.contact_email`, `users.email`, `crew_members.email`)
+- Approval workflow with status tracking (`pending_approval`, `approved`, `rejected`)
+- **Placeholder notifications** currently implemented as console.log statements
+
+**Current Email Placeholders in Codebase**:
+- `index.js:1022` - Crew approval notification
+- `index.js:1306` - Super Admin approval notification  
+- `index.js:1335` - Super Admin rejection notification
+- No notifications currently for: crew applications, company creation, event assignments
+
+### Email Service Architecture
+
+#### Service Provider Options
+**Recommended: SendGrid**
+```javascript
+// Environment variables needed
+EMAIL_SERVICE_PROVIDER=sendgrid
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxx
+EMAIL_FROM_ADDRESS=noreply@youshallpass.me
+EMAIL_FROM_NAME=YouShallPass
+```
+
+**Alternative: Nodemailer with SMTP**
+```javascript
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=notifications@youshallpass.me
+SMTP_PASS=app_specific_password
+```
+
+#### Centralized Email Service Module
+**Location**: `/services/emailService.js`
+
+**Core Functions**:
+```javascript
+// Template-based email system
+sendNotificationEmail(template, recipient, data)
+sendBulkNotification(template, recipients, data)
+logEmailDelivery(recipient, status, error)
+retryFailedEmails()
+```
+
+### Database Schema Extensions
+
+#### Notification Preferences Table
+```sql
+CREATE TABLE notification_preferences (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    company_id INTEGER REFERENCES companies(id),
+    event_notifications BOOLEAN DEFAULT TRUE,
+    approval_notifications BOOLEAN DEFAULT TRUE,
+    security_notifications BOOLEAN DEFAULT TRUE,
+    digest_frequency TEXT DEFAULT 'immediate', -- immediate, daily, weekly
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Email Delivery Tracking
+```sql
+CREATE TABLE email_logs (
+    id SERIAL PRIMARY KEY,
+    recipient_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    template_name TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- pending, sent, failed, bounced
+    sent_at TIMESTAMP,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    event_id INTEGER REFERENCES events(id),
+    crew_id INTEGER REFERENCES crew_members(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Email Templates and Notification Events
+
+#### Template Types Required
+
+**1. Crew Member Notifications**
+- `crew-application-submitted.html` - Confirmation to crew member
+- `accreditation-approved.html` - Approval with badge download link
+- `accreditation-rejected.html` - Rejection with reason
+- `access-zones-updated.html` - Access level changes
+- `event-reminder.html` - Event start reminders
+
+**2. Company Admin Notifications**
+- `new-crew-application.html` - New application requiring review
+- `event-assigned.html` - Company assigned to new event
+- `approval-summary.html` - Daily/weekly approval digest
+- `event-updates.html` - Event details changed
+
+**3. Super Admin Notifications**
+- `company-created.html` - New company account created
+- `security-alert.html` - Suspicious field validation activity
+- `system-summary.html` - Weekly system activity report
+
+**4. System Notifications**
+- `password-reset.html` - Password reset requests
+- `account-created.html` - Welcome email for new accounts
+- `unsubscribe-confirmation.html` - Unsubscribe confirmations
+
+#### Template Structure
+```javascript
+// Example template data structure
+{
+    to: 'user@example.com',
+    template: 'accreditation-approved',
+    data: {
+        firstName: 'John',
+        lastName: 'Doe',
+        eventName: 'World Championship 2024',
+        accessLevel: 'General Access',
+        accessZones: ['Zone 1', 'Zone 3'],
+        badgeDownloadUrl: 'https://youshallpass.me/badges/download/...',
+        eventStartDate: '2024-08-15',
+        companyName: 'Demo Company'
+    }
+}
+```
+
+### Implementation Phases
+
+#### Phase 1: Core Notifications (Priority: High)
+**Timeline**: 1-2 days
+
+1. **Setup Email Service**
+   - Install SendGrid package
+   - Configure environment variables
+   - Create basic email service module
+
+2. **Replace Existing Placeholders**
+   - Convert console.log statements to actual emails
+   - Implement crew approval/rejection notifications
+   - Add basic HTML email templates
+
+3. **Integration Points**:
+   - `PUT /api/admin/approvals/:crewId/approve` (line 1281)
+   - `PUT /api/admin/approvals/:crewId/reject` (line 1319)
+   - `PUT /api/crew/:crewId/approve` (line 997)
+
+#### Phase 2: Enhanced Features (Priority: Medium)
+**Timeline**: 2-3 days
+
+1. **Template System**
+   - Create HTML email templates with Handlebars
+   - Add email template management
+   - Implement template versioning
+
+2. **New Notification Types**
+   - Crew application notifications to company admins
+   - Company creation notifications
+   - Event assignment notifications
+
+3. **User Preferences**
+   - Add notification preferences table
+   - Implement user email settings interface
+   - Add unsubscribe functionality
+
+4. **Integration Points**:
+   - `POST /api/events/:eventId/crew` (line 671) - New applications
+   - `POST /api/admin/events` (line 1625) - Event creation
+   - `POST /api/admin/events/:eventId/companies` (line 2324) - Company assignments
+
+#### Phase 3: Advanced Features (Priority: Low)
+**Timeline**: 2-3 days
+
+1. **Email Queue and Reliability**
+   - Implement Bull queue for email processing
+   - Add retry logic for failed emails
+   - Implement rate limiting compliance
+
+2. **Admin Interface**
+   - Email delivery status monitoring
+   - Failed email retry management
+   - Notification template editor
+   - Bulk notification tools
+
+3. **Analytics and Reporting**
+   - Email delivery rates tracking
+   - User engagement metrics
+   - Notification effectiveness analysis
+
+### Integration Points
+
+#### API Endpoints Requiring Email Triggers
+
+**Existing Endpoints to Update**:
+```javascript
+// Crew Management
+PUT /api/admin/approvals/:crewId/approve     // Line 1281 - Replace console.log
+PUT /api/admin/approvals/:crewId/reject      // Line 1319 - Replace console.log
+PUT /api/crew/:crewId/approve                // Line 997 - Replace console.log
+
+// New Email Triggers to Add
+POST /api/events/:eventId/crew               // Line 671 - New crew application
+POST /api/admin/companies                    // Line 1530 - Company creation
+POST /api/admin/events/:eventId/companies   // Line 2324 - Event assignment
+PUT /api/admin/events/:eventId              // Line 1980 - Event updates
+```
+
+#### File Locations for Implementation
+- **Email Service**: `/services/emailService.js` (new file)
+- **Email Templates**: `/templates/emails/` (new directory)
+- **Admin Interface**: `/public/admin/notifications.html` (new file)
+- **Settings API**: Add to `/index.js` (new endpoints)
+
+### Required Package Dependencies
+
+```json
+{
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.0",
+    "handlebars": "^4.7.8",
+    "bull": "^4.12.0",
+    "ioredis": "^5.3.0"
+  }
+}
+```
+
+### Security and Compliance
+
+#### Email Security Measures
+1. **API Key Protection**: Store in environment variables only
+2. **Rate Limiting**: Comply with SendGrid rate limits (100 emails/second)
+3. **Unsubscribe Links**: Include in all marketing-type emails
+4. **Email Validation**: Verify email addresses before sending
+5. **Audit Logging**: Log all email activity for compliance
+
+#### Privacy Compliance
+- GDPR compliance for EU users
+- Clear opt-out mechanisms
+- Data retention policies for email logs
+- User consent tracking
+
+### Testing Strategy
+
+#### Unit Tests
+```javascript
+// Email service tests
+describe('EmailService', () => {
+  test('sendApprovalNotification sends correct template');
+  test('retry logic works for failed emails');
+  test('email validation prevents invalid sends');
+});
+```
+
+#### Integration Tests
+- Test all notification triggers
+- Verify template rendering with real data
+- Test email delivery in staging environment
+- Validate unsubscribe functionality
+
+#### Staging Verification
+- Use test email addresses for validation
+- Monitor delivery rates and bounce rates
+- Test all notification scenarios
+- Verify mobile email rendering
+
+### Monitoring and Maintenance
+
+#### Key Metrics to Track
+- Email delivery success rate (target: >95%)
+- Bounce rate (target: <5%)
+- Unsubscribe rate (target: <2%)
+- Time to delivery (target: <30 seconds)
+- Failed email retry success rate
+
+#### Operational Procedures
+- Daily monitoring of email delivery logs
+- Weekly review of bounce and unsubscribe rates
+- Monthly template performance analysis
+- Quarterly security review of email service
+
+### Cost Considerations
+
+#### SendGrid Pricing (Estimated)
+- **Free Tier**: 100 emails/day (sufficient for development)
+- **Essentials**: $14.95/month for 50,000 emails (suitable for small events)
+- **Pro**: $89.95/month for 1.5M emails (suitable for large events)
+
+#### Development Time Investment
+- **Phase 1**: 16-20 hours (core functionality)
+- **Phase 2**: 24-32 hours (enhanced features)
+- **Phase 3**: 24-32 hours (advanced features)
+- **Total**: 64-84 hours (8-10.5 days) for complete system
+
+### Future Enhancements
+
+#### Advanced Features (Post-Launch)
+1. **SMS Notifications**: Integrate with Twilio for critical alerts
+2. **Push Notifications**: Mobile app integration
+3. **Email Templates Editor**: Visual template designer for admins
+4. **A/B Testing**: Test different email templates for effectiveness
+5. **Multi-language Support**: Localized email templates
+6. **Email Analytics Dashboard**: Advanced reporting and insights
+
+This email notification system will significantly enhance user experience by providing timely, relevant communications throughout the event accreditation workflow while maintaining security and compliance standards.

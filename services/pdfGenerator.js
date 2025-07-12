@@ -755,19 +755,24 @@ class PDFGenerator {
     }
 
     // Render QR code field (placeholder for now)
-    async renderQRCodeField(doc, crewMember, x, y, size = 40) {
+    async renderQRCodeField(doc, crewMember, x, y, size = 80) {
         try {
             // Generate QR code data
             const qrData = this.generateQRCodeData(crewMember);
             
-            // Generate QR code as data URL
+            // Ensure minimum size for readability
+            const qrSize = Math.max(size, 80);
+            
+            // Generate QR code as data URL with optimized settings
             const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-                width: size * 2, // Higher resolution for PDF
-                margin: 1,
+                width: Math.max(qrSize * 3, 240), // Minimum 240px width for quality
+                margin: 2, // Increased margin for better scanning
+                errorCorrectionLevel: 'M', // Medium error correction for balance
                 color: {
                     dark: '#000000',
                     light: '#FFFFFF'
-                }
+                },
+                type: 'png'
             });
             
             // Convert data URL to buffer
@@ -775,38 +780,63 @@ class PDFGenerator {
             const qrCodeBuffer = Buffer.from(base64Data, 'base64');
             
             // Add QR code image to PDF
-            doc.image(qrCodeBuffer, x, y, { width: size, height: size });
+            doc.image(qrCodeBuffer, x, y, { width: qrSize, height: qrSize });
             
         } catch (error) {
             console.error('Failed to generate QR code:', error);
             // Fallback to placeholder if QR generation fails
-            this.renderQRCodePlaceholder(doc, x, y, size);
+            this.renderQRCodePlaceholder(doc, x, y, Math.max(size, 80));
         }
     }
 
-    renderQRCodePlaceholder(doc, x, y, size = 40) {
-        const qrSize = size;
+    renderQRCodePlaceholder(doc, x, y, size = 80) {
+        const qrSize = Math.max(size, 80);
         
-        // Draw QR code placeholder
+        // Draw QR code border (white background with black border)
         doc.rect(x, y, qrSize, qrSize)
+           .fillColor('#FFFFFF')
+           .fill()
+           .rect(x, y, qrSize, qrSize)
+           .strokeColor('#000000')
+           .lineWidth(2)
+           .stroke();
+
+        // Draw corner finder patterns (like real QR codes)
+        const cornerSize = qrSize * 0.2;
+        
+        // Top-left corner
+        this.drawQRFinderPattern(doc, x + 4, y + 4, cornerSize);
+        
+        // Top-right corner  
+        this.drawQRFinderPattern(doc, x + qrSize - cornerSize - 4, y + 4, cornerSize);
+        
+        // Bottom-left corner
+        this.drawQRFinderPattern(doc, x + 4, y + qrSize - cornerSize - 4, cornerSize);
+        
+        // Add center text
+        doc.fontSize(10)
+           .font('Helvetica')
+           .fillColor('#666666')
+           .text('QR ERROR', x + qrSize/2 - 20, y + qrSize/2 - 5);
+    }
+    
+    drawQRFinderPattern(doc, x, y, size) {
+        // Outer black square
+        doc.rect(x, y, size, size)
            .fillColor('#000000')
            .fill();
-
-        // Add some pattern to simulate QR code
-        const cellSize = qrSize / 8;
-        for (let i = 0; i < 7; i++) {
-            for (let j = 0; j < 7; j++) {
-                if ((i + j) % 2 === 0) {
-                    const cellX = x + i * cellSize + cellSize * 0.1;
-                    const cellY = y + j * cellSize + cellSize * 0.1;
-                    const cellDim = cellSize * 0.8;
-                    
-                    doc.rect(cellX, cellY, cellDim, cellDim)
-                       .fillColor('#FFFFFF')
-                       .fill();
-                }
-            }
-        }
+           
+        // Inner white square
+        const innerMargin = size * 0.15;
+        doc.rect(x + innerMargin, y + innerMargin, size - 2*innerMargin, size - 2*innerMargin)
+           .fillColor('#FFFFFF')
+           .fill();
+           
+        // Center black square
+        const centerMargin = size * 0.35;
+        doc.rect(x + centerMargin, y + centerMargin, size - 2*centerMargin, size - 2*centerMargin)
+           .fillColor('#000000')
+           .fill();
     }
 
     generateQRCodeData(crewMember) {
@@ -816,36 +846,36 @@ class PDFGenerator {
         const eventEndDate = new Date(crewMember.event_end_date || Date.now());
         const expirationDate = new Date(eventEndDate.getTime() + (48 * 60 * 60 * 1000));
         
+        // Optimized payload with shorter field names
         const qrPayload = {
-            badge_number: crewMember.badge_number,
-            event_id: crewMember.event_id,
-            crew_member_id: crewMember.id,
-            first_name: crewMember.first_name,
-            last_name: crewMember.last_name,
-            company_name: crewMember.company_name || '',
-            role: crewMember.role,
-            access_zones: crewMember.access_zones || [],
-            issued_at: new Date().toISOString(),
-            expires_at: expirationDate.toISOString(),
-            version: '1.0'
+            b: crewMember.badge_number,           // badge_number
+            e: crewMember.event_id,               // event_id  
+            c: crewMember.id,                     // crew_member_id
+            n: `${crewMember.first_name} ${crewMember.last_name}`, // full name
+            co: crewMember.company_name || '',    // company_name
+            r: crewMember.role,                   // role
+            z: crewMember.access_zones || [],     // access_zones
+            i: Math.floor(Date.now() / 1000),     // issued_at (unix timestamp)
+            x: Math.floor(expirationDate.getTime() / 1000), // expires_at (unix timestamp)
+            v: '1'                                // version
         };
         
         // Create digital signature
         const dataToSign = JSON.stringify(qrPayload);
-        const signature = crypto.createHmac('sha256', secretKey).update(dataToSign).digest('hex');
+        const signature = crypto.createHmac('sha256', secretKey).update(dataToSign).digest('hex').substring(0, 16);
         
         const signedPayload = {
             ...qrPayload,
-            signature: signature
+            s: signature  // shortened signature
         };
         
         // Create encrypted token for URL
         const jsonData = JSON.stringify(signedPayload);
         const encryptedToken = Buffer.from(jsonData).toString('base64url');
         
-        // Return validation URL instead of raw JSON
-        const baseUrl = process.env.BASE_URL || 'https://www.youshallpass.me';
-        return `${baseUrl}/field-validation/validate?token=${encryptedToken}`;
+        // Return validation URL with shorter base URL
+        const baseUrl = process.env.BASE_URL || 'https://youshallpass.me';
+        return `${baseUrl}/v?t=${encryptedToken}`;
     }
 
     // Render access zones field
@@ -1027,8 +1057,8 @@ class PDFGenerator {
             this.addAccessZonesSection(doc, crewMember);
         }
 
-        // QR Code section (placeholder)
-        this.addQRCodeSection(doc, crewMember);
+        // QR Code section (real QR code)
+        await this.addQRCodeSection(doc, crewMember);
 
         // Footer branding
         doc.fontSize(8)
@@ -1108,17 +1138,11 @@ class PDFGenerator {
     }
 
     // Add QR code section (placeholder)
-    addQRCodeSection(doc, crewMember) {
-        // QR code placeholder
-        doc.rect(350, 480, 60, 60)
-           .fillColor('#FFFFFF')
-           .fill();
+    async addQRCodeSection(doc, crewMember) {
+        // Generate real QR code for A5 badges
+        await this.renderQRCodeField(doc, crewMember, 350, 480, 60);
            
-        doc.fontSize(8)
-           .font('Helvetica')
-           .fillColor('#000000')
-           .text('QR CODE', 365, 505);
-           
+        // Add badge number below QR code
         doc.fontSize(6)
            .font('Helvetica')
            .fillColor('#666666')

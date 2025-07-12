@@ -2482,8 +2482,8 @@ function handleDrop(event) {
     const y = event.clientY - bgRect.top;
     
     // Auto-center horizontally: center the field properly in the background image
-    // Account for default field width to truly center the field
-    const defaultFieldWidth = 80;
+    // Account for field width to truly center the field (QR codes are larger)
+    const defaultFieldWidth = fieldType === 'qr_code' ? 100 : 80;
     x = (bgRect.width / 2) - (defaultFieldWidth / 2);
     
     // Ensure drop is within background image bounds
