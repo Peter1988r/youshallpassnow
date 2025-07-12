@@ -145,9 +145,13 @@
             border: 2px solid var(--input-border);
             border-radius: 8px;
             font-size: 1rem;
-            min-width: 200px;
+            min-width: 180px;
             background-color: var(--input-bg);
             color: var(--text-primary);
+        }
+        
+        .filter-select[type="date"] {
+            min-width: 160px;
         }
         
         .search-input:focus, .filter-select:focus {
@@ -303,8 +307,9 @@
                 flex-direction: column;
             }
             
-            .search-input, .filter-select {
+            .search-input, .filter-select, #clearFilters {
                 min-width: 100%;
+                margin-bottom: 0.5rem;
             }
             
             .events-grid {
@@ -333,12 +338,10 @@
         <section class="events-header">
             <h1>Upcoming Events</h1>
             <div class="events-filters">
-                <input type="text" placeholder="Search events..." class="search-input">
-                <select class="filter-select">
-                    <option value="all">All Categories</option>
-                    <option value="racing">Racing</option>
-                    <option value="championship">Championship</option>
-                </select>
+                <input type="text" id="searchInput" placeholder="Search events..." class="search-input">
+                <input type="date" id="startDateFilter" class="filter-select" placeholder="Start Date From">
+                <input type="date" id="endDateFilter" class="filter-select" placeholder="Start Date To">
+                <button type="button" id="clearFilters" class="btn-secondary">Clear Filters</button>
             </div>
         </section>
 
@@ -385,6 +388,8 @@
     
     <!-- Events Page JavaScript -->
     <script>
+        let allEvents = []; // Store all events for filtering
+        
         // Load real events from API
         async function loadEvents() {
             try {
@@ -393,12 +398,46 @@
                     throw new Error('Failed to fetch events');
                 }
                 
-                const events = await response.json();
-                displayEvents(events);
+                allEvents = await response.json();
+                displayEvents(allEvents);
             } catch (error) {
                 console.error('Error loading events:', error);
                 showErrorMessage('Failed to load events. Please try again later.');
             }
+        }
+
+        // Filter events based on search and date range
+        function filterEvents() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const startDateFilter = document.getElementById('startDateFilter').value;
+            const endDateFilter = document.getElementById('endDateFilter').value;
+            
+            let filteredEvents = allEvents.filter(event => {
+                // Search filter - check name, location
+                const matchesSearch = !searchTerm || 
+                    event.name.toLowerCase().includes(searchTerm) ||
+                    event.location.toLowerCase().includes(searchTerm) ||
+                    (event.description && event.description.toLowerCase().includes(searchTerm));
+                
+                // Date range filter - filter by event start date
+                let matchesDateRange = true;
+                if (startDateFilter || endDateFilter) {
+                    const eventStartDate = new Date(event.start_date);
+                    const filterStartDate = startDateFilter ? new Date(startDateFilter) : null;
+                    const filterEndDate = endDateFilter ? new Date(endDateFilter) : null;
+                    
+                    if (filterStartDate && eventStartDate < filterStartDate) {
+                        matchesDateRange = false;
+                    }
+                    if (filterEndDate && eventStartDate > filterEndDate) {
+                        matchesDateRange = false;
+                    }
+                }
+                
+                return matchesSearch && matchesDateRange;
+            });
+            
+            displayEvents(filteredEvents);
         }
 
         // Display events in the grid
@@ -406,7 +445,7 @@
             const eventsGrid = document.getElementById('eventsGrid');
             
             if (events.length === 0) {
-                eventsGrid.innerHTML = '<div class="no-events"><p>No events available at this time.</p></div>';
+                eventsGrid.innerHTML = '<div class="no-events"><p>No events found matching your criteria.</p></div>';
                 return;
             }
 
@@ -473,6 +512,14 @@
             return `${start} - ${end}`;
         }
 
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('startDateFilter').value = '';
+            document.getElementById('endDateFilter').value = '';
+            displayEvents(allEvents);
+        }
+
         // Show error message
         function showErrorMessage(message) {
             const eventsGrid = document.getElementById('eventsGrid');
@@ -492,6 +539,12 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             loadEvents();
+            
+            // Add event listeners for filters
+            document.getElementById('searchInput').addEventListener('input', filterEvents);
+            document.getElementById('startDateFilter').addEventListener('change', filterEvents);
+            document.getElementById('endDateFilter').addEventListener('change', filterEvents);
+            document.getElementById('clearFilters').addEventListener('click', clearFilters);
         });
     </script>
     
